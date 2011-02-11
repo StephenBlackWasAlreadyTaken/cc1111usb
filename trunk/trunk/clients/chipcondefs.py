@@ -1,3 +1,74 @@
+import vstruct
+from vstruct.primitives import *
+
+class RadioConfig(vstruct.VStruct):
+    def __init__(self):
+        vstruct.VStruct.__init__(self)
+        self.sync1      = v_uint8()       #df00
+        self.sync0      = v_uint8()       #df01
+        self.pktlen     = v_uint8()       #df02
+        self.pktctrl1   = v_uint8()       #df03
+        self.pktctrl0   = v_uint8()       #df04
+        self.addr       = v_uint8()       #df05
+        self.channr     = v_uint8()       #df06
+        self.fsctrl1    = v_uint8()       #df07
+        self.fsctrl0    = v_uint8()       #df08
+        self.freq2      = v_uint8()       #df09
+        self.freq1      = v_uint8()       #df0a
+        self.freq0      = v_uint8()       #df0b
+        self.mdmcfg4    = v_uint8()       #df0c
+        self.mdmcfg3    = v_uint8()       #df0d
+        self.mdmcfg2    = v_uint8()       #df0e
+        self.mdmcfg1    = v_uint8()       #df0f
+        self.mdmcfg0    = v_uint8()       #df10
+        self.deviatn    = v_uint8()       #df11
+        self.mcsm2      = v_uint8()       #df12
+        self.mcsm1      = v_uint8()       #df13
+        self.mcsm0      = v_uint8()       #df14
+        self.foccfg     = v_uint8()       #df15
+        self.bscfg      = v_uint8()       #df16
+        self.agcctrl2   = v_uint8()       #df17
+        self.agcctrl1   = v_uint8()       #df18
+        self.agcctrl0   = v_uint8()       #df19
+        self.frend1     = v_uint8()       #df1a
+        self.fredn0     = v_uint8()       #df1b
+        self.fscal3     = v_uint8()       #df1c
+        self.fscal2     = v_uint8()       #df1d
+        self.fscal1     = v_uint8()       #df1e
+        self.fscal0     = v_uint8()       #df1f
+        self.z0         = v_uint8()       #df20,21,22
+        self.z1         = v_uint8()       #df20,21,22
+        self.z2         = v_uint8()       #df20,21,22
+        self.test2      = v_uint8()       #df23
+        self.test1      = v_uint8()       #df24
+        self.test0      = v_uint8()       #df25
+        self.z3         = v_uint8()       #df26
+        self.pa_table7  = v_uint8()       #df27
+        self.pa_table6  = v_uint8()       #df28
+        self.pa_table5  = v_uint8()       #df29
+        self.pa_table4  = v_uint8()       #df2a
+        self.pa_table3  = v_uint8()       #df2b
+        self.pa_table2  = v_uint8()       #df2c
+        self.pa_table1  = v_uint8()       #df2d
+        self.pa_table0  = v_uint8()       #df2e
+        self.iocfg2     = v_uint8()       #df2f
+        self.iocfg1     = v_uint8()       #df30
+        self.iocfg0     = v_uint8()       #df31
+        self.z4         = v_uint8()       #df32,33,34,35
+        self.z5         = v_uint8()       #df32,33,34,35
+        self.z6         = v_uint8()       #df32,33,34,35
+        self.z7         = v_uint8()       #df32,33,34,35
+        self.partnum    = v_uint8()       #df36
+        self.chipid     = v_uint8()       #df37
+        self.freqest    = v_uint8()       #df38
+        self.lqi        = v_uint8()       #df39
+        self.rssi       = v_uint8()       #df3a
+        self.marcstate  = v_uint8()       #df3b
+        self.pkstatus   = v_uint8()       #df3c
+        self.vco_vc_dac = v_uint8()       #df3d
+        
+
+
 AC                             = 64
 ACC                            = 0xE0
 ACC_0                          = 1

@@ -777,23 +777,17 @@ void handleOUTEP5(void)
                 case CMD_PEEK:
                     len =  *ptr++;
                     len += *ptr++ << 8;
-                    //ptr += ;                                               // point at the address in memory
-                    loop =  (u16)*ptr++;
-                    loop += (u16)*ptr++ << 8;
+                    loop =  (u16)*ptr++;                                    // just using loop for our immediate purpose.  sorry.
+                    loop += (u16)*ptr++ << 8;                               // hack, but it works
                     dptr = (xdata u8*) loop;
-                    debughex16((u16)len);
-                    debughex16((u16)dptr);
                     txxdata(app, cmd, len, dptr);
                     //REALLYFASTBLINK();
 
                     break;
                 case CMD_POKE:
                     loop =  *ptr++;
-                    loop += *ptr++ << 8;
-                    dptr = (xdata u8*) loop;
-                    debughex16((u16)len);
-                    debughex16((u16)ptr);
-                    debughex16((u16)dptr);
+                    loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
+                    dptr = (xdata u8*) loop;                                // hack, but it works
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr++ = *ptr++;
