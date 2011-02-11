@@ -1,4 +1,5 @@
 import sys, usb, threading, time, struct
+from chipcondefs import *
 
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
@@ -319,13 +320,13 @@ class USBDongle:
                 good+=1
         return (good,bad)
 
-     def peek(self, addr, bytecount=1):
-          r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
-         return r
+    def peek(self, addr, bytecount=1):
+        r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
+        return r
 
-     def poke(self, addr, data):
-         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<H", addr) + data)
-         return r
+    def poke(self, addr, data):
+        r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<H", addr) + data)
+        return r
  
 
 
