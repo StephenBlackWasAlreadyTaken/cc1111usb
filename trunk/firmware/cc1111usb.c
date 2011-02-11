@@ -94,6 +94,63 @@ void txdata(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for applic
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
     }
 }
+void txxdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
+    // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
+    // wish me luck!  this could horribly crash and burn.
+{
+    u16 loop;
+    u8 firsttime=1;
+    USBINDEX=5;
+     
+    while (len>0)
+     {
+        // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
+        // don't know why since this bit is cleared in the USB ISR.
+        loop = TXDATA_MAX_WAIT;
+        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                   // has last msg been recvd?
+        {
+            //REALLYFASTBLINK();
+            //REALLYFASTBLINK();
+            REALLYFASTBLINK();
+            //blink(100,50);
+            lastCode[1] = 1;
+            //loop--;
+        }
+        //blink(100,50);
+            
+        if (firsttime==1){                                             // first time through only please
+            //blink(100,50);
+
+            firsttime=0;
+            USBF5 = 0x40;
+            USBF5 = app;
+            USBF5 = cmd;
+            USBF5 = len & 0xff;
+            USBF5 = len >> 8;
+            if (len>EP5IN_MAX_PACKET_SIZE-5)
+                loop=EP5IN_MAX_PACKET_SIZE-5;
+            else
+                loop=len;
+
+        } else {
+            if (len>EP5IN_MAX_PACKET_SIZE)
+                loop=EP5IN_MAX_PACKET_SIZE;
+            else
+                loop=len;
+        }
+
+
+        len -= loop;
+
+
+        for (;loop>0;loop--)
+        {
+            USBF5 = *dataptr++;
+        }
+        USBCSIL |= USBCSIL_INPKT_RDY;
+        ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
+    }
+}
 
 
 
@@ -673,7 +730,8 @@ void handleOUTEP5(void)
     // client is sending commands... or looking for information...  status... whatever...
     u16 loop, len;
     u8 cmd, app;
-    xdata u8* ptr;
+    xdata u8* ptr; 
+    xdata u8* dptr;
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
@@ -707,8 +765,9 @@ void handleOUTEP5(void)
         app = ep5iobuf.OUTbuf[4];
         cmd = ep5iobuf.OUTbuf[5];
         ptr = &ep5iobuf.OUTbuf[6];
-        len = (u16)*ptr;
-        ptr += 2;                                               // point at the address in memory
+        len =  (u16)*ptr++;
+        len += (u16)*ptr++ << 8;
+        //ptr += 2;                                               // point at the address in memory
         
         if (app == 0xff)                                        // system application
         {
@@ -716,20 +775,30 @@ void handleOUTEP5(void)
             switch (cmd)
             {
                 case CMD_PEEK:
-                    len = (u16)*ptr;
-                    ptr += 2;                                               // point at the address in memory
-                    ptr = (xdata u8*)*ptr;
-                    txdata(app, cmd, len, ptr);
+                    len =  *ptr++;
+                    len += *ptr++ << 8;
+                    //ptr += ;                                               // point at the address in memory
+                    loop =  (u16)*ptr++;
+                    loop += (u16)*ptr++ << 8;
+                    dptr = (xdata u8*) loop;
+                    debughex16((u16)len);
+                    debughex16((u16)dptr);
+                    txxdata(app, cmd, len, dptr);
                     //REALLYFASTBLINK();
 
                     break;
                 case CMD_POKE:
-                    ptr = (xdata u8*)*ptr;
-                    for (loop=len;loop>2;loop--)
+                    loop =  *ptr++;
+                    loop += *ptr++ << 8;
+                    dptr = (xdata u8*) loop;
+                    debughex16((u16)len);
+                    debughex16((u16)ptr);
+                    debughex16((u16)dptr);
+                    for (loop=2;loop<len;loop++)
                     {
-                        USBF5 = *ptr++;
+                        *dptr++ = *ptr++;
                     }
-                    txdata(app, cmd, 0, "");
+                    txdata(app, cmd, 1, "");
 
                     break;
                 case CMD_PING:
