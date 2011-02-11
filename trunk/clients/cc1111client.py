@@ -52,6 +52,7 @@ class USBDongle:
         self.cleanup()
         self._debug = debug
         self._threadGo = False
+        self.radiocfg = RadioConfig()
         self.resetup()
         self.recv_thread = threading.Thread(target=self.run)
         self.recv_thread.setDaemon(True)
@@ -322,15 +323,162 @@ class USBDongle:
 
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
-        return r
+        return r[4:]
 
     def poke(self, addr, data):
-        r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<H", addr) + data)
-        return r
- 
+        r = self.send(APP_SYSTEM, SYS_CMD_POKE, struct.pack("<H", addr) + data)
+        return r[4:]
+    
+    ######## RADIO METHODS #########
+    def getRadioConfig(self):
+        bytedef = self.peek(0xdf00, 0x3e)
+        self.radiocfg.vsParse(bytedef)
+        return bytedef
+
+    def setRadioConfig(self):
+        bytedef = self.radiocfg.vsEmit()
+        self.poke(0xdf00, bytedef)
+        return bytedef
+
+    def setFreq(self, freq=902000000, mhz=24):
+        freqmult = (0x10000 / 1000000.0) / mhz
+        num = int(freq * freqmult)
+        self.radiocfg.freq2 = num >> 16
+        self.radiocfg.freq1 = (num>>8) & 0xff
+        self.radiocfg.freq0 = num & 0xff
+        self.poke(FREQ2, struct.pack("3B", self.radiocfg.freq2, self.radiocfg.freq1, self.radiocfg.freq0))
+
+    def getFreq(self, mhz=24):
+        freqmult = (0x10000 / 1000000.0) / mhz
+        bytedef = self.peek(FREQ2, 3)
+        if (len(bytedef) != 3):
+            raise(Exception("unknown data returned for getFreq(): %s"%repr(bytedef)))
+        (       self.radiocfg.freq2, 
+                self.radiocfg.freq1, 
+                self.radiocfg.freq0) = struct.unpack("3B", bytedef)
+        num = (self.radiocfg.freq2<<16) + (self.radiocfg.freq1<<8) + self.radiocfg.freq0
+        print >>sys.stderr,( hex(num))
+        freq = num / freqmult
+        return freq
+
+    def getMARCSTATE(self):
+        return self.peek(MARCSTATE)
+
+    def setModeTX(self):
+        self.poke(X_RFST, "%c"%RFST_STX)
+
+    def setModeRX(self):
+        self.poke(X_RFST, "%c"%RFST_SRX)
+
+    def setModeIDLE(self):
+        self.poke(X_RFST, "%c"%RFST_SIDLE)
+
+    def setModeTXRXON(self):
+        self.poke(X_RFST, "%c"%RFST_SFSTXON)
+
+    def setModeSCAL(self):
+        self.poke(X_RFST, "%c"%RFST_SCAL)
 
 
     ######## APPLICATION METHODS ########
+    def setup900MHz(self):
+        self.getRadioConfig()
+        self.pktctrl1   = 0xe5
+        self.pktctrl0   = 0x04
+        self.fsctrl1    = 0x12
+        self.fsctrl0    = 0x00
+        self.mdmcfg4    = 0x3e
+        self.mcsm0      = 0x00
+        self.agcctrl2  |= AGCCTRL2_MAX_DVGA_GAIN
+        self.fscal3     = 0xEA
+        self.fscal2     = 0x2A
+        self.fscal1     = 0x00
+        self.fscal0     = 0x1F
+        self.test2      = 0x88
+        self.test1      = 0x31
+        self.test0      = 0x09
+        self.setRadioConfig()
+
+    def setup900MHzHopTrans(self):
+        self.getRadioConfig()
+        self.iocfg0     = 0x06
+        self.sync1      = 0x0b
+        self.sync0      = 0x0b
+        self.pktlen     = 0xff
+        self.pktctrl1   = 0x04
+        self.pktctrl0   = 0x05
+        self.addr       = 0x00
+        self.channr     = 0x00
+        self.fsctrl1    = 0x06
+        self.fsctrl0    = 0x00
+        self.mdmcfg4    = 0xee
+        self.mdmcfg3    = 0x55
+        self.mdmcfg2    = 0x73
+        self.mdmcfg1    = 0x23
+        self.mdmcfg0    = 0x55
+        self.mcsm2      = 0x07
+        self.mcsm1      = 0x30
+        self.mcsm0      = 0x18
+        self.deviatn    = 0x16
+        self.foccfg     = 0x17
+        self.bscfg      = 0x6c
+        self.agcctrl2   = 0x03
+        self.agcctrl1   = 0x40
+        self.agcctrl0   = 0x91
+        self.frend1     = 0x56
+        self.frend0     = 0x10
+        self.fscal3     = 0xEA
+        self.fscal2     = 0x2A
+        self.fscal1     = 0x00
+        self.fscal0     = 0x1F
+        self.test2      = 0x88
+        self.test1      = 0x31
+        self.test0      = 0x09
+        self.setRadioConfig()
+
+    def setup900MHzContTrans(self):
+        self.getRadioConfig()
+        self.iocfg0     = 0x06
+        self.sync1      = 0x0b
+        self.sync0      = 0x0b
+        self.pktlen     = 0xff
+        self.pktctrl1   = 0x04
+        self.pktctrl0   = 0x05
+        self.addr       = 0x00
+        self.channr     = 0x00
+        self.fsctrl1    = 0x06
+        self.fsctrl0    = 0x00
+        self.freq2      = 0x26
+        self.freq1      = 0x55
+        self.freq0      = 0x55
+        self.mdmcfg4    = 0xee
+        self.mdmcfg3    = 0x55
+        self.mdmcfg2    = 0x73
+        self.mdmcfg1    = 0x23
+        self.mdmcfg0    = 0x55
+        self.mcsm2      = 0x07
+        self.mcsm1      = 0x30
+        self.mcsm0      = 0x18
+        self.deviatn    = 0x16
+        self.foccfg     = 0x17
+        self.bscfg      = 0x6c
+        self.agcctrl2   = 0x03
+        self.agcctrl1   = 0x40
+        self.agcctrl0   = 0x91
+        self.frend1     = 0x56
+        self.frend0     = 0x10
+        self.fscal3     = 0xEA
+        self.fscal2     = 0x2A
+        self.fscal1     = 0x00
+        self.fscal0     = 0x1F
+        self.test2      = 0x88
+        self.test1      = 0x31
+        self.test0      = 0x09
+        self.pa_table0  = 0xc0
+        self.setRadioConfig()
+
+
+
 
 
 if __name__ == "__main__":
