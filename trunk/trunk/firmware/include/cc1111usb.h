@@ -73,6 +73,7 @@ void usbIntHandler(void) interrupt P2INT_VECTOR;
 void p0IntHandler(void) interrupt P0INT_VECTOR;
 void clock_init(void);
 void txdata(u8 app, u8 cmd, u16 len, u8* dataptr);
+void txxdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr);
 void debugEP0Req(u8 *pReq);
 void debug(code u8* text);
 void debughex(xdata u8 num);
