@@ -402,6 +402,36 @@ class USBDongle:
     def setModeSCAL(self):
         self.poke(X_RFST, "%c"%RFST_SCAL)
 
+    def getMdmModulation(self):
+        mdmcfg2 = self.peek(MDMCFG2)
+        mod = (mdmcfg2 >> 4) & 0x7
+        mchstr = (mdmcfg2 >> 3) & 1
+        return (mod,mchstr,MODULCATIONS[(mod<<1) | mchstr])
+
+    def setMdmModulation(self, mod, mchstr=0):
+        if (mod|mchstr) & 0x87:
+            raise(Exception("Please use constants MOD_FORMAT_* to specify modulation and "))
+        mdmcfg2 = ord(self.peek(MDMCFG2))
+        mdmcfg2 |= (mod) | (mchstr)
+        self.poke(MDMCFG2, struct.pack("<I",mdmcfg2)[0])
+
+    def getMdmChanSpc(self, mhz=24):
+        chanspc_m = ord(self.peek(MDMCFG0))
+        chanspc_e = ord(self.peek(MDMCFG1)) & 3
+        spacing = (mhz/0.262144) * (2**chanspc_e) * (256+chanspc_m)
+        return (chanspc_m, chanspc_e, spacing)
+
+    def setMdmChanSpc(self, chanspc_m, chanspc_e, spacing=None, mhz=24):
+        if (spacing != None):
+            tmp = spacing * 0x262144/mhz
+            raise(Exception("setting channel spacing only supported using chanspc mantissa and exponent for now"))
+        self.poke(MDMCFG0, "%c"%chanspc_m)
+        mdmcfg1 = ord(self.peek(MDMCFG1)) & 0xfc  # clear out old exponent value
+        mdmcfg1 |= chanspc_e
+        self.poke(MDMCFG1, "%c"%mdmcfg1)
+
+            
+        
 
     ######## APPLICATION METHODS ########
     def setup900MHz(self):
