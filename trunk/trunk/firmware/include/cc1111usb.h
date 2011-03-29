@@ -32,6 +32,25 @@
 
 #define LED     LED_GREEN
 
+#define DMA_CFG_SIZE 8
+
+#define RF_STATE_RX 1
+#define RF_STATE_TX 2
+#define RF_STATE_IDLE 3
+
+#define RF_SUCCESS 0
+
+#define RF_DMA_VLEN_1   1<<5
+#define RF_DMA_VLEN_3   4<<5
+#define RF_DMA_LEN      0xfe
+#define RF_DMA_WORDSIZE 1<<7
+#define RF_DMA_TMODE    0
+#define RF_DMA_TRIGGER  19
+#define RF_DMA_DST_INC  1<<6
+#define RF_DMA_SRC_INC  1<<4
+#define RF_DMA_IRQMASK  0
+#define RF_DMA_M8       0
+#define RF_DMA_PRIO     1
 
 
 typedef struct {
@@ -59,6 +78,7 @@ typedef struct {
 } USB_EP_IO_BUF;
 
 // extern global variables
+#define BUFSIZE 256
 extern USB_STATE usb_data;
 extern xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
 extern xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
@@ -66,11 +86,21 @@ extern xdata USB_EP_IO_BUF     ep0iobuf;
 extern xdata USB_EP_IO_BUF     ep5iobuf;
 extern xdata u8 appstatus;
 extern xdata u8 lastCode[2];
+extern u8 rfif;
+extern xdata u8 rfDMACfg[DMA_CFG_SIZE];
+extern xdata u8 rfrxbuf[BUFSIZE];
+extern xdata u8 RfRxRcv;
+extern xdata u8 RfRxRcvd;
+extern xdata u8 rftxbuf[BUFSIZE];
+extern xdata u8 RfTxSend;
+extern xdata u8 RfTxSent;
 
 
 // provided by cc1111usb.c
 void usbIntHandler(void) interrupt P2INT_VECTOR;
 void p0IntHandler(void) interrupt P0INT_VECTOR;
+void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR; // interrupt handler should transmit or receive the next byte
+void rfIntHandler(void) interrupt RF_VECTOR; // interrupt handler should trigger on rf events
 void clock_init(void);
 void txdata(u8 app, u8 cmd, u16 len, u8* dataptr);
 void debugEP0Req(u8 *pReq);
@@ -79,8 +109,15 @@ void debughex(xdata u8 num);
 void debughex16(xdata u16 num);
 void debughex32(xdata u32 num);
 int setup_send_ep0(u8* payload, u16 length);
+int setup_sendx_ep0(xdata u8* payload, u16 length);
 u16 usb_recv_ep0OUT();
 //int setup_recv_ep0();
+void RxOn(void);
+void RxIdle(void);
+u8 transmit(xdata u8*);
+void stopRX(void);
+void startRX(void);
+
 //int setup_send_ep(USB_EP_IO_BUF* iobuf, u8 *payload, u16 length);
 u16 usb_recv_epOUT(u8 epnum, USB_EP_IO_BUF* epiobuf);
 // export as these should be called from main() during initialization.
@@ -94,6 +131,7 @@ void usbProcessEvents(void);
 void appHandleEP0OUTdone(void);
 int appHandleEP0(USB_Setup_Header* pReq);
 int appHandleEP5();
+void init_RF(void);
 void initBoard(void);
 
 
@@ -413,6 +451,7 @@ void blink_binary_baby_lsb(u16 num, char bits)
 #define     CMD_PING        0x82
 #define     CMD_STATUS      0x83
 #define     CMD_POKE_REG    0x84
+#define     CMD_RFMODE      0x85
 
 #define     DEBUG_CMD_STRING    0xf0
 #define     DEBUG_CMD_HEX       0xf1

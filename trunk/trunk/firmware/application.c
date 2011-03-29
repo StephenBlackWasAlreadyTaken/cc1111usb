@@ -35,6 +35,13 @@ void appMainInit(void)
  * please do not block if you want USB to work.                                                 */
 void appMainLoop(void)
 {
+    if (rfif){
+        lastCode[0] = 0xd;
+        IEN2 &= ~IEN2_RFIE;
+        debughex(rfif);
+        rfif = 0;
+        IEN2 |= IEN2_RFIE;
+    }
     //debug("testing");
 }
 
@@ -86,8 +93,18 @@ int appHandleEP0(USB_Setup_Header* pReq)
 {
     if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
     {
+        switch (pReq->bRequest)
         {
-            setup_send_ep0(&lastCode[0], 2);
+            case 0:
+                setup_send_ep0(&lastCode[0], 2);
+                break;
+            case 1:
+                setup_sendx_ep0((xdata u8*)USBADDR, 40);
+                break;
+            case 2:
+                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
+                break;
+
         }
     } else                                                  // OUT from host
     {
@@ -156,6 +173,7 @@ void main (void)
 {
     initBoard();
     initUSB();
+    init_RF();
     //sleepMillis(500);
     appMainInit();
     while (1)
