@@ -78,7 +78,7 @@ typedef struct {
 } USB_EP_IO_BUF;
 
 // extern global variables
-#define BUFSIZE 256
+#define BUFSIZE 255
 extern USB_STATE usb_data;
 extern xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
 extern xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
