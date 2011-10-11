@@ -18,8 +18,8 @@
 #define RF_DMA_WORDSIZE 1<<7
 #define RF_DMA_TMODE    0
 #define RF_DMA_TRIGGER  19
-#define RF_DMA_DST_INC  1<<6
-#define RF_DMA_SRC_INC  1<<4
+#define RF_DMA_DST_INC  1<<4
+#define RF_DMA_SRC_INC  1<<6
 #define RF_DMA_IRQMASK  0
 #define RF_DMA_M8       0
 #define RF_DMA_PRIO     1
