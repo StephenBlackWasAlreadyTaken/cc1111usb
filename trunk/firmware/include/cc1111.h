@@ -1,3 +1,6 @@
+#ifndef CC1111_H
+#define CC1111_H
+
 #include "cc1110-ext.h"
 #include <cc1110.h>
 
@@ -853,3 +856,4 @@ int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 
 
 */
+#endif
