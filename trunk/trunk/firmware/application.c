@@ -1,3 +1,6 @@
+#include "cc1111rf.h"
+#include "global.h"
+
 #include "cc1111usb.h"
 
 
