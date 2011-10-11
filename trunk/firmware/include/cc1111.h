@@ -150,6 +150,8 @@ SFRX(USBF5,     0xDE2A);        // Endpoint 5 FIFO
 #define USBCSOH_ISO             0x40    //rw
 #define USBCSOH_AUTOCLEAR       0x80    //rw
 
+__xdata __at (0xde20) volatile u8 USBFIFO[12];
+
 #define P0IFG_USB_RESUME        0x80    //rw0
 
    SBIT(USBIF,    0xE8, 0); // USB Interrupt Flag
