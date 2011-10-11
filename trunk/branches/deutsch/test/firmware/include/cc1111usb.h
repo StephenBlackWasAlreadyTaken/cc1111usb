@@ -119,16 +119,6 @@ int appHandleEP5();
 #define TXDATA_MAX_WAIT         100
 
 
-
-
-//xdata USB_Device_Desc           descDevice;
-//xdata USB_Config_Desc           descConfig;
-//xdata USB_Interface_Desc        descIntf;
-//xdata USB_Endpoint_Desc         descEpIN;
-//xdata USB_Endpoint_Desc         descEpOUT;
-//xdata USB_LANGID_Desc           descLANGID;
-//xdata USB_String_Desc           descStr1;
-
 // setup Config Descriptor  (see cc1111.h for defaults and fields to change)
 // all numbers are lsb.  modify this for your own use.
 void USBDESCBEGIN(void){
