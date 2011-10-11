@@ -8,7 +8,6 @@
 	#include "cc1111usb.h"
 #endif
 
-
 /*************************************************************************************************
  * welcome to the cc1111usb application.
  * this lib was designed to be the basis for your usb-app on the cc1111 radio.  hack fun!
@@ -264,6 +263,8 @@ void main (void)
 
 #ifdef VIRTUAL_COM
     vcom_up();
+
+    /* Make sure interrupts are enabled */
     EA = 1;
 #endif
 

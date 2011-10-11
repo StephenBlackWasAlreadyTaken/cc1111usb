@@ -31,8 +31,7 @@ void init_RF(void)
     DMA0CFGH = ((u16)rfDMACfg)>>8;
     DMA0CFGL = ((u16)rfDMACfg)&0xff;
 
-    // FIXME: insert default rf config here
-    //
+    // default rf config
     IOCFG2      = 0;
     IOCFG1      = 0;
     IOCFG0      = 6;
