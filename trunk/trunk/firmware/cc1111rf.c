@@ -2,15 +2,18 @@
 #include "global.h"
 
 
-xdata u8 rfrxbuf[BUFSIZE];
-xdata u8 RfRxRcv;
-xdata u8 RfRxRcvd;
-xdata u8 rftxbuf[BUFSIZE];
-xdata u8 RfTxSend;
-xdata u8 RfTxSent;
+/* Rx buffers */
+volatile xdata u8 rfRxCurrentBuffer;
+volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
+volatile xdata u8 rfRxCounter[BUFFER_AMOUNT];
+volatile xdata u8 rfRxProcessed[BUFFER_AMOUNT];
+/* Tx buffers */
+volatile xdata u8 rftxbuf[BUFFER_SIZE];
+volatile xdata u8 rfTxCounter = 0;
+
 u8 rfif;
-xdata u8 rf_status;
-xdata u8 rfDMACfg[DMA_CFG_SIZE];
+volatile xdata u8 rf_status;
+static xdata u8 rfDMACfg[DMA_CFG_SIZE];
 xdata u8 lastCode[2];
 
 /*************************************************************************************************
@@ -20,15 +23,13 @@ void init_RF(void)
 {
     xdata u8* loop;
     rf_status = RF_STATE_IDLE;
-    
-    for (loop=rfrxbuf+sizeof(rfrxbuf)-1;loop+1==rfrxbuf; loop--)
+
+    loop=(xdata u8*)rfrxbuf+(BUFFER_AMOUNT*BUFFER_SIZE)-1;
+    for (;loop+1==&rfrxbuf[0][0]; loop--)
         *loop = 0;
 
-    rfif = 0;
     DMA0CFGH = ((u16)rfDMACfg)>>8;
     DMA0CFGL = ((u16)rfDMACfg)&0xff;
-
-    stopRX();
 
     // FIXME: insert default rf config here
     //
@@ -73,9 +74,41 @@ void init_RF(void)
     PA_TABLE0   = 0x83;
 
 
-    RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
-    RFIM = 0xff;
-    IEN2 |= IEN2_RFIE;
+	/* Setup interrupts */
+	RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
+	RFIM = 0xff;
+	RFIF = 0;
+	rfif = 0;
+	IEN2 |= IEN2_RFIE;
+
+	/* Put radio into idle state */
+	setRFIdle();
+
+}
+
+void setRFIdle(void)
+{
+	RFST = RFST_SIDLE;
+	while(!(MARCSTATE & MARC_STATE_IDLE));
+	rf_status = RF_STATE_IDLE;
+}
+
+int waitRSSI()
+{
+	u16 u16WaitTime = 0;
+	while(u16WaitTime < RSSI_TIMEOUT_US)
+	{
+		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+		{
+			return 1;
+		}
+		else
+		{
+			sleepMicros(50);
+			u16WaitTime += 50;
+		}
+	}
+	return 0;
 }
 
 
@@ -99,7 +132,7 @@ u8 transmit(xdata u8* buf)
     *pDMACfg++  = RF_DMA_VLEN_1;
     *pDMACfg++  = RF_DMA_LEN;
     *pDMACfg++  = RF_DMA_WORDSIZE | RF_DMA_TMODE | RF_DMA_TRIGGER;
-    *pDMACfg++  = RF_DMA_SRC_INC | RF_DMA_IRQMASK | RF_DMA_M8 | RF_DMA_PRIO;
+    *pDMACfg++  = RF_DMA_SRC_INC | RF_DMA_IRQMASK | RF_DMA_M8 | RF_DMA_PRIO_LOW;
 
     DMAARM |= 1;                    // using DMA 0
 
@@ -120,8 +153,8 @@ u8 transmit(xdata u8* buf)
 
 void startRX(void)
 {
-    xdata u8* pDMACfg = rftxbuf;
-    xdata u8* loop;
+    volatile xdata u8* pDMACfg = rftxbuf;
+    volatile xdata u8* loop;
 
     // configure DMA for transmission
     *pDMACfg++  = (u16)X_RFD>>8;
@@ -131,11 +164,12 @@ void startRX(void)
     *pDMACfg++  = RF_DMA_VLEN_3;
     *pDMACfg++  = RF_DMA_LEN;
     *pDMACfg++  = RF_DMA_WORDSIZE | RF_DMA_TMODE | RF_DMA_TRIGGER;
-    *pDMACfg++  = RF_DMA_DST_INC | RF_DMA_IRQMASK | RF_DMA_M8 | RF_DMA_PRIO;
+    *pDMACfg++  = RF_DMA_DST_INC | RF_DMA_IRQMASK | RF_DMA_M8 | RF_DMA_PRIO_LOW;
 
     DMAARM |= 0x81;                 // ABORT anything on DMA 0
 
-    for (loop=rfrxbuf+sizeof(rfrxbuf)-1;loop+1==rfrxbuf; loop--)
+    loop=(volatile xdata u8*)rfrxbuf+(BUFFER_AMOUNT*BUFFER_SIZE)-1;
+    for (;loop+1==&rfrxbuf[0][0]; loop--)
         *loop = 0;
 
     DMAARM |= 0x01;                 // enable DMA 0
@@ -151,8 +185,7 @@ void startRX(void)
 void stopRX(void)
 {
     RFIM &= ~RFIF_IRQ_DONE;
-    RFST = RFST_SIDLE;
-    while (MARCSTATE != MARC_STATE_IDLE);
+    setRFIdle();
 
     DMAARM |= 0x81;                 // ABORT anything on DMA 0
 
@@ -184,16 +217,21 @@ void RxIdle(void)
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {   // currently dormant, in favor of DMA transfers
     lastCode[1] = 17;
-    if (MARCSTATE == MARC_STATE_RX){
-        rfrxbuf[RfRxRcv++] = RFD;
-        if (RfRxRcv >= BUFSIZE)
-            RfRxRcv = 0;
-    } else if (MARCSTATE == MARC_STATE_TX) {
-        while (RfTxSend != RfTxSent){
-            RFD = rftxbuf[RfTxSend++];
-            if (RfTxSend >= BUFSIZE)
-                RfTxSend = BUFSIZE;
+
+    if(MARCSTATE == MARC_STATE_RX)
+    {
+    	rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
+    	if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
+        {
+        	rfRxCounter[rfRxCurrentBuffer] = 0;
         }
+    }
+    else if(MARCSTATE == MARC_STATE_TX)
+    {
+    	if(rftxbuf[rfTxCounter] != 0)
+    	{
+			RFD = rftxbuf[rfTxCounter++];
+    	}
     }
     RFTXRXIF = 0;
 }

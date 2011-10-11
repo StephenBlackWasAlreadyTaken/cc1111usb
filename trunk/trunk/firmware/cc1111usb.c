@@ -23,7 +23,6 @@
  * */
 
 
-
 USB_STATE usb_data;
 xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
 xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
@@ -220,18 +219,6 @@ void usb_init(void)
 
     USB_INT_ENABLE();     // Enables USB Interrupts to call an ISR .... not sure I'm ready for that yet.
 
-}
-
-void clock_init(void){
-    //  SET UP CPU SPEED!  USE 26MHz
-    // Set the system clock source to HS XOSC and max CPU speed,
-    // ref. [clk]=>[clk_xosc.c]
-    SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_S) );
-    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
-    while (CLKCON & CLKCON_OSC);
-    SLEEP |= SLEEP_OSC_PD;
-    while (!IS_XOSC_STABLE());
 }
 
 
@@ -871,11 +858,13 @@ void usbProcessEvents(void)
     //    usb_data.event &= ~USBD_IIF_INEP5IF;
     //}
 
-    if (usb_data.event & ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF))
+    if (usb_data.event & ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|
+                USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF))
     {
         lastCode[1] = 9;
         blink_binary_baby_lsb(usb_data.event, 16);
-        usb_data.event &= ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF);
+        usb_data.event &= ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|
+                USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF);
     }
 
     if (usb_data.usbstatus == USB_STATE_BLINK)

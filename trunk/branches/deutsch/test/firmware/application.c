@@ -45,7 +45,7 @@ void appMainLoop(void)
 {
 	xdata u8 processbuffer;
 
-    if(rfif)
+    if (rfif)
     {
         lastCode[0] = 0xd;
         IEN2 &= ~IEN2_RFIE;

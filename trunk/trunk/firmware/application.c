@@ -1,7 +1,12 @@
 #include "cc1111rf.h"
 #include "global.h"
 
-#include "cc1111usb.h"
+#ifdef VIRTUAL_COM
+	#include "cc1111.h"
+	#include "cc1111_vcom.h"
+#else
+	#include "cc1111usb.h"
+#endif
 
 
 /*************************************************************************************************
@@ -32,20 +37,62 @@
 
 void appMainInit(void)
 {
+#ifdef RECEIVE_TEST
+    startRX();
+#endif
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
  * please do not block if you want USB to work.                                                 */
 void appMainLoop(void)
 {
-    if (rfif){
+	xdata u8 processbuffer;
+
+    if (rfif)
+    {
         lastCode[0] = 0xd;
         IEN2 &= ~IEN2_RFIE;
-        debughex(rfif);
+
+        if(rfif & RFIF_IRQ_DONE)
+        {
+        	processbuffer = !rfRxCurrentBuffer;
+			if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
+			{
+#ifdef VIRTUAL_COM
+				vcom_putstr(rfrxbuf[processbuffer]);
+				vcom_flush();
+#else
+				debug((code u8*)rfrxbuf[processbuffer]);
+#endif
+				/* Set receive buffer to processed so it can be used again */
+				rfRxProcessed[processbuffer] = RX_PROCESSED;
+			}
+        }
+
         rfif = 0;
         IEN2 |= IEN2_RFIE;
     }
-    //debug("testing");
+#ifdef TRANSMIT_TEST
+	xdata u8 testPacket[13];
+
+	 /* Send a packet */
+	testPacket[0] = 0x0B;
+	testPacket[1] = 0x48;
+	testPacket[2] = 0x41;
+	testPacket[3] = 0x4C;
+	testPacket[4] = 0x4C;
+	testPacket[5] = 0x4F;
+	testPacket[6] = 0x43;
+	testPacket[7] = 0x43;
+	testPacket[8] = 0x31;
+	testPacket[9] = 0x31;
+	testPacket[10] = 0x31;
+	testPacket[11] = 0x31;
+	testPacket[12] = 0x00;
+
+    transmit(testPacket);
+    blink(200,200);
+#endif
 }
 
 
@@ -61,7 +108,8 @@ void appMainLoop(void)
  *      while (ep5iobuf.flags & EP_INBUF_WRITTEN) and then transmits.  this flag is then set, and 
  *      cleared by an interrupt when the data has been received on the host side.                */
 int appHandleEP5()
-{
+{   // not used by VCOM
+#ifndef VIRTUAL_COM
     u8 app, cmd;
     u16 len;
     xdata u8 *buf;
@@ -81,19 +129,25 @@ int appHandleEP5()
             break;
     }
     ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
+#endif
     return 0;
-
 }
 
 /* in case your application cares when an OUT packet has been completely received.               */
 void appHandleEP0OUTdone(void)
 {
+#ifndef VIRTUAL_COM
+//code here
+#endif
 }
 
 /* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
  * messages.  currently it implements a simple ping-like application.                           */
 int appHandleEP0(USB_Setup_Header* pReq)
 {
+#ifdef VIRTUAL_COM
+	pReq = 0;
+#else
     if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
     {
         switch (pReq->bRequest)
@@ -117,6 +171,7 @@ int appHandleEP0(USB_Setup_Header* pReq)
             ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
         }
     }
+#endif
     return 0;
 }
 
@@ -130,8 +185,9 @@ int appHandleEP0(USB_Setup_Header* pReq)
 /* initialize the IO subsystems for the appropriate dongles */
 static void io_init(void)
 {
-#ifdef IMMEDONGLE
-    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking to it's own Cypress USB chip
+#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
+    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
+    // to it's own Cypress USB chip
     P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
     P0DIR |= BIT4 | BIT6;       // SSEL and LED as output
     P0 &= ~(BIT4 | BIT2);       // Drive SSEL and MISO low
@@ -143,24 +199,48 @@ static void io_init(void)
     P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
     P1 &= ~BIT0;                // not ready to receive
     
-#elif defined DONSDONGLES
+#else       // CC1111
+    // this may need to be changed for DONSDONGLES... have DON check
+    P0DIR |= 0x0F;
+    P0_0 = 0;
+    P0_1 = 0;
+    P0_2 = 0;
+    P0_3 = 0;
+
+#ifdef DONSDONGLES
     // CC1111 USB Dongle
     // turn on LED and BUTTON
     P1DIR |= 3;
-    // Turn off LED
-    LED = 0;
     // Activate BUTTON - Do we need this?
     //CC1111EM_BUTTON = 1;
 
 #else
     // CC1111 USB (ala Chronos watch dongle), we just need LED
     P1DIR |= 3;
+
+#endif      // CC1111
+
+#endif      // conditional config
+
+
+#ifndef VIRTUAL_COM
+    // Turn off LED
     LED = 0;
 #endif
-
-
 }
 
+
+void clock_init(void){
+    //  SET UP CPU SPEED!  USE 26MHz for CC1110 and 24MHz for CC1111
+    // Set the system clock source to HS XOSC and max CPU speed,
+    // ref. [clk]=>[clk_xosc.c]
+    SLEEP &= ~SLEEP_OSC_PD;
+    while( !(SLEEP & SLEEP_XOSC_S) );
+    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
+    while (CLKCON & CLKCON_OSC);
+    SLEEP |= SLEEP_OSC_PD;
+    while (!IS_XOSC_STABLE());
+}
 
 /*************************************************************************************************
  * main startup code                                                                             *
@@ -175,16 +255,25 @@ void initBoard(void)
 void main (void)
 {
     initBoard();
+#ifdef VIRTUAL_COM
+    vcom_init();
+#else
     initUSB();
+#endif
     init_RF();
-    //sleepMillis(500);
+
+#ifdef VIRTUAL_COM
+    vcom_up();
+    EA = 1;
+#endif
+
     appMainInit();
+
     while (1)
     {  
-#ifndef BUSYBLINK
-        do_blink();
-#endif
+#ifndef VIRTUAL_COM
         usbProcessEvents();
+#endif
         appMainLoop();
     }
 
