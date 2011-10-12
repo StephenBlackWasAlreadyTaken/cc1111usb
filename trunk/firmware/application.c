@@ -226,6 +226,8 @@ static void io_init(void)
     // Turn off LED
     LED = 0;
 #endif
+
+    blink(1000,1000);
 }
 
 
