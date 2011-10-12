@@ -36,6 +36,8 @@
 
 void appMainInit(void)
 {
+    /* this indicates that we've enabled stuff to a good point */
+    blink(100,10);
 #ifdef RECEIVE_TEST
     startRX();
 #endif
@@ -226,8 +228,6 @@ static void io_init(void)
     // Turn off LED
     LED = 0;
 #endif
-
-    blink(1000,1000);
 }
 
 
