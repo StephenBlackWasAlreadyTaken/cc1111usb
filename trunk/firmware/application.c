@@ -48,6 +48,27 @@ void appMainInit(void)
 void appMainLoop(void)
 {
 	xdata u8 processbuffer;
+#ifdef TRANSMIT_TEST
+	xdata u8 testPacket[13];
+
+	 /* Send a packet */
+	testPacket[0] = 0x0B;
+	testPacket[1] = 0x48;
+	testPacket[2] = 0x41;
+	testPacket[3] = 0x4C;
+	testPacket[4] = 0x4C;
+	testPacket[5] = 0x4F;
+	testPacket[6] = 0x43;
+	testPacket[7] = 0x43;
+	testPacket[8] = 0x31;
+	testPacket[9] = 0x31;
+	testPacket[10] = 0x31;
+	testPacket[11] = 0x31;
+	testPacket[12] = 0x00;
+
+    transmit(testPacket, 13);
+    blink(200,200);
+#endif
 
     if (rfif)
     {
@@ -73,27 +94,6 @@ void appMainLoop(void)
         rfif = 0;
         IEN2 |= IEN2_RFIE;
     }
-#ifdef TRANSMIT_TEST
-	xdata u8 testPacket[13];
-
-	 /* Send a packet */
-	testPacket[0] = 0x0B;
-	testPacket[1] = 0x48;
-	testPacket[2] = 0x41;
-	testPacket[3] = 0x4C;
-	testPacket[4] = 0x4C;
-	testPacket[5] = 0x4F;
-	testPacket[6] = 0x43;
-	testPacket[7] = 0x43;
-	testPacket[8] = 0x31;
-	testPacket[9] = 0x31;
-	testPacket[10] = 0x31;
-	testPacket[11] = 0x31;
-	testPacket[12] = 0x00;
-
-    transmit(testPacket, 13);
-    blink(200,200);
-#endif
 }
 
 

@@ -22,9 +22,11 @@ void sleepMicros(int us)
 /// #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
 void blink(u16 on_cycles, u16 off_cycles)                    // haxed for memory usage... made define instead
 {
-    LED=1;
+    LED= !LED;
+    //LED=1;
     sleepMillis(on_cycles);
-    LED=0;
+    LED= !LED;
+    //LED=0;
     sleepMillis(off_cycles);
 }
 
