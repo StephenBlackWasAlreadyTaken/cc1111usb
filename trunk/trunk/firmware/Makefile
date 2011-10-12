@@ -31,11 +31,11 @@ immeapplication.hex: application.c $(libsusb)
 	packihx <application.ihx >bins/application.hex
 
 testxmitapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRADIO_EU
 	packihx <application.ihx >bins/testxmit.hex
 
 testrecvapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST -DRADIO_EU
 	packihx <application.ihx >bins/testrecv.hex
 
 
