@@ -15,8 +15,8 @@ void sleepMicros(int us)
     while (--us > 0) ;
 }
 
-#define BUSYBLINK 
-#ifdef BUSYBLINK
+#define BLOCKINGBLINK
+#ifdef BLOCKINGBLINK
 
 #define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
 /// #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
