@@ -9,27 +9,27 @@
 
 #define RSSI_TIMEOUT_US 1500
 
-
 #define RF_STATE_RX 1
 #define RF_STATE_TX 2
 #define RF_STATE_IDLE 3
 
 #define RF_SUCCESS 0
 
-#define RF_DMA_VLEN_1   1<<5
-#define RF_DMA_VLEN_3   4<<5
-#define RF_DMA_LEN      0xfe
-#define RF_DMA_WORDSIZE 1<<7
-#define RF_DMA_TMODE    0
-#define RF_DMA_TRIGGER  19
-#define RF_DMA_DST_INC  1<<4
-#define RF_DMA_SRC_INC  1<<6
-#define RF_DMA_IRQMASK  0
-#define RF_DMA_M8       	0<<2
-#define RF_DMA_M7			1<<2
-#define RF_DMA_PRIO_LOW		0<<1
-#define RF_DMA_PRIO_NOR    	1<<1
-#define RF_DMA_PRIO_HIGH 	1<<2
+#define RF_DMA_VLEN_1       1<<5
+#define RF_DMA_VLEN_3       4<<5
+#define RF_DMA_LEN          0xfe
+#define RF_DMA_WORDSIZE     1<<7            // FIXME: gerarg's and my code differ here
+#define RF_DMA_TMODE        0
+#define RF_DMA_TRIGGER      19
+#define RF_DMA_DST_INC      1<<4
+#define RF_DMA_SRC_INC      1<<6
+#define RF_DMA_IRQMASK_DI	0<<3
+#define RF_DMA_IRQMASK_EN  	1<<3
+#define RF_DMA_M8           0<<2
+#define RF_DMA_M7		    1<<2
+#define RF_DMA_PRIO_LOW	    0<<1
+#define RF_DMA_PRIO_NOR     1<<1
+#define RF_DMA_PRIO_HIGH    1<<2
 
 #define FIRST_BUFFER 0
 #define SECOND_BUFFER 1
@@ -55,7 +55,7 @@ void setRFIdle(void);
 int waitRSSI(void);
 void RxOn(void);
 void RxIdle(void);
-u8 transmit(xdata u8*);
+u8 transmit(xdata u8* buf, u16 len);
 void stopRX(void);
 void startRX(void);
 void init_RF(void);

@@ -1,6 +1,7 @@
 #include "cc1111rf.h"
 #include "global.h"
 
+#include <string.h>
 
 /* Rx buffers */
 volatile xdata u8 rfRxCurrentBuffer;
@@ -28,9 +29,71 @@ void init_RF(void)
     for (;loop+1==&rfrxbuf[0][0]; loop--)
         *loop = 0;
 
-    DMA0CFGH = ((u16)rfDMACfg)>>8;
-    DMA0CFGL = ((u16)rfDMACfg)&0xff;
+//  FIXME: DMA remains
+//    DMA0CFGH = ((u16)rfDMACfg)>>8;
+//    DMA0CFGL = ((u16)rfDMACfg)&0xff;
+//
+    /* clear buffers */
+    memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
 
+#ifdef RADIO_EU
+    //memset(rftxbuf,0,BUFFER_SIZE);   // unnecessary?
+
+    IOCFG2      = 0x00;
+	IOCFG1      = 0x00;
+	IOCFG0      = 0x00;
+	SYNC1       = 0x0c;
+	SYNC0       = 0x4e;
+	PKTLEN      = 0xff;
+#ifdef RECEIVE_TEST
+	PKTCTRL1    = 0x40;
+#else
+	PKTCTRL1	= 0x00;
+#endif
+	PKTCTRL0    = 0x01;
+	ADDR        = 0x00;
+	CHANNR      = 0x00;
+	FSCTRL1     = 0x06;
+	FSCTRL0     = 0x00;
+	FREQ2       = 0x24;
+	FREQ1       = 0x3a;
+	FREQ0       = 0xf1;
+	MDMCFG4     = 0xca;
+	MDMCFG3     = 0xa3;
+	MDMCFG2     = 0x03;
+	MDMCFG1     = 0x23;
+	MDMCFG0     = 0x11;
+	DEVIATN     = 0x36;
+	MCSM2       = 0x07;
+#ifdef RECEIVE_TEST
+	MCSM1       = 0x3C;
+#else
+	MCSM1       = 0x30;
+#endif
+	MCSM0       = 0x18;
+	FOCCFG      = 0x17;
+	BSCFG       = 0x6c;
+	AGCCTRL2    = 0x03;
+	AGCCTRL1    = 0x40;
+	AGCCTRL0    = 0x91;
+	FREND1      = 0x56;
+	FREND0      = 0x10;
+	FSCAL3      = 0xe9;
+	FSCAL2      = 0x2a;
+	FSCAL1      = 0x00;
+	FSCAL0      = 0x1f;
+#ifdef RECEIVE_TEST
+	TEST2       = 0x81;
+	TEST1       = 0x35;
+#else
+	TEST2       = 0x88;
+	TEST1       = 0x31;
+#endif
+	TEST0       = 0x09;
+	PA_TABLE0   = 0x50;
+
+
+#else
     // default rf config
     IOCFG2      = 0;
     IOCFG1      = 0;
@@ -71,7 +134,7 @@ void init_RF(void)
     TEST1       = 0x31;
     TEST0       = 0x09;
     PA_TABLE0   = 0x83;
-
+#endif
 
 	/* Setup interrupts */
 	RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
@@ -111,18 +174,44 @@ int waitRSSI()
 }
 
 
-u8 transmit(xdata u8* buf)
+u8 transmit(xdata u8* buf, u16 len)
 {
-    xdata u8* pDMACfg;
-    u8 retval = RF_SUCCESS;
+	/* Put radio into idle state */
+	setRFIdle();
 
-    stopRX();                       // just to make sure
+	/* Clean tx buffer */
+	memset(rftxbuf,0,BUFFER_SIZE);
 
-    if (buf==0)
-        buf = rftxbuf;
+	/* Copy userdata to tx buffer */
+	memcpy(rftxbuf,buf, len);
 
-    pDMACfg = buf;
+	/* Reset byte pointer */
+	rfTxCounter = 0;
 
+    //pDMACfg = buf;                //wtf was i thinking here?!?
+
+	/* Strobe to rx */
+	RFST = RFST_SRX;
+	while(!(MARCSTATE & MARC_STATE_RX));
+	/* wait for good RSSI (clear channel) */
+	while(1)
+	{
+		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+		{
+			break;
+		}
+	}
+
+	/* Put radio into tx state */
+	RFST = RFST_STX;
+	while(!(MARCSTATE & MARC_STATE_TX));
+
+	return 0;
+}
+
+
+/*  FIXME: this is old code... however, it was failing may prove useful later.  this didn't work, but it was
+ *  failing during the "SRC/DST_DMA_INC" bug.  may try again.
     // configure DMA for transmission
     *pDMACfg++  = (u16)buf>>8;
     *pDMACfg++  = (u16)buf&0xff;
@@ -148,10 +237,36 @@ u8 transmit(xdata u8* buf)
 
     return (retval);
 }
-
+*/
 
 void startRX(void)
 {
+    memset(rfrxbuf,0,BUFFER_SIZE);
+
+    /* Set both byte counters to zero */
+	rfRxCounter[FIRST_BUFFER] = 0;
+	rfRxCounter[SECOND_BUFFER] = 0;
+
+	/*
+	 * Process flags, set first flag to false in order to let the ISR write bytes into the buffer,
+	 *  The second buffer should flag processed on initialize because it is empty.
+	 */
+	rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
+	rfRxProcessed[SECOND_BUFFER] = RX_PROCESSED;
+
+	/* Set first buffer as current buffer */
+	rfRxCurrentBuffer = 0;
+
+	S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
+	RFIF &= ~RFIF_IRQ_DONE;
+
+	RFST = RFST_SRX;
+
+	RFIM |= RFIF_IRQ_DONE;
+}
+/*  FIXME: this is old code... however, it was failing may prove useful later.  this didn't work, but it was
+ *  failing during the "SRC/DST_DMA_INC" bug.  may try again.
+ * {
     volatile xdata u8* pDMACfg = rftxbuf;
     volatile xdata u8* loop;
 
@@ -179,7 +294,7 @@ void startRX(void)
     RFST = RFST_SRX;
 
     RFIM |= RFIF_IRQ_DONE;
-}
+}*/
 
 void stopRX(void)
 {
@@ -241,6 +356,69 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     lastCode[1] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
+
+    if(RFIF & RFIF_IRQ_RXOVF)
+    {
+    	//P1_3 = 1;
+    	P0_3 = 1;
+
+    	/* RX overflow, only way to get out of this is to restart receiver */
+    	stopRX();
+    	startRX();
+    }
+    else if(RFIF & RFIF_IRQ_TXUNF)
+    {
+    	//P1_3 = 1;
+
+    	/* Put radio into idle state */
+		setRFIdle();
+    }
+    else if(RFIF & RFIF_IRQ_DONE)
+    {
+    	if(rf_status == RF_STATE_TX)
+    	{
+    		//P1_3 = 1;
+    		DMAARM |= 0x81;
+    	}
+    	else
+    	{
+			if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
+			{
+				/* Clear processed buffer */
+				memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
+				/* Switch current buffer */
+				rfRxCurrentBuffer ^= 1;
+				rfRxCounter[rfRxCurrentBuffer] = 0;
+				/* Set both buffers to unprocessed */
+				rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
+				rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
+			}
+			else
+			{
+				/* Main app didn't process previous packet yet, drop this one */
+				memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
+				rfRxCounter[rfRxCurrentBuffer] = 0;
+			}
+    	}
+    }
+#ifdef RECEIVE_TEST
+    else if(RFIF & RFIF_IRQ_SFD)
+    {
+    	P0_3 ? (P0_3 = 0) : (P0_3 = 1);
+    }
+    else if(RFIF & RFIF_IRQ_CCA)
+	{
+		P0_2 ? (P0_2 = 0) : (P0_2 = 1);
+	}
+    else if(RFIF & RFIF_IRQ_PQT)
+    {
+    	P0_1 ? (P0_1 = 0) : (P0_1 = 1);
+    }
+    else if(RFIF & RFIF_IRQ_CS)
+    {
+    	P0_0 ? (P0_0 = 0) : (P0_0 = 1);
+    }
+#endif
     //RFIF &= ~RFIF_IRQ_DONE;
     RFIF = 0;
 }

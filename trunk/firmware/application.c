@@ -89,7 +89,7 @@ void appMainLoop(void)
 	testPacket[11] = 0x31;
 	testPacket[12] = 0x00;
 
-    transmit(testPacket);
+    transmit(testPacket, 13);
     blink(200,200);
 #endif
 }
