@@ -24,11 +24,11 @@
 #define RF_DMA_TRIGGER      19
 #define RF_DMA_DST_INC      1<<4
 #define RF_DMA_SRC_INC      1<<6
-#define RF_DMA_IRQMASK_DI	0<<3
-#define RF_DMA_IRQMASK_EN  	1<<3
+#define RF_DMA_IRQMASK_DI   0<<3
+#define RF_DMA_IRQMASK_EN   1<<3
 #define RF_DMA_M8           0<<2
-#define RF_DMA_M7		    1<<2
-#define RF_DMA_PRIO_LOW	    0<<1
+#define RF_DMA_M7           1<<2
+#define RF_DMA_PRIO_LOW     0<<1
 #define RF_DMA_PRIO_NOR     1<<1
 #define RF_DMA_PRIO_HIGH    1<<2
 

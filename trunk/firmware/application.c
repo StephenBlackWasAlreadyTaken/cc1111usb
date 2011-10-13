@@ -2,10 +2,10 @@
 #include "global.h"
 
 #ifdef VIRTUAL_COM
-	#include "cc1111.h"
-	#include "cc1111_vcom.h"
+    #include "cc1111.h"
+    #include "cc1111_vcom.h"
 #else
-	#include "cc1111usb.h"
+    #include "cc1111usb.h"
 #endif
 
 /*************************************************************************************************
@@ -38,36 +38,36 @@ void appMainInit(void)
 {
     /* this indicates that we've enabled stuff to a good point */
 #ifdef RECEIVE_TEST
-	PKTCTRL1    = 0x40;
-	MCSM1       = 0x3C;
-	TEST2       = 0x81;
-	TEST1       = 0x35;
+    PKTCTRL1    = 0x40;
+    MCSM1       = 0x3C;
+    TEST2       = 0x81;
+    TEST1       = 0x35;
     startRX();
 #endif
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
- * please do not block if you want USB to work.                                                 */
+ * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
-	xdata u8 processbuffer;
+    xdata u8 processbuffer;
 #ifdef TRANSMIT_TEST
-	xdata u8 testPacket[13];
+    xdata u8 testPacket[13];
 
-	 /* Send a packet */
-	testPacket[0] = 0x0B;
-	testPacket[1] = 0x48;
-	testPacket[2] = 0x41;
-	testPacket[3] = 0x4C;
-	testPacket[4] = 0x4C;
-	testPacket[5] = 0x4F;
-	testPacket[6] = 0x43;
-	testPacket[7] = 0x43;
-	testPacket[8] = 0x31;
-	testPacket[9] = 0x31;
-	testPacket[10] = 0x31;
-	testPacket[11] = 0x31;
-	testPacket[12] = 0x00;
+     /* Send a packet */
+    testPacket[0] = 0x0B;
+    testPacket[1] = 0x48;
+    testPacket[2] = 0x41;
+    testPacket[3] = 0x4C;
+    testPacket[4] = 0x4C;
+    testPacket[5] = 0x4F;
+    testPacket[6] = 0x43;
+    testPacket[7] = 0x43;
+    testPacket[8] = 0x31;
+    testPacket[9] = 0x31;
+    testPacket[10] = 0x31;
+    testPacket[11] = 0x31;
+    testPacket[12] = 0x00;
 
     transmit(testPacket, 13);
     blink(200,200);
@@ -80,18 +80,18 @@ void appMainLoop(void)
 
         if(rfif & RFIF_IRQ_DONE)
         {
-        	processbuffer = !rfRxCurrentBuffer;
-			if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
-			{
+            processbuffer = !rfRxCurrentBuffer;
+            if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
+            {
 #ifdef VIRTUAL_COM
-				vcom_putstr(rfrxbuf[processbuffer]);
-				vcom_flush();
+                vcom_putstr(rfrxbuf[processbuffer]);
+                vcom_flush();
 #else
-				debug((code u8*)rfrxbuf[processbuffer]);
+                debug((code u8*)rfrxbuf[processbuffer]);
 #endif
-				/* Set receive buffer to processed so it can be used again */
-				rfRxProcessed[processbuffer] = RX_PROCESSED;
-			}
+                /* Set receive buffer to processed so it can be used again */
+                rfRxProcessed[processbuffer] = RX_PROCESSED;
+            }
         }
 
         rfif = 0;
@@ -150,7 +150,7 @@ void appHandleEP0OUTdone(void)
 int appHandleEP0(USB_Setup_Header* pReq)
 {
 #ifdef VIRTUAL_COM
-	pReq = 0;
+    pReq = 0;
 #else
     if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
     {
