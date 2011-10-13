@@ -1,8 +1,6 @@
 #include "cc1111rf.h"
 #include "global.h"
 
-#include <string.h>
-
 /* Rx buffers */
 volatile xdata u8 rfRxCurrentBuffer;
 volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
@@ -22,6 +20,9 @@ xdata u8 lastCode[2];
  ************************************************************************************************/
 void init_RF(void)
 {
+	xdata u8 *startPtr = 0;
+	xdata u8 *endPtr = 0;	
+
     rf_status = RF_STATE_IDLE;
 
     //  FIXME: DMA remains
@@ -29,7 +30,13 @@ void init_RF(void)
     //    DMA0CFGL = ((u16)rfDMACfg)&0xff;
 
     /* clear buffers */
-    memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
+	startPtr = &rfrxbuf[0][0];
+	endPtr = startPtr + (BUFFER_AMOUNT * BUFFER_SIZE);
+	while(startPtr < endPtr)
+	{
+		*startPtr++ = 0;
+	}	 
+
 
 #ifdef RADIO_EU
     //memset(rftxbuf,0,BUFFER_SIZE);   // unnecessary?
@@ -158,14 +165,26 @@ int waitRSSI()
 
 u8 transmit(xdata u8* buf, u16 len)
 {
+	xdata u8 *startPtr = 0;
+	xdata u8 *endPtr = 0;
+	u16 i = 0;	
+
 	/* Put radio into idle state */
 	setRFIdle();
 
 	/* Clean tx buffer */
-	memset(rftxbuf,0,BUFFER_SIZE);
+	startPtr = rftxbuf;
+	endPtr = startPtr + BUFFER_SIZE;
+	while(startPtr < endPtr)
+	{
+		*startPtr++ = 0;
+	}
 
 	/* Copy userdata to tx buffer */
-	memcpy(rftxbuf, buf, len);
+	for(i = 0; i < len; i++)
+	{
+		rftxbuf[i] = buf[i];
+	}
 
 	/* Reset byte pointer */
 	rfTxCounter = 0;
@@ -223,7 +242,16 @@ u8 transmit(xdata u8* buf, u16 len)
 
 void startRX(void)
 {
-    memset(rfrxbuf,0,BUFFER_SIZE);
+	xdata u8 *startPtr = 0;
+	xdata u8 *endPtr = 0;
+	
+    /* clear buffers */
+	startPtr = &rfrxbuf[0][0];
+	endPtr = startPtr + (BUFFER_AMOUNT * BUFFER_SIZE);
+	while(startPtr < endPtr)
+	{
+		*startPtr++ = 0;
+	}	 
 
     /* Set both byte counters to zero */
 	rfRxCounter[FIRST_BUFFER] = 0;
@@ -335,6 +363,8 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 
 void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
+	xdata u8 *startPtr = 0;
+	xdata u8 *endPtr = 0;
     lastCode[1] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
@@ -369,7 +399,12 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 			{
                 REALLYFASTBLINK();
 				/* Clear processed buffer */
-				memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
+				startPtr = &rfrxbuf[!rfRxCurrentBuffer][0];
+				endPtr = startPtr + BUFFER_SIZE;
+				while(startPtr < endPtr)
+				{
+					*startPtr++ = 0;
+				}	 
 				/* Switch current buffer */
 				rfRxCurrentBuffer ^= 1;
 				rfRxCounter[rfRxCurrentBuffer] = 0;
@@ -380,7 +415,12 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 			else
 			{
 				/* Main app didn't process previous packet yet, drop this one */
-				memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
+				startPtr = &rfrxbuf[rfRxCurrentBuffer][0];
+				endPtr = startPtr + BUFFER_SIZE;
+				while(startPtr < endPtr)
+				{
+					*startPtr++ = 0;
+				}	 
 				rfRxCounter[rfRxCurrentBuffer] = 0;
 			}
     	}
