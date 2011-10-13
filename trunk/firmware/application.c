@@ -201,13 +201,6 @@ static void io_init(void)
     P1 &= ~BIT0;                // not ready to receive
     
 #else       // CC1111
-    // this may need to be changed for DONSDONGLES... have DON check
-    P0DIR |= 0x0F;
-    P0_0 = 0;
-    P0_1 = 0;
-    P0_2 = 0;
-    P0_3 = 0;
-
 #ifdef DONSDONGLES
     // CC1111 USB Dongle
     // turn on LED and BUTTON

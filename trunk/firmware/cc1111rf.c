@@ -25,14 +25,14 @@ void init_RF(void)
     xdata u8* loop;
     rf_status = RF_STATE_IDLE;
 
-    loop=(xdata u8*)rfrxbuf+(BUFFER_AMOUNT*BUFFER_SIZE)-1;
-    for (;loop+1==&rfrxbuf[0][0]; loop--)
-        *loop = 0;
+    //loop=(xdata u8*)rfrxbuf+(BUFFER_AMOUNT*BUFFER_SIZE)-1;
+    //for (;loop+1==&rfrxbuf[0][0]; loop--)
+    //    *loop = 0;
 
-//  FIXME: DMA remains
-//    DMA0CFGH = ((u16)rfDMACfg)>>8;
-//    DMA0CFGL = ((u16)rfDMACfg)&0xff;
-//
+    //  FIXME: DMA remains
+    //    DMA0CFGH = ((u16)rfDMACfg)>>8;
+    //    DMA0CFGL = ((u16)rfDMACfg)&0xff;
+
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
 
@@ -183,7 +183,7 @@ u8 transmit(xdata u8* buf, u16 len)
 	memset(rftxbuf,0,BUFFER_SIZE);
 
 	/* Copy userdata to tx buffer */
-	memcpy(rftxbuf,buf, len);
+	memcpy(rftxbuf, buf, len);
 
 	/* Reset byte pointer */
 	rfTxCounter = 0;
@@ -401,25 +401,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 			}
     	}
     }
-#ifdef RECEIVE_TEST
-    else if(RFIF & RFIF_IRQ_SFD)
-    {
-    	P0_3 ? (P0_3 = 0) : (P0_3 = 1);
-    }
-    else if(RFIF & RFIF_IRQ_CCA)
-	{
-		P0_2 ? (P0_2 = 0) : (P0_2 = 1);
-	}
-    else if(RFIF & RFIF_IRQ_PQT)
-    {
-    	P0_1 ? (P0_1 = 0) : (P0_1 = 1);
-    }
-    else if(RFIF & RFIF_IRQ_CS)
-    {
-    	P0_0 ? (P0_0 = 0) : (P0_0 = 1);
-    }
-#endif
-    //RFIF &= ~RFIF_IRQ_DONE;
+
     RFIF = 0;
 }
 
