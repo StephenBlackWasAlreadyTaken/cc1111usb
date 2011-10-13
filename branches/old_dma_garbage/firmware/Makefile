@@ -4,10 +4,9 @@ CFLAGSold=--no-pack-iram $(CF)
 LFLAGS=--xram-loc 0xF000 
 
 apps = cc1111rf.rel global.rel
-libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usb.rel
+libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel
 libsusb  = $(apps) cc1111usb.rel
-#srcs = $(libsvcom,libsusb,.rel=.c) 
-#srcs = $(libsusb,.rel=.c) $(libsvcom,.rel=.c) 
+#srcs = $(libs,.rel=.c) 
 
 
 all: chronosapplication.hex
@@ -64,6 +63,7 @@ installtestxmitfw: testxmitapplication.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/testxmit.hex
 	goodfet.cc info
+
 
 verify: chronosapplication.hex
 	goodfet.cc verify bins/application.hex

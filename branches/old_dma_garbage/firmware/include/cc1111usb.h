@@ -13,6 +13,27 @@
 //   #define     EP5_MAX_PACKET_SIZE     255
         // note: descriptor needs to be adjusted to match EP5_MAX_PACKET_SIZE
 
+#ifdef IMMEDONGLE
+    #define LED_RED   P2_3
+    #define LED_GREEN P2_4
+    #define SLEEPTIMER  1200
+    
+#elif defined DONSDONGLES
+    // CC1111 USB Dongle
+    #define LED_RED   P1_1
+    #define LED_GREEN P1_1
+    #define SLEEPTIMER  1200
+    #define CC1111EM_BUTTON P1_2
+
+#else
+    // CC1111 USB (ala Chronos watch dongle), we just need LED
+    #define LED_RED   P1_0
+    #define LED_GREEN P1_0
+    #define SLEEPTIMER  1200
+#endif
+
+#define LED     LED_GREEN
+
 typedef struct {
     u16 index;
     u16 endindex;
@@ -58,11 +79,8 @@ void debughex32(xdata u32 num);
 int setup_send_ep0(u8* payload, u16 length);
 int setup_sendx_ep0(xdata u8* payload, u16 length);
 u16 usb_recv_ep0OUT();
-//int setup_recv_ep0();
 
-//int setup_send_ep(USB_EP_IO_BUF* iobuf, u8 *payload, u16 length);
 u16 usb_recv_epOUT(u8 epnum, USB_EP_IO_BUF* epiobuf);
-// export as these should be called from main() during initialization.
 void initUSB(void);
 void waitForUSBsetup();
 // export as this *must* be in main loop.
@@ -73,6 +91,8 @@ void usbProcessEvents(void);
 void appHandleEP0OUTdone(void);
 int appHandleEP0(USB_Setup_Header* pReq);
 int appHandleEP5();
+
+
 
 #define EP_INBUF_WRITTEN        1
 #define EP_OUTBUF_WRITTEN       2
@@ -217,13 +237,13 @@ __endasm;
 
 #define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
 /// #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
-/*void blink(u16 on_cycles, u16 off_cycles)                    // haxed for memory usage... made define instead
+void blink(u16 on_cycles, u16 off_cycles)                    // haxed for memory usage... made define instead
 {
     LED=1;
     sleepMillis(on_cycles);
     LED=0;
     sleepMillis(off_cycles);
-}*/
+}
 
 void blink_binary_baby_lsb(u16 num, char bits)
 {
