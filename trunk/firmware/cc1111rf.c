@@ -22,12 +22,7 @@ xdata u8 lastCode[2];
  ************************************************************************************************/
 void init_RF(void)
 {
-    xdata u8* loop;
     rf_status = RF_STATE_IDLE;
-
-    //loop=(xdata u8*)rfrxbuf+(BUFFER_AMOUNT*BUFFER_SIZE)-1;
-    //for (;loop+1==&rfrxbuf[0][0]; loop--)
-    //    *loop = 0;
 
     //  FIXME: DMA remains
     //    DMA0CFGH = ((u16)rfDMACfg)>>8;
@@ -45,11 +40,7 @@ void init_RF(void)
 	SYNC1       = 0x0c;
 	SYNC0       = 0x4e;
 	PKTLEN      = 0xff;
-#ifdef RECEIVE_TEST
-	PKTCTRL1    = 0x40;
-#else
 	PKTCTRL1	= 0x00;
-#endif
 	PKTCTRL0    = 0x01;
 	ADDR        = 0x00;
 	CHANNR      = 0x00;
@@ -65,11 +56,7 @@ void init_RF(void)
 	MDMCFG0     = 0x11;
 	DEVIATN     = 0x36;
 	MCSM2       = 0x07;
-#ifdef RECEIVE_TEST
-	MCSM1       = 0x3C;
-#else
 	MCSM1       = 0x30;
-#endif
 	MCSM0       = 0x18;
 	FOCCFG      = 0x17;
 	BSCFG       = 0x6c;
@@ -82,13 +69,8 @@ void init_RF(void)
 	FSCAL2      = 0x2a;
 	FSCAL1      = 0x00;
 	FSCAL0      = 0x1f;
-#ifdef RECEIVE_TEST
-	TEST2       = 0x81;
-	TEST1       = 0x35;
-#else
 	TEST2       = 0x88;
 	TEST1       = 0x31;
-#endif
 	TEST0       = 0x09;
 	PA_TABLE0   = 0x50;
 
@@ -360,8 +342,9 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     if(RFIF & RFIF_IRQ_RXOVF)
     {
     	//P1_3 = 1;
-    	P0_3 = 1;
+    	//P0_3 = 1;
 
+        REALLYFASTBLINK();
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
     	startRX();
@@ -384,6 +367,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     	{
 			if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
 			{
+                REALLYFASTBLINK();
 				/* Clear processed buffer */
 				memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
 				/* Switch current buffer */
