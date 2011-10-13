@@ -3,6 +3,15 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+//////////////  DEBUG   //////////////
+//#define VIRTUAL_COM
+#define RADIO_EU 
+//#define TRANSMIT_TEST
+//#define RECEIVE_TEST
+//////////////////////////////////////
+
+
+
 /* board-specific defines */
 #ifdef IMMEDONGLE
     // CC1110 IMME pink dongle - 26mhz
@@ -27,18 +36,12 @@
 #define LED     LED_GREEN
 
 
-/* non-BLOCKINGBLINK details (ie.  implementing nonblocking blinking */
-#define     MAX_BLINK_QUEUE  50
-
-typedef struct {
-    u16 index;
-    u16 endindex;
-    u16 queue[MAX_BLINK_QUEUE];
-} BLINK_STATE;
+#define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
+#define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
 
 /* function declarations */
 void sleepMillis(int ms);
 void sleepMicros(int us);
-void blink(u16 on_cycles, u16 off_cycles);
+//void blink(u16 on_cycles, u16 off_cycles);
 void blink_binary_baby_lsb(u16 num, char bits);
 #endif

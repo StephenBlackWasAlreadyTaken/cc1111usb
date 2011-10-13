@@ -1,4 +1,4 @@
-
+#include "global.h"
 #include "cc1111usb.h"
 #include "cc1111rf.h"
 
@@ -767,7 +767,7 @@ void handleOUTEP5(void)
                             RxIdle();
                             break;
                         case RF_STATE_TX:
-                            transmit(ptr);
+                            transmit(ptr, len);
 
 
                             break;
