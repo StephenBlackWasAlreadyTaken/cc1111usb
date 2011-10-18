@@ -5,7 +5,7 @@
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
-#define RADIO_EU 
+//#define RADIO_EU 
 //#define TRANSMIT_TEST
 //#define RECEIVE_TEST
 //////////////////////////////////////
