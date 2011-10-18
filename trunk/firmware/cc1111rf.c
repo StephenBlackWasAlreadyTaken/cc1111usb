@@ -40,7 +40,7 @@ void init_RF(void)
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
     PKTLEN      = 0xff;
-    PKTCTRL1    = 0x00;
+    PKTCTRL1    = 0x40; // APPEND_STATUS  - was 0x00
     PKTCTRL0    = 0x01;
     ADDR        = 0x00;
     CHANNR      = 0x00;
@@ -56,7 +56,7 @@ void init_RF(void)
     MDMCFG0     = 0x11;
     DEVIATN     = 0x36;
     MCSM2       = 0x07;
-    MCSM1       = 0x30;
+    MCSM1       = 0x3f; // always return to RX  - was 0x30
     MCSM0       = 0x18;
     FOCCFG      = 0x17;
     BSCFG       = 0x6c;
@@ -69,8 +69,8 @@ void init_RF(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x88;
-    TEST1       = 0x31;
+    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x35; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
@@ -361,7 +361,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         {
             if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
             {
-                REALLYFASTBLINK();
+                //REALLYFASTBLINK();
                 /* Clear processed buffer */
                 memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
                 /* Switch current buffer */
