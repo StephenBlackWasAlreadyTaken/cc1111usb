@@ -38,10 +38,6 @@ void appMainInit(void)
 {
     /* this indicates that we've enabled stuff to a good point */
 #ifdef RECEIVE_TEST
-    PKTCTRL1    = 0x40;
-    MCSM1       = 0x3C;
-    TEST2       = 0x81;
-    TEST1       = 0x35;
     startRX();
 #endif
 }

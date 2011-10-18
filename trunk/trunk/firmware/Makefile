@@ -30,6 +30,14 @@ immeapplication.hex: application.c $(libsusb)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE
 	packihx <application.ihx >bins/application.hex
 
+testxmitusb.hex: application.c $(libsvcom)
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DTRANSMIT_TEST 
+	packihx <application.ihx >bins/testxmit.hex
+
+testrecvusb.hex: application.c $(libsvcom)
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DRECEIVE_TEST
+	packihx <application.ihx >bins/testrecv.hex
+
 testxmitapplication.hex: application.c $(libsvcom)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
 	packihx <application.ihx >bins/testxmit.hex
@@ -52,6 +60,16 @@ installdonfw: donapplication.hex
 installimmefw: immeapplication.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/application.hex
+	goodfet.cc info
+
+installtestrecvusbfw: testrecvusb.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/testrecv.hex
+	goodfet.cc info
+
+installtestxmitusbfw: testxmitusb.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/testxmit.hex
 	goodfet.cc info
 
 installtestrecvfw: testrecvapplication.hex
