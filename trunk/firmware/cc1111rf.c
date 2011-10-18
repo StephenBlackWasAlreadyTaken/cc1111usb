@@ -31,8 +31,6 @@ void init_RF(void)
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
 
-#ifdef RADIO_EU
-    //memset(rftxbuf,0,BUFFER_SIZE);   // unnecessary?
 
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
@@ -75,20 +73,22 @@ void init_RF(void)
     PA_TABLE0   = 0x50;
 
 
-#else
+#ifndef RADIO_EU
     // default rf config
-    IOCFG2      = 0;
-    IOCFG1      = 0;
+    //IOCFG2      = 0;
+    //IOCFG1      = 0;
     IOCFG0      = 6;
     SYNC1       = 0xb1;
     SYNC0       = 0x27;
-    PKTLEN      = 0xff;
-    PKTCTRL1    = 0x04;             // APPEND_STATUS
-    PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
-    ADDR        = 0x00;
-    CHANNR      = 0x00;
+    //PKTLEN      = 0xff;
+    //PKTCTRL1    = 0x04;             // APPEND_STATUS
+    //PKTCTRL1    = 0x40;             // PQT threshold
+    //PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
+    //PKTCTRL0    = 0x00;             // FIXED LENGTH, no crc, no whitening
+    //ADDR        = 0x00;
+    //CHANNR      = 0x00;
     FSCTRL1     = 0x0c;             // IF
-    FSCTRL0     = 0x00;
+    //FSCTRL0     = 0x00;
     FREQ2       = 0x25;
     FREQ1       = 0x95;
     FREQ0       = 0x55;
@@ -98,9 +98,9 @@ void init_RF(void)
     MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
     MDMCFG0     = 0x11;             // chanspc_m
     DEVIATN     = 0x63;
-    MCSM2       = 0x07;             // RX_TIMEOUT
-    MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt
-    MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
+    //MCSM2       = 0x07;             // RX_TIMEOUT
+    //MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+    //MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
     FOCCFG      = 0x1d;             
     BSCFG       = 0x1c;             // bit sync config
     AGCCTRL2    = 0xc7;
