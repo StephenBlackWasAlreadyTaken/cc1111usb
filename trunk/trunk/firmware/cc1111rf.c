@@ -53,9 +53,9 @@ void init_RF(void)
     MDMCFG1     = 0x23;
     MDMCFG0     = 0x11;
     DEVIATN     = 0x36;
-    MCSM2       = 0x07;
-    MCSM1       = 0x3f; // always return to RX  - was 0x30
-    MCSM0       = 0x18;
+    MCSM2       = 0x07;             // RX_TIMEOUT
+    MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+    MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
     FOCCFG      = 0x17;
     BSCFG       = 0x6c;
     AGCCTRL2    = 0x03;
@@ -74,48 +74,36 @@ void init_RF(void)
 
 
 #ifndef RADIO_EU
-    // default rf config
-    //IOCFG2      = 0;
-    //IOCFG1      = 0;
-    IOCFG0      = 6;
-    SYNC1       = 0xb1;
-    SYNC0       = 0x27;
-    //PKTLEN      = 0xff;
     //PKTCTRL1    = 0x04;             // APPEND_STATUS
     //PKTCTRL1    = 0x40;             // PQT threshold
     //PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
     //PKTCTRL0    = 0x00;             // FIXED LENGTH, no crc, no whitening
-    //ADDR        = 0x00;
-    //CHANNR      = 0x00;
-    FSCTRL1     = 0x0c;             // IF
+    FSCTRL1     = 0x0c;             // Intermediate Frequency
     //FSCTRL0     = 0x00;
     FREQ2       = 0x25;
     FREQ1       = 0x95;
     FREQ0       = 0x55;
-    MDMCFG4     = 0x1d;             // chan_bw and drate_e
-    MDMCFG3     = 0x55;             // drate_m
-    MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
-    MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
-    MDMCFG0     = 0x11;             // chanspc_m
-    DEVIATN     = 0x63;
-    //MCSM2       = 0x07;             // RX_TIMEOUT
-    //MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
-    //MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
-    FOCCFG      = 0x1d;             
-    BSCFG       = 0x1c;             // bit sync config
-    AGCCTRL2    = 0xc7;
-    AGCCTRL1    = 0x00;
-    AGCCTRL0    = 0xb0;
+    //MDMCFG4     = 0x1d;             // chan_bw and drate_e
+    //MDMCFG3     = 0x55;             // drate_m
+    //MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
+    //MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
+    //MDMCFG0     = 0x11;             // chanspc_m
+    //DEVIATN     = 0x63;
+    //FOCCFG      = 0x1d;             
+    //BSCFG       = 0x1c;             // bit sync config
+    //AGCCTRL2    = 0xc7;
+    //AGCCTRL1    = 0x00;
+    //AGCCTRL0    = 0xb0;
     FREND1      = 0xb6;
     FREND0      = 0x10;
     FSCAL3      = 0xea;
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x88;
-    TEST1       = 0x31;
-    TEST0       = 0x09;
-    PA_TABLE0   = 0x83;
+    //TEST2       = 0x88;
+    //TEST1       = 0x31;
+    //TEST0       = 0x09;
+    //PA_TABLE0   = 0x83;
 #endif
 
     /* Setup interrupts */
@@ -342,6 +330,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     if(RFIF & RFIF_IRQ_RXOVF)
     {
         REALLYFASTBLINK();
+        REALLYFASTBLINK();
         /* RX overflow, only way to get out of this is to restart receiver */
         stopRX();
         startRX();
@@ -374,6 +363,9 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
             else
             {
                 /* Main app didn't process previous packet yet, drop this one */
+                REALLYFASTBLINK();
+                REALLYFASTBLINK();
+                REALLYFASTBLINK();
                 memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
                 rfRxCounter[rfRxCurrentBuffer] = 0;
             }

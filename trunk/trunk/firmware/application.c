@@ -34,12 +34,15 @@
  * Application Code - these first few functions are what should get overwritten for your app     *
  ************************************************************************************************/
 
+xdata u32 loopCnt;
+xdata u8 xmitCnt;
 void appMainInit(void)
 {
-    /* this indicates that we've enabled stuff to a good point */
-#ifdef RECEIVE_TEST
+    loopCnt = 0;
+    xmitCnt = 1;
+//#ifdef RECEIVE_TEST
     startRX();
-#endif
+//#endif
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
@@ -50,23 +53,32 @@ void appMainLoop(void)
 #ifdef TRANSMIT_TEST
     xdata u8 testPacket[13];
 
-     /* Send a packet */
-    testPacket[0] = 0x0B;
-    testPacket[1] = 0x48;
-    testPacket[2] = 0x41;
-    testPacket[3] = 0x4C;
-    testPacket[4] = 0x4C;
-    testPacket[5] = 0x4F;
-    testPacket[6] = 0x43;
-    testPacket[7] = 0x43;
-    testPacket[8] = 0x31;
-    testPacket[9] = 0x31;
-    testPacket[10] = 0x31;
-    testPacket[11] = 0x31;
-    testPacket[12] = 0x00;
 
-    transmit(testPacket, 13);
-    blink(200,200);
+    if (loopCnt++ == 90000)
+    {
+        /* Send a packet */
+        //testPacket[0] = 0x0B;
+        testPacket[0] = xmitCnt++;
+        testPacket[1] = 0x48;
+        testPacket[2] = 0x41;
+        testPacket[3] = 0x4C;
+        testPacket[4] = 0x4C;
+        testPacket[5] = 0x4F;
+        //testPacket[6] = 0x43;
+        //testPacket[7] = 0x43;
+        testPacket[6] = lastCode[0];
+        testPacket[7] = lastCode[1];
+        testPacket[8] = 0x31;
+        testPacket[9] = 0x31;
+        testPacket[10] = 0x31;
+        testPacket[11] = 0x31;
+        testPacket[12] = 0x00;
+
+        transmit(testPacket, 13);
+        //blink(400,400);
+        REALLYFASTBLINK();
+        loopCnt = 0;
+    }
 #endif
 
     if (rfif)
