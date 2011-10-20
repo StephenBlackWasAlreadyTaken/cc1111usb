@@ -44,4 +44,5 @@ void sleepMillis(int ms);
 void sleepMicros(int us);
 //void blink(u16 on_cycles, u16 off_cycles);
 void blink_binary_baby_lsb(u16 num, char bits);
+//int reverse(u8* dest, u8* src, int len);
 #endif

@@ -15,6 +15,24 @@ void sleepMicros(int us)
     while (--us > 0) ;
 }
 
+/*int reverse(u8* dest, u8* src, int len)
+{
+    int loop, tmp;
+    while (len)
+    {
+        tmp = *src;
+        for (loop^=loop;loop<8;loop++)
+        {
+            *dest <<= 1; 
+            *dest |= (tmp&1);
+            tmp >>= 1;
+        }
+        dest ++;
+        src ++;
+        len --;
+    }
+}
+*/
 /*void blink(u16 on_cycles, u16 off_cycles)                    // haxed for memory usage... made define instead
 {
     LED= !LED;

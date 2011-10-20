@@ -235,6 +235,87 @@ typedef struct USB_Request_Type {
     uint16 wLength;
 } USB_Setup_Header;
 
+typedef union
+{
+    u16 ui16;
+    u8  ui8[2];
+} U16_U8;
+
+/*typedef struct {
+    u16 srcaddr;
+    u16 dstaddr;
+    u16 vlen:3;
+    u16 len:13;
+    u8  wordsize:1;
+    u8  tmode:2;
+    u8  trig:5;
+    u8  srcinc:2;
+    u8  dstinc:2;
+    u8  irqmask:1;
+    u8  m8:1;
+    u8  priority:2;
+} dmacfg_t;
+
+*/
+typedef struct {
+    uint8 srcAddrH;
+    uint8 srcAddrL;
+    uint8 destAddrH;
+    uint8 destAddrL;
+    uint8 lenH      : 5;
+    uint8 vlen      : 3;
+    uint8 lenL      : 8;
+    uint8 trig      : 5;
+    uint8 tMode     : 2;
+    uint8 wordSize  : 1;
+
+    uint8 priority  : 2;
+    uint8 m8        : 1;
+    uint8 irqMask   : 1;
+    uint8 destInc   : 2;
+    uint8 srcInc    : 2;
+} DMA_DESC;
+/*
+
+#pragma bitfields=reversed
+typedef struct {
+    uint8 srcAddrH;
+    uint8 srcAddrL;
+    uint8 destAddrH;
+    uint8 destAddrL;
+    uint8 vlen      : 3;
+    uint8 lenH      : 5;
+    uint8 lenL      : 8;
+    uint8 wordSize  : 1;
+    uint8 tMode     : 2;
+    uint8 trig      : 5;
+    uint8 srcInc    : 2;
+    uint8 destInc   : 2;
+    uint8 irqMask   : 1;
+    uint8 m8        : 1;
+    uint8 priority  : 2;
+} DMA_DESC;
+#pragma bitfields=default
+
+#pragma bitfields=reversed
+typedef struct {
+    U16_U8 srcAddr;
+    U16_U8 destAddr;
+    uint8 vlen      : 3;
+    uint8 lenH      : 5;
+    uint8 lenL      : 8;
+    uint8 wordSize  : 1;
+    uint8 tMode     : 2;
+    uint8 trig      : 5;
+    uint8 srcInc    : 2;
+    uint8 destInc   : 2;
+    uint8 irqMask   : 1;
+    uint8 m8        : 1;
+    uint8 priority  : 2;
+} DMA_DESC;
+#pragma bitfields=default
+
+*/
 
 // Request Types (bmRequestType)
 #define USB_BM_REQTYPE_TGTMASK          0x1f
