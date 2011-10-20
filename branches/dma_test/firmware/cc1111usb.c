@@ -30,6 +30,10 @@ xdata USB_EP_IO_BUF     ep0iobuf;
 xdata USB_EP_IO_BUF     ep5iobuf;
 xdata u8 appstatus;
 
+//xdata dmacfg_t usbdma;
+xdata DMA_DESC usbdma;
+//xdata u8 usbdmar[8];
+
 /*************************************************************************************************
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
  * the universe to explode!                                                                      *
@@ -87,14 +91,87 @@ void txdata(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for applic
         {
             USBF5 = *dataptr++;
         }
+        
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
     }
     //EA=1;
 }
 
+void txdma(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
+    // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
+    // wish me luck!  this could horribly crash and burn.
+{
+    u16 loop;
+    u8 firsttime=1;
+    USBINDEX=5;
+    //EA=0; 
+    while (len>0)
+     {
+        // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
+        // don't know why since this bit is cleared in the USB ISR.
+        loop = TXDATA_MAX_WAIT;
+        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                   // has last msg been recvd?
+        {
+            //REALLYFASTBLINK();
+            //REALLYFASTBLINK();
+            REALLYFASTBLINK();
+            //blink(100,50);
+            lastCode[1] = 1;
+            loop--;
+        }
+        //blink(100,50);
+            
+        if (firsttime==1){                                             // first time through only please
+            //blink(100,50);
+
+            firsttime=0;
+            USBF5 = 0x40;
+            USBF5 = app;
+            USBF5 = cmd;
+            USBF5 = len & 0xff;
+            USBF5 = len >> 8;
+            if (len>EP5IN_MAX_PACKET_SIZE-5)
+                loop=EP5IN_MAX_PACKET_SIZE-5;
+            else
+                loop=len;
+
+        } else {
+            if (len>EP5IN_MAX_PACKET_SIZE)
+                loop=EP5IN_MAX_PACKET_SIZE;
+            else
+                loop=len;
+        }
 
 
+        len -= loop;
+
+        DMAARM |= 0x80 + DMAARM1;
+        usbdma.srcAddrH = ((u16)dataptr)>>8;
+        usbdma.srcAddrL = ((u16)dataptr)&0xff;
+        usbdma.destAddrH = 0xde;     //USBF5 == 0xde2a
+        usbdma.destAddrL = 0x2a;
+        usbdma.lenL = loop;
+        usbdma.srcInc = 1;
+        usbdma.destInc = 0;
+        //reverse((u8*)usbdmar, (u8*)usbdma, sizeof(DMA_DESC));
+        DMAARM |= DMAARM1;
+        //DMAIRQ &= ~(DMAARM1);
+        //DMAARM |= DMAARM1;
+        sleepMillis(9);
+        DMAREQ |= DMAARM1;
+
+        //while (!(DMAIRQ & DMAARM1))
+        if (!(DMAIRQ & DMAARM1))
+            //blink(100,100);
+            //REALLYFASTBLINK();
+            sleepMillis(50);
+        
+        USBCSIL |= USBCSIL_INPKT_RDY;
+        ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
+    }
+    //EA=1;
+}
 
 /*************************************************************************************************
  * debug stuff.  slows executions.                                                               *
@@ -164,6 +241,26 @@ void waitForUSBsetup()
 void usb_init(void)
 {
     USB_RESET();
+
+    // usb dma
+    DMA1CFGH = ((u16)(&usbdma))>>8;
+    DMA1CFGL = ((u16)(&usbdma))&0xff;
+    usbdma.vlen = 0;
+    usbdma.wordSize = 0;
+    usbdma.lenH = 0;
+    usbdma.tMode = 1;
+    usbdma.trig = 0;
+    usbdma.irqMask = 1;
+    usbdma.m8 = 0;
+    usbdma.priority = 1;
+    // when used, the following must be set before triggering:
+    // usbdma.srcaddr
+    // usbdma.dstaddr
+    // usbdma.len    // we're using fixed length transfers
+    // usbdma.srcinc
+    // usbdma.dstinc
+    //  then trigger using DMAREQ
+
 
     //USBPOW |= USBPOW_SUSPEND_EN;          // ok, no.
     USBPOW &= ~USBPOW_SUSPEND_EN;           // i don't *wanna* go to sleep if the usb bus is idle for 3ms.  at least not yet.
