@@ -95,8 +95,8 @@ void appMainLoop(void)
                 vcom_flush();
 #else
                 //debug((code u8*)rfrxbuf[processbuffer]);
-                //txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
-                txdma(0xfe, 0xf0, 16, (xdata u8*)&rfrxbuf[processbuffer]);
+                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                //txdma(0xfe, 0xf0, 16, (xdata u8*)&rfrxbuf[processbuffer]);
 #endif
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;

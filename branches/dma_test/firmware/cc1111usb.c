@@ -38,7 +38,7 @@ xdata DMA_DESC usbdma;
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
  * the universe to explode!                                                                      *
  ************************************************************************************************/
-void txdata(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for application use
+void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
     // wish me luck!  this could horribly crash and burn.
 {
@@ -98,7 +98,7 @@ void txdata(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for applic
     //EA=1;
 }
 
-void txdma(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
+void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
     // wish me luck!  this could horribly crash and burn.
 {
@@ -154,18 +154,10 @@ void txdma(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for a
         usbdma.lenL = loop;
         usbdma.srcInc = 1;
         usbdma.destInc = 0;
-        //reverse((u8*)usbdmar, (u8*)usbdma, sizeof(DMA_DESC));
         DMAARM |= DMAARM1;
-        //DMAIRQ &= ~(DMAARM1);
-        //DMAARM |= DMAARM1;
-        sleepMillis(9);
         DMAREQ |= DMAARM1;
 
-        //while (!(DMAIRQ & DMAARM1))
-        if (!(DMAIRQ & DMAARM1))
-            //blink(100,100);
-            //REALLYFASTBLINK();
-            sleepMillis(50);
+        while (!(DMAIRQ & DMAARM1));
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
@@ -199,22 +191,22 @@ void debug(code u8* text)
     code u8* ptr = text;
     while (*ptr++ != 0)
         len ++;
-    txdata(0xfe, 0xf0, len, text);
+    txdata(0xfe, 0xf0, len, (xdata u8*)text);
 }
 
 void debughex(u8 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX, 1, (u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX, 1, (xdata u8*)&num);
 }
 
 void debughex16(u16 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX16, 2, (u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX16, 2, (xdata u8*)&num);
 }
 
 void debughex32(u32 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX32, 4, (u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX32, 4, (xdata u8*)&num);
 }
  
 
@@ -832,7 +824,7 @@ void handleOUTEP5(void)
                     {
                         *dptr++ = *ptr++;
                     }
-                    txdata(app, cmd, 1, "0");
+                    txdata(app, cmd, 1, (xdata u8*)"0");
 
                     break;
                 case CMD_POKE_REG:
@@ -843,7 +835,7 @@ void handleOUTEP5(void)
                     {
                         *dptr = *ptr++;
                     }
-                    txdata(app, cmd, 1, "");
+                    txdata(app, cmd, 1, (xdata u8*)"");
 
                     break;
                 case CMD_PING:
@@ -851,7 +843,7 @@ void handleOUTEP5(void)
                     //REALLYFASTBLINK();
                     break;
                 case CMD_STATUS:
-                    txdata(app, cmd, 13, "UNIMPLEMENTED");
+                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
                     // unimplemented
                     break;
                 case CMD_RFMODE:
