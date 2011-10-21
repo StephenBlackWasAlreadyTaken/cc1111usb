@@ -152,6 +152,7 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         usbdma.destAddrH = 0xde;     //USBF5 == 0xde2a
         usbdma.destAddrL = 0x2a;
         usbdma.lenL = loop;
+        usbdma.lenH = 0;
         usbdma.srcInc = 1;
         usbdma.destInc = 0;
         DMAARM |= DMAARM1;
@@ -437,11 +438,10 @@ u16 usb_recv_ep0OUT(){
     
 }
 
+    /**********************************         NEVER USED..... deprecating.
 u16 usb_recv_ep5OUT(){
-    /**********************************
      * handle receipt of one packet and set flags
      * if another packet has yet to be handled by the application (ie. received through this function but not acted upon or cleared), return -1
-     */
     //u16 loop;
 
     u8* payload = &ep5iobuf.OUTbuf[0];
@@ -474,6 +474,7 @@ u16 usb_recv_ep5OUT(){
     usbdma.destAddrH = ((u16)payload)>>8;
     usbdma.destAddrL = ((u16)payload)&0xff;
     usbdma.lenL = ep5iobuf.OUTlen;
+    usbdma.lenH = 0;
     usbdma.srcInc = 0;
     usbdma.destInc = 1;
     DMAARM |= DMAARM1;
@@ -488,6 +489,7 @@ u16 usb_recv_ep5OUT(){
     
 }
 
+     */
 
 
 /*************************************************************************************************
@@ -792,8 +794,25 @@ void handleOUTEP5(void)
         return;
     }
     ep5iobuf.flags |= EP_OUTBUF_WRITTEN;                        // track that we've read into the OUTbuf
-    len = (USBCNTH<<8)+USBCNTL;
-    if (len > EP5OUT_MAX_PACKET_SIZE)                           // if they wanna send too much data, do we accept what we can?  or bomb?
+
+    // setup DMA
+    ptr = &ep5iobuf.OUTbuf[0];
+    while ((DMAIRQ & DMAARM1))
+        blink(20,20);
+    DMAARM |= 0x80 + DMAARM1;
+    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    usbdma.srcAddrL = 0x2a;
+    usbdma.destAddrH = ((u16)ptr)>>8;
+    usbdma.destAddrL = ((u16)ptr)&0xff;
+    //usbdma.lenL = len;              // FIXME: use USBCNTH and USBCNTL? are they cleared on read?
+    //usbdma.lenH = len>>8;
+    usbdma.srcInc = 0;
+    usbdma.destInc = 1;
+    usbdma.lenL = USBCNTL;
+    usbdma.lenH = USBCNTH;
+    //len = (USBCNTH<<8)+USBCNTL;
+    len = (usbdma.lenH<<8)+usbdma.lenL;
+    if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
@@ -803,23 +822,13 @@ void handleOUTEP5(void)
     }
     //REALLYFASTBLINK();
     //blink(300,200);
-    ptr = &ep5iobuf.OUTbuf[0];
     //blink_binary_baby_lsb(len, 8);
     //for (loop=len;loop>0;loop--)
     //{
     //    *ptr++ = USBF5;
     //}
-    while ((DMAIRQ & DMAARM1))
-        blink(20,20);
-    DMAARM |= 0x80 + DMAARM1;
-    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
-    usbdma.srcAddrL = 0x2a;
-    usbdma.destAddrH = ((u16)ptr)>>8;
-    usbdma.destAddrL = ((u16)ptr)&0xff;
-    usbdma.lenL = len;              // FIXME: use USBCNTH and USBCNTL? are they cleared on read?
-    usbdma.lenH = len>>8;
-    usbdma.srcInc = 0;
-    usbdma.destInc = 1;
+
+    //  DMA Trigger
     DMAARM |= DMAARM1;
     DMAREQ |= DMAARM1;
 
