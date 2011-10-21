@@ -174,12 +174,16 @@ int appHandleEP0(USB_Setup_Header* pReq)
             case 2:
                 setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
                 break;
+            case 3:
+                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
+                break;
 
         }
     } else                                                  // OUT from host
     {
         if (pReq->wIndex&0xf)                               // EP0 receive.    CURRENTLY DOES NOTHING WITH THIS....
         {
+            // FIXME: implement Poke functionality
             usb_recv_ep0OUT();
             ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
         }
