@@ -158,6 +158,7 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         DMAREQ |= DMAARM1;
 
         while (!(DMAIRQ & DMAARM1));
+        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
@@ -441,7 +442,7 @@ u16 usb_recv_ep5OUT(){
      * handle receipt of one packet and set flags
      * if another packet has yet to be handled by the application (ie. received through this function but not acted upon or cleared), return -1
      */
-    u16 loop;
+    //u16 loop;
 
     u8* payload = &ep5iobuf.OUTbuf[0];
 
@@ -460,10 +461,27 @@ u16 usb_recv_ep5OUT(){
         ep5iobuf.OUTlen = ep5iobuf.BUFmaxlen;
 
     ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
-    for (loop=ep5iobuf.OUTlen; loop>0; loop--){
-        *payload++ = USBF5;
-    }
+    //for (loop=ep5iobuf.OUTlen; loop>0; loop--){
+    //    *payload++ = USBF5;
+    //}
     //////////////////////////////////////////////////////////////////////////////////////////
+
+    while ((DMAIRQ & DMAARM1))
+        blink(20,20);
+    DMAARM |= 0x80 + DMAARM1;
+    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    usbdma.srcAddrL = 0x2a;
+    usbdma.destAddrH = ((u16)payload)>>8;
+    usbdma.destAddrL = ((u16)payload)&0xff;
+    usbdma.lenL = ep5iobuf.OUTlen;
+    usbdma.srcInc = 0;
+    usbdma.destInc = 1;
+    DMAARM |= DMAARM1;
+    DMAREQ |= DMAARM1;
+
+    while (!(DMAIRQ & DMAARM1));
+    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
+        
     USBCSOL &= 0xfe;
     
     return ep5iobuf.OUTlen;
@@ -779,6 +797,7 @@ void handleOUTEP5(void)
     {                                                           //  currently choosing to bomb.
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
+        USBCSOL &= ~USBCSOL_OUTPKT_RDY;
         blink(300,200);
         return;
     }
@@ -786,10 +805,27 @@ void handleOUTEP5(void)
     //blink(300,200);
     ptr = &ep5iobuf.OUTbuf[0];
     //blink_binary_baby_lsb(len, 8);
-    for (loop=len;loop>0;loop--)
-    {
-        *ptr++ = USBF5;
-    }
+    //for (loop=len;loop>0;loop--)
+    //{
+    //    *ptr++ = USBF5;
+    //}
+    while ((DMAIRQ & DMAARM1))
+        blink(20,20);
+    DMAARM |= 0x80 + DMAARM1;
+    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    usbdma.srcAddrL = 0x2a;
+    usbdma.destAddrH = ((u16)ptr)>>8;
+    usbdma.destAddrL = ((u16)ptr)&0xff;
+    usbdma.lenL = len;              // FIXME: use USBCNTH and USBCNTL? are they cleared on read?
+    usbdma.lenH = len>>8;
+    usbdma.srcInc = 0;
+    usbdma.destInc = 1;
+    DMAARM |= DMAARM1;
+    DMAREQ |= DMAARM1;
+
+    while (!(DMAIRQ & DMAARM1));
+    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
+
     ep5iobuf.OUTlen = len;
 
     if (ep5iobuf.OUTlen >= 8)
@@ -820,6 +856,7 @@ void handleOUTEP5(void)
                     loop =  *ptr++;
                     loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
                     dptr = (xdata u8*) loop;                                // hack, but it works
+                    // FIXME: do we want to DMA here?
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr++ = *ptr++;
