@@ -9,9 +9,11 @@ This page describes USB dongles that are supported by the project.
 Currently there are three USB dongles supported by the project. The dongles all operate using a CC111x SOC(System on Chip).
 
 The dongles are:
-* IM-Me dongle
-* CC1111EMK dongle
-* Chronos dongle
+<ul>
+<li>IM-Me dongle</li>
+<li>CC1111EMK dongle</li>
+<li>Chronos dongle</li>
+</ul>
 
 == IM-Me dongle ==
 
