@@ -47,7 +47,6 @@ extern volatile xdata u8 rftxbuf[BUFFER_SIZE];
 extern volatile xdata u8 rfTxCounter;
 
 extern u8 rfif;
-extern xdata u8 lastCode[2];
 
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR; // interrupt handler should transmit or receive the next byte
 void rfIntHandler(void) interrupt RF_VECTOR; // interrupt handler should trigger on rf events

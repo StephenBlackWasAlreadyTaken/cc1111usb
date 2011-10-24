@@ -2,6 +2,8 @@
 
 #ifndef GLOBAL_H
 #define GLOBAL_H
+// used for debugging and tracing execution.  see client's ".getDebugCodes()"
+extern xdata u8 lastCode[2];
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
