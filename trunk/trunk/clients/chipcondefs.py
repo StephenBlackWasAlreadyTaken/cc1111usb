@@ -531,22 +531,22 @@ MDMCFG2_SYNC_MODE1             = 0x02
 MDMCFG2_SYNC_MODE2             = 0x04
 MDMCFG3                        = 0xDF0D
 MDMCFG4                        = 0xDF0C
-MDMCG1_CHANSPC_E               = 0x03
-MDMCG1_CHANSPC_E0              = 0x01
-MDMCG1_CHANSPC_E1              = 0x02
-MDMCG1_FEC_EN                  = 0x80
-MDMCG1_NUM_PREAMBLE            = 0x70
-MDMCG1_NUM_PREAMBLE0           = 0x10
-MDMCG1_NUM_PREAMBLE1           = 0x20
-MDMCG1_NUM_PREAMBLE2           = 0x40
-MDMCG1_NUM_PREAMBLE_12         = (0x05 << 4)
-MDMCG1_NUM_PREAMBLE_16         = (0x06 << 4)
-MDMCG1_NUM_PREAMBLE_2          = (0x00 << 4)
-MDMCG1_NUM_PREAMBLE_24         = (0x07 << 4)
-MDMCG1_NUM_PREAMBLE_3          = (0x01 << 4)
-MDMCG1_NUM_PREAMBLE_4          = (0x02 << 4)
-MDMCG1_NUM_PREAMBLE_6          = (0x03 << 4)
-MDMCG1_NUM_PREAMBLE_8          = (0x04 << 4)
+MFMCFG1_CHANSPC_E              = 0x03
+MFMCFG1_CHANSPC_E0             = 0x01
+MFMCFG1_CHANSPC_E1             = 0x02
+MFMCFG1_FEC_EN                 = 0x80
+MFMCFG1_NUM_PREAMBLE           = 0x70
+MFMCFG1_NUM_PREAMBLE0          = 0x10
+MFMCFG1_NUM_PREAMBLE1          = 0x20
+MFMCFG1_NUM_PREAMBLE2          = 0x40
+MFMCFG1_NUM_PREAMBLE_12        = (0x05 << 4)
+MFMCFG1_NUM_PREAMBLE_16        = (0x06 << 4)
+MFMCFG1_NUM_PREAMBLE_2         = (0x00 << 4)
+MFMCFG1_NUM_PREAMBLE_24        = (0x07 << 4)
+MFMCFG1_NUM_PREAMBLE_3         = (0x01 << 4)
+MFMCFG1_NUM_PREAMBLE_4         = (0x02 << 4)
+MFMCFG1_NUM_PREAMBLE_6         = (0x03 << 4)
+MFMCFG1_NUM_PREAMBLE_8         = (0x04 << 4)
 MDMCTRL0H                      = 0xDF02
 MEMCTR                         = 0xC7
 MEMCTR_CACHD                   = 0x02
@@ -1395,3 +1395,79 @@ _X_SFRB7                       = 0xDFB7
 _X_SFRBF                       = 0xDFBF
 _X_SFRC3                       = 0xDFC3
 _X_SFRC8                       = 0xDFC8
+
+
+ADCCON1S = {}
+ADCCON2S = {}
+ADCCON3S = {}
+AGCCTRL0S = {}
+AGCCTRL1S = {}
+BSCFGS = {}
+CLKCONS = {}
+CLKSPDS = {}
+DEVIATN = {}
+IEN0S = {}
+IEN1S = {}
+IEN2S = {}
+MARC_STATES = {}
+MCSM0S = {}
+MCSM1S = {}
+MCSM2S = {}
+MDMCFG2S = {}
+PKTCTRL0 = {}
+PKTCTRL1 = {}
+RFIFS = {}
+RFIMS = {}
+
+for key,val in globals().items():
+    if key.startwith("RFIF_"):
+        RFIFS[val] = key
+    elif key.startwith("RFIM_"):
+        RFIMS[val] = key
+    elif key.startwith("ADCCON1_"):
+        ADCCON1S[val] = key
+    elif key.startwith("ADCCON2_"):
+        ADCCON2S[val] = key
+    elif key.startwith("ADCCON3_"):
+        ADCCON3S[val] = key
+    elif key.startwith("AGCCTRL0_"):
+        AGCCTRL0S[val] = key
+    elif key.startwith("AGCCTRL1_"):
+        AGCCTRL1S[val] = key
+    elif key.startwith("BSCFG_"):
+        BSCFGS[val] = key
+    elif key.startwith("CLKCON_"):
+        CLKCONS[val] = key
+    elif key.startwith("CLKSPD_"):
+        CLKSPDS[val] = key
+    elif key.startwith("DEVIATN_"):
+        DEVIATNS[val] = key
+    elif key.startwith("IEN0_"):
+        IEN0S[val] = key
+    elif key.startwith("IEN1_"):
+        IEN1S[val] = key
+    elif key.startwith("IEN2_"):
+        IEN2S[val] = key
+    elif key.startwith("IOCFG0_"):
+        IOCFG0S[val] = key
+    elif key.startwith("IOCFG1_"):
+        IOCFG1S[val] = key
+    elif key.startwith("IOCFG2_"):
+        IOCFG2S[val] = key
+    elif key.startwith("MARC_STATE_"):
+        MARC_STATES[val] = key
+    elif key.startwith("MCSM0_"):
+        MCSM0S[val] = key
+    elif key.startwith("MCSM1_"):
+        MCSM1S[val] = key
+    elif key.startwith("MCSM2_"):
+        MCSM2S[val] = key
+    elif key.startwith("MDMCFG2_"):
+        MDMCFG2S[val] = key
+    elif key.startwith("PKTCTRL0_"):
+        PKTCTRL0S[val] = key
+    elif key.startwith("PKTCTRL1_"):
+        PKTCTRL1S[val] = key
+
+
+
