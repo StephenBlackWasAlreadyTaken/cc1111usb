@@ -1,5 +1,9 @@
 #include "global.h"
 
+// used for debugging and tracing execution.  see client's ".getDebugCodes()"
+xdata u8 lastCode[2];
+
+
 void sleepMillis(int ms) 
 {
     int j;

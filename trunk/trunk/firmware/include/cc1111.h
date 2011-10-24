@@ -235,6 +235,31 @@ typedef struct USB_Request_Type {
     uint16 wLength;
 } USB_Setup_Header;
 
+typedef union
+{
+    u16 ui16;
+    u8  ui8[2];
+} U16_U8;
+
+// sdcc requires this bit ordering.  this struct appears differently from the IAR version, which uses "#pragma bitfields=reversed"
+typedef struct DMA_DESC_S {
+    uint8 srcAddrH;
+    uint8 srcAddrL;
+    uint8 destAddrH;
+    uint8 destAddrL;
+    uint8 lenH      : 5;
+    uint8 vlen      : 3;
+    uint8 lenL      : 8;
+    uint8 trig      : 5;
+    uint8 tMode     : 2;
+    uint8 wordSize  : 1;
+
+    uint8 priority  : 2;
+    uint8 m8        : 1;
+    uint8 irqMask   : 1;
+    uint8 destInc   : 2;
+    uint8 srcInc    : 2;
+} DMA_DESC;
 
 // Request Types (bmRequestType)
 #define USB_BM_REQTYPE_TGTMASK          0x1f

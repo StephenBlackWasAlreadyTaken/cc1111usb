@@ -51,30 +51,29 @@ void appMainLoop(void)
 {
     xdata u8 processbuffer;
 #ifdef TRANSMIT_TEST
-    xdata u8 testPacket[13];
+    xdata u8 testPacket[14];
 
 
     if (loopCnt++ == 90000)
     {
         /* Send a packet */
-        //testPacket[0] = 0x0B;
-        testPacket[0] = xmitCnt++;
-        testPacket[1] = 0x48;
-        testPacket[2] = 0x41;
-        testPacket[3] = 0x4C;
+        testPacket[0] = 0x0D;
+        testPacket[1] = xmitCnt++;
+        testPacket[2] = 0x48;
+        testPacket[3] = 0x41;
         testPacket[4] = 0x4C;
-        testPacket[5] = 0x4F;
+        testPacket[5] = 0x4C;
+        testPacket[6] = 0x4F;
         //testPacket[6] = 0x43;
         //testPacket[7] = 0x43;
-        testPacket[6] = lastCode[0];
-        testPacket[7] = lastCode[1];
-        testPacket[8] = 0x31;
+        testPacket[7] = lastCode[0];
+        testPacket[8] = lastCode[1];
         testPacket[9] = 0x31;
         testPacket[10] = 0x31;
         testPacket[11] = 0x31;
-        testPacket[12] = 0x00;
+        testPacket[12] = 0x31;
 
-        transmit(testPacket, 13);
+        transmit(testPacket, 0);
         //blink(400,400);
         REALLYFASTBLINK();
         loopCnt = 0;
@@ -95,7 +94,9 @@ void appMainLoop(void)
                 vcom_putstr(rfrxbuf[processbuffer]);
                 vcom_flush();
 #else
-                debug((code u8*)rfrxbuf[processbuffer]);
+                debug("let's test debugging after all the changes...");
+                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                //txdma(0xfe, 0xf0, 16, (xdata u8*)&rfrxbuf[processbuffer]);
 #endif
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
@@ -179,6 +180,7 @@ int appHandleEP0(USB_Setup_Header* pReq)
     {
         if (pReq->wIndex&0xf)                               // EP0 receive.    CURRENTLY DOES NOTHING WITH THIS....
         {
+            // FIXME: implement Poke functionality
             usb_recv_ep0OUT();
             ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
         }
@@ -264,6 +266,7 @@ void main (void)
     vcom_init();
 #else
     initUSB();
+    blink(300,300);
 #endif
     init_RF();
 

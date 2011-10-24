@@ -14,8 +14,8 @@ volatile xdata u8 rfTxCounter = 0;
 
 u8 rfif;
 volatile xdata u8 rf_status;
-static xdata u8 rfDMACfg[DMA_CFG_SIZE];
-xdata u8 lastCode[2];
+
+xdata DMA_DESC rfdma;
 
 /*************************************************************************************************
 * RF init stuff                                                                                 *
@@ -24,9 +24,8 @@ void init_RF(void)
 {
     rf_status = RF_STATE_IDLE;
 
-    //  FIXME: DMA remains
-    //    DMA0CFGH = ((u16)rfDMACfg)>>8;
-    //    DMA0CFGL = ((u16)rfDMACfg)&0xff;
+    DMA0CFGH = ((u16)&rfdma)>>8;
+    DMA0CFGL = ((u16)&rfdma)&0xff;
 
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
@@ -38,7 +37,7 @@ void init_RF(void)
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
     PKTLEN      = 0xff;
-    PKTCTRL1    = 0x40; // APPEND_STATUS  - was 0x00
+    PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
     PKTCTRL0    = 0x01;
     ADDR        = 0x00;
     CHANNR      = 0x00;
@@ -151,6 +150,9 @@ u8 transmit(xdata u8* buf, u16 len)
 
     /* Clean tx buffer */
     memset(rftxbuf,0,BUFFER_SIZE);
+
+    if (len == 0)
+        len = buf[0];
 
     /* Copy userdata to tx buffer */
     memcpy(rftxbuf, buf, len);
