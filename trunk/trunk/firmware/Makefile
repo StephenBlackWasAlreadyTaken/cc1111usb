@@ -31,7 +31,7 @@ immeapplication.hex: application.c $(libsusb)
 	packihx <application.ihx >bins/application.hex
 
 testxmitusb.hex: application.c $(libsusb)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DTRANSMIT_TEST 
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE -DTRANSMIT_TEST 
 	packihx <application.ihx >bins/testxmit.hex
 
 testrecvusb.hex: application.c $(libsusb)
@@ -39,7 +39,7 @@ testrecvusb.hex: application.c $(libsusb)
 	packihx <application.ihx >bins/testrecv.hex
 
 testxmitapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
 	packihx <application.ihx >bins/testxmit.hex
 
 testrecvapplication.hex: application.c $(libsvcom)
