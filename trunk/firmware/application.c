@@ -36,6 +36,8 @@
 
 xdata u32 loopCnt;
 xdata u8 xmitCnt;
+
+/* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
     loopCnt = 0;
@@ -94,9 +96,7 @@ void appMainLoop(void)
                 vcom_putstr(rfrxbuf[processbuffer]);
                 vcom_flush();
 #else
-                debug("let's test debugging after all the changes...");
                 txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
-                //txdma(0xfe, 0xf0, 16, (xdata u8*)&rfrxbuf[processbuffer]);
 #endif
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
@@ -145,7 +145,7 @@ int appHandleEP5()
     return 0;
 }
 
-/* in case your application cares when an OUT packet has been completely received.               */
+/* in case your application cares when an OUT packet has been completely received on EP0.       */
 void appHandleEP0OUTdone(void)
 {
 #ifndef VIRTUAL_COM
@@ -345,16 +345,14 @@ void main (void)
     initUSB();
     blink(300,300);
 #endif
+
     init_RF();
-
-#ifdef VIRTUAL_COM
-    vcom_up();
-
-    /* Make sure interrupts are enabled */
-    EA = 1;
-#endif
-
     appMainInit();
+
+    usb_up();
+
+    /* Enable interrupts */
+    EA = 1;
 
     while (1)
     {  

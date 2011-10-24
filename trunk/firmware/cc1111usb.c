@@ -293,7 +293,6 @@ void usb_init(void)
    
     // setup Interrupt Flag MASKs... we want all interrupts at the moment.  change to your liking)
     USBCIE = 0xf7;          // skip Start Of Frame (SOFIF).  it's basically a keep-alive packet to keep the device from entering SUSPEND.  
-    //USBCIE = 0xff;          // skip Start Of Frame (SOFIF).  it's basically a keep-alive packet to keep the device from entering SUSPEND.  
     USBIIE = 0xff;
     USBOIE = 0xff;
 
@@ -302,13 +301,12 @@ void usb_init(void)
     PICTL   &= ~PICTL_P0ICON;               // enable interrupts on rising edge
     P0IE    = 1;                            // enable the p0 interrupt flag  (IEN1 is bit-accessible)
     IEN2    |= IEN2_USBIE;                  // enable the USB interrupt flag (IEN2 is *not* bit-accessible)
-//    IRCON2  |=  IRCON2_USBIF;                 
-//    IRCON   |=  IRCON_P0IF;
+
     USB_RESUME_INT_CLEAR();                 // P0IFG= 0; P0IF= 0
     USB_INT_CLEAR();                        // P2IFG= 0; P2IF= 0;
 
 
-    USB_INT_ENABLE();     // Enables USB Interrupts to call an ISR .... not sure I'm ready for that yet.
+    USB_INT_ENABLE();     // Enables USB Interrupts to call an ISR
 
 }
 
@@ -318,15 +316,25 @@ void usb_init(void)
 /*************************************************************************************************
  * main usb startup code                                                                             *
  *************************************************************************************************/
-void initUSB(void){
+void initUSB(void)
+{
     lastCode[0] = 2;
     USB_ENABLE();                       // enable our usb controller
     usb_init();                         // setup the usb controller settings
-    USB_PULLUP_ENABLE();                // enable pullup resistor indicating that we are a real usb device
-    EA = 1;                             // enable system-wide interrupts
 
 }
 
+// usb_up() pulls up the USB_PULLUP_ENABLE signal, which makes the device show up to the Host
+void usb_up(void)
+{
+    USB_PULLUP_ENABLE();                // enable pullup resistor indicating that we are a real usb device
+}
+
+// usb_down() pulls down the USB_PULLUP_ENABLE signal, which makes the device go away
+void usb_down(void)
+{
+    USB_PULLUP_DISABLE();                // enable pullup resistor indicating that we are a real usb device
+}
 
 /*************************************************************************************************
  * main USB handler/enabler code.                                                                *

@@ -304,8 +304,8 @@ typedef struct DMA_DESC_S {
 #define USB_INT_DISABLE()           IEN2&= ~0x02;
 #define USB_INT_CLEAR()             P2IFG= 0; P2IF= 0;
 
-#define USB_PULLUP_ENABLE()         P1_0 = 1;
-#define USB_PULLUP_DISABLE()        P1_0 = 0;
+#define USB_PULLUP_ENABLE()         USB_ENABLE_PIN = 1;
+#define USB_PULLUP_DISABLE()        USB_ENABLE_PIN = 0;
 
 #define USB_RESUME_INT_ENABLE()     P0IE= 1
 #define USB_RESUME_INT_DISABLE()    P0IE= 0
