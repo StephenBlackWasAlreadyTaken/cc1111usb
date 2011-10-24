@@ -211,7 +211,9 @@ class USBDongle:
         self.threadcounter = 0
 
         while True:
-            if (not self._threadGo): continue
+            if (not self._threadGo): 
+                time.sleep(.1)
+                continue
 
             self.threadcounter = (self.threadcounter + 1) & 0xffffffff
 
@@ -282,7 +284,7 @@ class USBDongle:
             #### receive stuff.
             try:
                 #### first we populate the queue
-                msg = self._recvEP5(40)
+                msg = self._recvEP5(timeout=40)
                 if len(msg) > 0:
                     self.recv_queue += msg
                     msgrecv = True
@@ -313,11 +315,11 @@ class USBDongle:
                             self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
 
                             q = self.recv_mbox.get(app,None)
+                            self.sema.acquire()                            # THREAD SAFETY DANCE
                             if (q == None):
                                 q = []
-                            self.sema.acquire()                            # THREAD SAFETY DANCE
+                                self.recv_mbox[app] = q
                             q.append(msg)
-                            self.recv_mbox[app] = q
                             self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
                         else:            
                             if self._debug:     sys.stderr.write('=')
@@ -432,7 +434,32 @@ class USBDongle:
     def setRfMode(self, rfmode, parms=''):
         r = self.send(APP_SYSTEM, SYS_CMD_RFMODE, "%c"%rfmode + parms)
             
-    
+    def getInterruptRegisters(self):
+        regs = {}
+        # IEN0,1,2
+        regs['IEN0'] = self.peek(IEN0,1)
+        regs['IEN1'] = self.peek(IEN1,1)
+        regs['IEN2'] = self.peek(IEN2,1)
+        # TCON
+        regs['TCON'] = self.peek(TCON,1)
+        # S0CON
+        regs['S0CON'] = self.peek(S0CON,1)
+        # IRCON
+        regs['IRCON'] = self.peek(IRCON,1)
+        # IRCON2
+        regs['IRCON2'] = self.peek(IRCON2,1)
+        # S1CON
+        regs['S1CON'] = self.peek(S1CON,1)
+        # RFIF
+        regs['RFIF'] = self.peek(RFIF,1)
+        # DMAIE
+        regs['DMAIE'] = self.peek(DMAIE,1)
+        # DMAIF
+        regs['DMAIF'] = self.peek(DMAIF,1)
+        # DMAIRQ
+        regs['DMAIRQ'] = self.peek(DMAIRQ,1)
+        return regs
+
     ######## RADIO METHODS #########
     ### radio recv
     def getMARCSTATE(self):

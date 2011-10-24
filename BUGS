@@ -1,0 +1,4 @@
+* EP5 and EP0 don't adequately protect themselves from too much data.  d.peek(blah, 500) hangs.  d.getDebugPeek(blah, 120) returns ''
+* EP5
+
+* if transmitter sending while first starting up, the receiver fails for some reason.  possibly due to accessing USB too early?  possibly due to receiving RF too early?  investigate.
