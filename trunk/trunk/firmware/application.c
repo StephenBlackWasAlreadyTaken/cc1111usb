@@ -108,7 +108,6 @@ void appMainLoop(void)
     }
 }
 
-
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
  * main handler routine for the application as endpoint 0 is normally used for system stuff.
  *
@@ -195,6 +194,84 @@ int appHandleEP0(USB_Setup_Header* pReq)
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
  *  devices.                                                                                     *
  *************************************************************************************************/
+
+static void appInitRf(void)
+{
+
+    IOCFG2      = 0x00;
+    IOCFG1      = 0x00;
+    IOCFG0      = 0x00;
+    SYNC1       = 0x0c;
+    SYNC0       = 0x4e;
+    PKTLEN      = 0xff;
+    PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
+    PKTCTRL0    = 0x01;
+    ADDR        = 0x00;
+    CHANNR      = 0x00;
+    FSCTRL1     = 0x06;
+    FSCTRL0     = 0x00;
+    FREQ2       = 0x24;
+    FREQ1       = 0x3a;
+    FREQ0       = 0xf1;
+    MDMCFG4     = 0xca;
+    MDMCFG3     = 0xa3;
+    MDMCFG2     = 0x03;
+    MDMCFG1     = 0x23;
+    MDMCFG0     = 0x11;
+    DEVIATN     = 0x36;
+    MCSM2       = 0x07;             // RX_TIMEOUT
+    MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+    MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
+    FOCCFG      = 0x17;
+    BSCFG       = 0x6c;
+    AGCCTRL2    = 0x03;
+    AGCCTRL1    = 0x40;
+    AGCCTRL0    = 0x91;
+    FREND1      = 0x56;
+    FREND0      = 0x10;
+    FSCAL3      = 0xe9;
+    FSCAL2      = 0x2a;
+    FSCAL1      = 0x00;
+    FSCAL0      = 0x1f;
+    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x35; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
+    TEST0       = 0x09;
+    PA_TABLE0   = 0x50;
+
+
+#ifndef RADIO_EU
+    //PKTCTRL1    = 0x04;             // APPEND_STATUS
+    //PKTCTRL1    = 0x40;             // PQT threshold
+    //PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
+    //PKTCTRL0    = 0x00;             // FIXED LENGTH, no crc, no whitening
+    FSCTRL1     = 0x0c;             // Intermediate Frequency
+    //FSCTRL0     = 0x00;
+    FREQ2       = 0x25;
+    FREQ1       = 0x95;
+    FREQ0       = 0x55;
+    //MDMCFG4     = 0x1d;             // chan_bw and drate_e
+    //MDMCFG3     = 0x55;             // drate_m
+    //MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
+    //MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
+    //MDMCFG0     = 0x11;             // chanspc_m
+    //DEVIATN     = 0x63;
+    //FOCCFG      = 0x1d;             
+    //BSCFG       = 0x1c;             // bit sync config
+    //AGCCTRL2    = 0xc7;
+    //AGCCTRL1    = 0x00;
+    //AGCCTRL0    = 0xb0;
+    FREND1      = 0xb6;
+    FREND0      = 0x10;
+    FSCAL3      = 0xea;
+    FSCAL2      = 0x2a;
+    FSCAL1      = 0x00;
+    FSCAL0      = 0x1f;
+    //TEST2       = 0x88;
+    //TEST1       = 0x31;
+    //TEST0       = 0x09;
+    //PA_TABLE0   = 0x83;
+#endif
+}
 
 /* initialize the IO subsystems for the appropriate dongles */
 static void io_init(void)

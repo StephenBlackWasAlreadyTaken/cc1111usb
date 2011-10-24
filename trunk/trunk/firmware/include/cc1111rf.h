@@ -59,5 +59,6 @@ u8 transmit(xdata u8* buf, u16 len);
 void stopRX(void);
 void startRX(void);
 void init_RF(void);
+void appInitRf(void);   // in application.c
 
 #endif
