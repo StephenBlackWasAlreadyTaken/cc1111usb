@@ -53,6 +53,8 @@ u16 usb_recv_ep0OUT();
 
 u16 usb_recv_epOUT(u8 epnum, USB_EP_IO_BUF* epiobuf);
 void initUSB(void);
+void usb_up(void);
+void usb_down(void);
 void waitForUSBsetup();
 // export as this *must* be in main loop.
 void usbProcessEvents(void);

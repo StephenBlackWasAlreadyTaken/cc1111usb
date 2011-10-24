@@ -437,6 +437,8 @@ void vcom_putstr(char* buff) {
 }
 
 void vcom_up() {
+    // deprecate?  vcom_up and vcom_down should be replaced with usb_up/usb_down, as they do the same things.  if not, usb should use P1_1 instead of P1_0, as that seems to work as well.
+    //
   // Bring up the USB link
     P1DIR |= 0x02;
     P1_1 = 1;
