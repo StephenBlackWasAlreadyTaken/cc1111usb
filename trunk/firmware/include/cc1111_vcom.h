@@ -32,8 +32,10 @@ void vcom_flush();
 
 void vcom_putstr(char* buff);
 void vcom(char* buff);
-void vcom_up();
-void vcom_down();
+//void vcom_up();
+//void vcom_down();
+void usb_up(void);
+void usb_down(void);
 
 // End external interface
 
