@@ -167,52 +167,6 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
     //EA=1;
 }
 
-/*************************************************************************************************
- * debug stuff.  slows executions.                                                               *
- ************************************************************************************************/
-/* blinks the EP0 SETUP packet in binary on the LED */
-void debugEP0Req(u8 *pReq)
-{
-    (void) pReq;
-    /*
-    //u8  loop;
-
-    for (loop = sizeof(USB_Setup_Header);loop>0; loop--)
-    {
-        blink_binary_baby_lsb(*(pReq), 8);
-        pReq++;
-    }*/
-
-}
-
-
-/* sends a debug message up to the python code to be spit out on stderr */
-void debug(code u8* text)
-{
-    u16 len = 0;
-    code u8* ptr = text;
-    while (*ptr++ != 0)
-        len ++;
-    txdata(0xfe, 0xf0, len, (xdata u8*)text);
-}
-
-void debughex(u8 num)
-{
-    txdata(0xfe, DEBUG_CMD_HEX, 1, (xdata u8*)&num);
-}
-
-void debughex16(u16 num)
-{
-    txdata(0xfe, DEBUG_CMD_HEX16, 2, (xdata u8*)&num);
-}
-
-void debughex32(u32 num)
-{
-    txdata(0xfe, DEBUG_CMD_HEX32, 4, (xdata u8*)&num);
-}
- 
-
-
 
 //! waitForUSBsetup() is a helper function to allow the usb stuff to settle before real app processing happens.
 void waitForUSBsetup() 
@@ -341,42 +295,54 @@ void usb_down(void)
  *************************************************************************************************/
 int setup_send_ep0(u8* payload, u16 length)
 {
-    if (ep0iobuf.epstatus != EP_STATE_IDLE){
+    if (ep0iobuf.epstatus != EP_STATE_IDLE)
+    {
+        /* catestropic error.  *must* fix! */
         blink(1000,1000);
         blink(1000,1000);
         blink(1000,1000);
         return -1;
     }
+
     ep0iobuf.INbuf = payload;
     ep0iobuf.INbytesleft = length;
     ep0iobuf.epstatus = EP_STATE_TX;
+
     return 0;
 }
 
+/* send from XDATA */
 int setup_sendx_ep0(xdata u8* payload, u16 length)
 {
-    if (ep0iobuf.epstatus != EP_STATE_IDLE){
+    if (ep0iobuf.epstatus != EP_STATE_IDLE)
+    {
+        /* catestropic error.  *must* fix! */
         blink(1000,1000);
         blink(1000,1000);
         blink(1000,1000);
         return -1;
     }
+
     ep0iobuf.INbuf = payload;
     ep0iobuf.INbytesleft = length;
     ep0iobuf.epstatus = EP_STATE_TX;
+
     return 0;
 }
 
+/*  unused????
 int setup_send_ep5(u8* payload, u16 length)
 {
     if (ep5iobuf.epstatus != EP_STATE_IDLE)
         return -1;
+
     ep5iobuf.INbuf = payload;
     ep5iobuf.INbytesleft = length;
     ep5iobuf.epstatus = EP_STATE_TX;
+    
     return 0;
 }
-
+*/
 
 void usb_arm_ep0IN(){
     /***********************
@@ -812,13 +778,11 @@ void handleOUTEP5(void)
     usbdma.srcAddrL = 0x2a;
     usbdma.destAddrH = ((u16)ptr)>>8;
     usbdma.destAddrL = ((u16)ptr)&0xff;
-    //usbdma.lenL = len;              // FIXME: use USBCNTH and USBCNTL? are they cleared on read?
-    //usbdma.lenH = len>>8;
     usbdma.srcInc = 0;
     usbdma.destInc = 1;
     usbdma.lenL = USBCNTL;
     usbdma.lenH = USBCNTH;
-    //len = (USBCNTH<<8)+USBCNTL;
+
     len = (usbdma.lenH<<8)+usbdma.lenL;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
@@ -904,15 +868,13 @@ void handleOUTEP5(void)
                     switch (*ptr++)
                     {
                         case RF_STATE_RX:
-                            RxOn();
+                            RxMode();
                             break;
                         case RF_STATE_IDLE:
-                            RxIdle();
+                            IdleMode();
                             break;
                         case RF_STATE_TX:
                             transmit(ptr, len);
-
-
                             break;
                     }
                 default:
