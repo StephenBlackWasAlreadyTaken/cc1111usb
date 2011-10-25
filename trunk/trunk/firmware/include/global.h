@@ -1,7 +1,9 @@
-#include "cc1111.h"
-
 #ifndef GLOBAL_H
 #define GLOBAL_H
+
+#include "cc1111.h"
+#include "cc1111usbdebug.h"
+
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
 extern xdata u8 lastCode[2];
 
