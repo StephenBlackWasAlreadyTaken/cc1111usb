@@ -77,7 +77,7 @@ u8 transmit(xdata u8* buf, u16 len)
     setRFIdle();
 
     /* Clean tx buffer */
-    memset(rftxbuf,0,BUFFER_SIZE);
+    //memset(rftxbuf,0,BUFFER_SIZE);
 
     if (len == 0)
         len = buf[0];
@@ -91,17 +91,17 @@ u8 transmit(xdata u8* buf, u16 len)
     //pDMACfg = buf;                //wtf was i thinking here?!?
 
     /* Strobe to rx */
-    RFST = RFST_SRX;
-    while(!(MARCSTATE & MARC_STATE_RX));
+    //RFST = RFST_SRX;
+    //while(!(MARCSTATE & MARC_STATE_RX));
     /* wait for good RSSI (clear channel) */   ///// unnecessary when radio is in RX mode by default.
     //while(!(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS)));
-    while(1)
-    {
-        if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-        {
-            break;
-        }
-    }
+    //while(1)
+    //{
+    //    if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+    //    {
+    //        break;
+    //    }
+    //}
 
 
     /* Put radio into tx state */

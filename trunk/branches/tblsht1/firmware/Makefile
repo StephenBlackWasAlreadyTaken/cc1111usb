@@ -30,21 +30,25 @@ immeapplication.hex: application.c $(libsusb)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE
 	packihx <application.ihx >bins/application.hex
 
-testxmitusb.hex: application.c $(libsusb)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE -DTRANSMIT_TEST 
-	packihx <application.ihx >bins/testxmit.hex
+testxmitusb.hex: appNetworkTest.c $(libsusb)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DCHRONOSDONGLE -DTRANSMIT_TEST 
+	packihx <appNetworkTest.ihx >bins/testxmit.hex
 
-testrecvusb.hex: application.c $(libsusb)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE -DRECEIVE_TEST
-	packihx <application.ihx >bins/testrecv.hex
+testrecvusb.hex: appNetworkTest.c $(libsusb)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DCHRONOSDONGLE -DRECEIVE_TEST
+	packihx <appNetworkTest.ihx >bins/testrecv.hex
 
-testxmitapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
-	packihx <application.ihx >bins/testxmit.hex
+testxmitapplication.hex: appNetworkTest.c $(libsvcom)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
+	packihx <appNetworkTest.ihx >bins/testxmit.hex
 
-testrecvapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST
-	packihx <application.ihx >bins/testrecv.hex
+testrecvapplication.hex: appNetworkTest.c $(libsvcom)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST
+	packihx <appNetworkTest.ihx >bins/testrecv.hex
+
+NIC.hex: appNIC.c $(libsusb)
+	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
+	packihx <appNIC.ihx >bins/NIC.hex
 
 
 installchronosfw: chronosapplication.hex
@@ -80,6 +84,11 @@ installtestrecvfw: testrecvapplication.hex
 installtestxmitfw: testxmitapplication.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/testxmit.hex
+	goodfet.cc info
+
+installnicfw: NIC.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/NIC.hex
 	goodfet.cc info
 
 

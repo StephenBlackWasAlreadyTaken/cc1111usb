@@ -83,7 +83,7 @@ int appHandleEP5();
 #define USBD_OIF_OUTEP4IF       (u16)0x2000
 #define USBD_OIF_OUTEP5IF       (u16)0x4000
 
-#define TXDATA_MAX_WAIT         100
+#define TXDATA_MAX_WAIT         30
 
 
 // setup Config Descriptor  (see cc1111.h for defaults and fields to change)
