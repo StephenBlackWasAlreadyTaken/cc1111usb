@@ -28,7 +28,9 @@
  * */
 
 
-
+#define APP_NIC 0x42
+#define NIC_RECV 0x1
+#define NIC_XMIT 0x2
 
 /*************************************************************************************************
  * Application Code - these first few functions are what should get overwritten for your app     *
@@ -62,12 +64,12 @@ void appMainLoop(void)
         {
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
-            {
+            {   // we've received a packet.  deliver it.
 #ifdef VIRTUAL_COM
                 vcom_putstr(rfrxbuf[processbuffer]);
                 vcom_flush();
 #else
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 #endif
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
@@ -93,23 +95,35 @@ void appMainLoop(void)
 int appHandleEP5()
 {   // not used by VCOM
 #ifndef VIRTUAL_COM
-    u8 app, cmd;
-    u16 len;
+    u8 app, cmd, len;
     xdata u8 *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
-    len = (u16)*buf;
+    //len = (u16)*buf;
+    len = (u8)*buf;
     buf += 2;                                               // point at the address in memory
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
     //  then check the cmd
     //   then process the data
-    switch (cmd)
+    switch (app)
     {
-        default:
-            break;
+        case APP_NIC:
+
+        switch (cmd)
+        {
+            case NIC_XMIT:
+                transmit(buf, len);
+                { LED=1; sleepMillis(2); LED=0; sleepMillis(1); }
+                txdata(app, cmd, 1, (xdata u8*)"0");
+                debughex((u8)*(buf-1));
+                break;
+            default:
+                break;
+        }
+        break;
     }
     ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
 #endif

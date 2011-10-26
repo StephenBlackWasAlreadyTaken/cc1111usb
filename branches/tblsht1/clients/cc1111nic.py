@@ -2,6 +2,10 @@
 import sys, usb, threading, time, struct
 from chipcondefs import *
 
+APP_NIC = 0x42
+NIC_RECV = 0x1
+NIC_XMIT = 0x2
+
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
 USB_BM_REQTYPE_TGT_INTF         =0x01
@@ -75,7 +79,7 @@ for lcl in lcls.keys():
 """  MODULATIONS
 Note that MSK is only supported for data rates above 26 kBaud and GFSK,
 ASK , and OOK is only supported for data rate up until 250 kBaud. MSK
-cannot be used if Manchester encoding/decoding is enabled.
+cannot be used if Manchester encoding/decding is enabled.
 """
 MOD_2FSK                        = 0x00
 MOD_GFSK                        = 0x10
@@ -890,6 +894,11 @@ class USBDongle:
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
+
+    def xmit(self, data):
+        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data), data))
+
+
 
 
 
