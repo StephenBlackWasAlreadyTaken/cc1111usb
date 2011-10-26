@@ -101,8 +101,8 @@ int appHandleEP5()
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
-    //len = (u16)*buf;
-    len = (u8)*buf;
+    //len = (u16)*buf;    - original firmware
+    len = (u8)*buf;         // FIXME: should we use this?  or the lower byte of OUTlen?
     buf += 2;                                               // point at the address in memory
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
@@ -118,7 +118,6 @@ int appHandleEP5()
                 transmit(buf, len);
                 { LED=1; sleepMillis(2); LED=0; sleepMillis(1); }
                 txdata(app, cmd, 1, (xdata u8*)"0");
-                debughex((u8)*(buf-1));
                 break;
             default:
                 break;

@@ -895,8 +895,12 @@ class USBDongle:
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
 
-    def xmit(self, data):
-        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data), data))
+    def RFxmit(self, data):
+        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
+
+    def RFrecv(self, timeout=100):
+        return self.recv(APP_NIC, timeout)
+
 
 
 
