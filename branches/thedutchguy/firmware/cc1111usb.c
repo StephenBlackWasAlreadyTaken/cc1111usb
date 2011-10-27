@@ -865,18 +865,19 @@ void handleOUTEP5(void)
                     // unimplemented
                     break;
                 case CMD_RFMODE:
-                    /*switch (*ptr++)
+					#pragma disable_warning 110
+                    switch (*ptr++)
                     {
                         case RF_STATE_RX:
-                            //RxMode();  TODO Where does this go? 
+                            RxOn(); 
                             break;
                         case RF_STATE_IDLE:
-                            //IdleMode();  TODO Where does this go? 
+                            setRFIdle();  
                             break;
                         case RF_STATE_TX:
-                            //transmit(ptr, len); TODO Need to merge 
+                            transmit(ptr, len);  
                             break;
-                    }*/
+                    }
                 default:
                     txdata(app,cmd,len,ptr);
             }

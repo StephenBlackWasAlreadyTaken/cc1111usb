@@ -138,13 +138,19 @@ int waitRSSI()
 	return 0;
 }
 
-u8 transmit(xdata u8* buf)
+u8 transmit(xdata u8* buf, u16 len)
 {
 	/* Put radio into idle state */
 	setRFIdle();
 
+	/* If len is empty, assume first byte is the length */
+	if(len == 0)
+	{
+		len = buf[0];
+	}
+
 	/* Clean tx buffer */
-	memset(rftxbuf,0,BUFFER_SIZE);
+	memset(rftxbuf,0,len);
 
 	/* Copy userdata to tx buffer */
 	strcpy(rftxbuf,buf);
@@ -155,7 +161,7 @@ u8 transmit(xdata u8* buf)
 	/* Strobe to rx */
 	RFST = RFST_SRX;
 	while(!(MARCSTATE & MARC_STATE_RX));
-	/* wait for good RSSI */
+	/* wait for good RSSI, TODO change while loop this could hang forever */
 	while(1)
 	{
 		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
@@ -181,55 +187,6 @@ u8 transmit(xdata u8* buf)
 //	}
 	return 0;
 }
-
-//u8 transmitdma(xdata u8* buf)
-//{
-//	u8 retval = RF_SUCCESS;
-//
-//	setRFIdle();
-//
-//	rf_status = RF_STATE_TX;
-//
-//	// configure DMA for transmission
-//	rfDMACfg[0]  = (u16)buf>>8;
-//	rfDMACfg[1]  = (u16)buf&0xff;
-//	rfDMACfg[2]  = (u16)X_RFD>>8;
-//	rfDMACfg[3]  = (u16)X_RFD&0xff;
-//	rfDMACfg[4]  = RF_DMA_VLEN_1;
-//	rfDMACfg[5]  = RF_DMA_LEN;
-//	rfDMACfg[6]  = RF_DMA_TRIGGER;
-//	rfDMACfg[7]  = RF_DMA_SRC_INC | RF_DMA_IRQMASK_DI | RF_DMA_M8 | RF_DMA_PRIO_NOR;
-//
-//	DMA0CFGH = ((u16)rfDMACfg)>>8;
-//	DMA0CFGL = ((u16)rfDMACfg)&0xff;
-//
-//	/* Strobe to rx */
-//	RFST = RFST_SRX;
-//	while(!(MARCSTATE & MARC_STATE_RX));
-//
-//	/* wait for good RSSI */
-//	while(1)
-//	{
-//		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-//		{
-//			break;
-//		}
-//	}
-//
-//	DMAARM |= 0x01;                    // using DMA 0
-//	RFST = RFST_STX;                //  triggers the DMA
-//
-//	/*while (!(RFIF & RFIF_IRQ_DONE));//  wait for DMA to complete
-//	RFIF &= ~RFIF_IRQ_DONE;
-//
-//	if (rf_status == RF_STATE_RX)
-//		startRX();
-//	else
-//		stopRX();
-//	 */
-//
-//	return (retval);
-//}
 
 void startRX(void)
 {
