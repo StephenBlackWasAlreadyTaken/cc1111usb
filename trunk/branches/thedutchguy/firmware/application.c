@@ -1,7 +1,6 @@
 #include "cc1111rf.h"
 #include "global.h"
 
-#define VIRTUAL_COM
 #ifdef VIRTUAL_COM
 	#include "cc1111.h"
 	#include "cc1111_vcom.h"
@@ -45,6 +44,27 @@ void appMainLoop(void)
 {
 	xdata u8 processbuffer;
 
+#ifdef TRANSMIT_TEST
+	xdata u8 u8Packet[13];
+
+	 /* Send a packet */
+	u8Packet[0] = 0x0B;
+	u8Packet[1] = 0x48;
+	u8Packet[2] = 0x41;
+	u8Packet[3] = 0x4C;
+	u8Packet[4] = 0x4C;
+	u8Packet[5] = 0x4F;
+	u8Packet[6] = 0x43;
+	u8Packet[7] = 0x43;
+	u8Packet[8] = 0x31;
+	u8Packet[9] = 0x31;
+	u8Packet[10] = 0x31;
+	u8Packet[11] = 0x31;
+	u8Packet[12] = 0x00;
+    transmit(u8Packet);
+    sleepMillis(800);
+#endif
+
     if(rfif)
     {
         lastCode[0] = 0xd;
@@ -55,12 +75,7 @@ void appMainLoop(void)
         	processbuffer = !rfRxCurrentBuffer;
 			if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
 			{
-#ifdef VIRTUAL_COM
-				vcom_putstr(rfrxbuf[processbuffer]);
-				vcom_flush();
-#else
-				debug((code u8*)rfrxbuf[processbuffer]);
-#endif
+				txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 				/* Set receive buffer to processed so it can be used again */
 				rfRxProcessed[processbuffer] = RX_PROCESSED;
 			}
@@ -227,35 +242,13 @@ void initBoard(void)
 void main (void)
 {
 	u8 uiRadioEu = 0;
-	xdata u8 u8Packet[13];
-
-	 /* Send a packet */
-	u8Packet[0] = 0x0B;
-	u8Packet[1] = 0x48;
-	u8Packet[2] = 0x41;
-	u8Packet[3] = 0x4C;
-	u8Packet[4] = 0x4C;
-	u8Packet[5] = 0x4F;
-	u8Packet[6] = 0x43;
-	u8Packet[7] = 0x43;
-	u8Packet[8] = 0x31;
-	u8Packet[9] = 0x31;
-	u8Packet[10] = 0x31;
-	u8Packet[11] = 0x31;
-	u8Packet[12] = 0x00;
 
     initBoard();
-#ifdef VIRTUAL_COM
-    vcom_init();
-#else
     initUSB();
-#endif
-
 
 #ifdef RADIO_EU
 	uiRadioEu = 1;
 #endif
-
 #ifdef RECEIVE_TEST
 	init_RF(uiRadioEu,RECV);
 #else
@@ -263,15 +256,9 @@ void main (void)
     init_RF(uiRadioEu,NORMAL);
 #endif
 
-
-#ifdef VIRTUAL_COM
-    vcom_up();
-#endif
-
     /* Make sure interrupts are enabled */
     EA = 1;
 
-    //sleepMillis(500);
     appMainInit();
 
 #ifdef RECEIVE_TEST
@@ -280,18 +267,8 @@ void main (void)
 
     while (1)
     {  
-#ifndef VIRTUAL_COM
-//#ifndef BUSYBLINK
-//        do_blink();
-//#endif
         usbProcessEvents();
-#endif
         appMainLoop();
-
-#ifdef TRANSMIT_TEST
-        transmit(u8Packet);
-        sleepMillis(800);
-#endif
     }
 
 }
