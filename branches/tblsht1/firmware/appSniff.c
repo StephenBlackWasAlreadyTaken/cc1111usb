@@ -79,14 +79,13 @@ void appMainLoop(void)
                 SSN=LOW;
                 LED_RED = !LED_RED;
                 //drawstr(2,0, "                                ");
-                blink_binary_baby_lsb(len, 8);
+                //blink_binary_baby_lsb(len, 8);
                 drawstr(1,0, "Length: ");
                 drawhex(1,9, len);
-                drawstr(2,0, ": ");
                 //if (len>10)
                     len = 10;
 
-                //setCursor(2, 0);
+                setCursor(2, 0);
                 while (len--)
                 {
                     if (*pval > 0x1f && *pval < 0x7f)
@@ -239,8 +238,8 @@ static void appInitRf(void)
     ADDR        = 0x00;
     CHANNR      = 0x00;
 #ifdef IMME
-    PKTCTRL1    = 0xe5;
-    PKTCTRL0    = 0x05;
+    //PKTCTRL1    = 0xe5;  - has PQT/SYNC/blah and ADDRESS CHECK and APPEND_STATUS
+    //PKTCTRL0    = 0x05;  - has CRC enabled.
     FREQ2       = 0x21;
     FREQ1       = 0x65;//0x71;
     FREQ0       = 0x6a;//0x7c;
@@ -254,13 +253,13 @@ static void appInitRf(void)
     FSCTRL0     = 0x00;
 #endif
     MDMCFG4     = 0xca;
-    MDMCFG3     = 0x83;
-    MDMCFG2     = 0x10;
-    MDMCFG1     = 0x22;
-    MDMCFG0     = 0xf8;
+    MDMCFG3     = 0x83;//0xa3;//0x83;
+    MDMCFG2     = 0x03;//0x10;
+    MDMCFG1     = 0x23;//0x22;
+    MDMCFG0     = 0x11;//0xf8;
     DEVIATN     = 0x35;
     MCSM2       = 0x07;             // RX_TIMEOUT
-    MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+    MCSM1       = 0x3f;//0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
     MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
     FOCCFG      = 0x16;
     BSCFG       = 0x6c;
@@ -281,32 +280,6 @@ static void appInitRf(void)
 
 #ifndef RADIO_EU
     // this is the NA radio freqs 902-928MHz
-    //PKTCTRL1    = 0x04;             // APPEND_STATUS
-    //PKTCTRL1    = 0x40;             // PQT threshold
-    //PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
-    //PKTCTRL0    = 0x00;             // FIXED LENGTH, no crc, no whitening
-    //FSCTRL1     = 0x0c;             // Intermediate Frequency
-    //FSCTRL0     = 0x00;
-    //MDMCFG4     = 0x1d;             // chan_bw and drate_e
-    //MDMCFG3     = 0x55;             // drate_m
-    //MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
-    //MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
-    //MDMCFG0     = 0x11;             // chanspc_m
-    //DEVIATN     = 0x63;
-    //FOCCFG      = 0x1d;             
-    //BSCFG       = 0x1c;             // bit sync config
-    //AGCCTRL2    = 0xc7;
-    //AGCCTRL1    = 0x00;
-    //AGCCTRL0    = 0xb0;
-    //FREND1      = 0xb6;
-    //FREND0      = 0x10;
-    //FSCAL3      = 0xea;
-    //FSCAL2      = 0x2a;
-    //FSCAL1      = 0x00;
-    //FSCAL0      = 0x1f;
-    //TEST2       = 0x88;
-    //TEST1       = 0x31;
-    //TEST0       = 0x09;
     PA_TABLE0   = 0x8e;
 #ifdef IMME
     FREQ2       = 0x22;
@@ -355,7 +328,7 @@ static void io_init(void)
   erasescreen();
   drawstr(0,0, "IMME SNIFF v0.1");
   SSN = HIGH;
-  sleepMillis(100);
+  //sleepMillis(100);
   
  #endif 
 #else       // CC1111
