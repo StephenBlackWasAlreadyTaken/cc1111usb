@@ -15,7 +15,6 @@ volatile xdata u8 rfTxCounter = 0;
 u8 rfif;
 volatile xdata u8 rf_status;
 static xdata u8 rfDMACfg[DMA_CFG_SIZE];
-xdata u8 lastCode[2];
 
 /*************************************************************************************************
  * RF init stuff                                                                                 *
@@ -320,17 +319,12 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 
     if(RFIF & RFIF_IRQ_RXOVF)
     {
-    	//P1_3 = 1;
-    	P0_3 = 1;
-
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
     	startRX();
     }
     else if(RFIF & RFIF_IRQ_TXUNF)
     {
-    	//P1_3 = 1;
-
     	/* Put radio into idle state */
 		setRFIdle();
     }
@@ -338,7 +332,6 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     {
     	if(rf_status == RF_STATE_TX)
     	{
-    		//P1_3 = 1;
     		DMAARM |= 0x81;
     	}
     	else
