@@ -36,6 +36,13 @@
 #define RX_UNPROCESSED 0
 #define RX_PROCESSED 1
 
+/* Type for registers:
+	NORMAL: registers are configured by client
+	RECV: registers are set for receive
+	XMIT: registers are set for transmit
+*/
+typedef enum{NORMAL,RECV,XMIT} register_e;
+
 /* Rx buffers */
 extern volatile xdata u8 rfRxCurrentBuffer;
 extern volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
@@ -59,6 +66,6 @@ u8 transmit(xdata u8*);
 u8 transmitdma(xdata u8* buf);
 void stopRX(void);
 void startRX(void);
-void init_RF();
+void init_RF(u8 bEuRadio, register_e rRegisterType);
 
 #endif

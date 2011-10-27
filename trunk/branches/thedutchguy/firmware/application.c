@@ -226,6 +226,7 @@ void initBoard(void)
 
 void main (void)
 {
+	u8 uiRadioEu = 0;
 	xdata u8 u8Packet[13];
 
 	 /* Send a packet */
@@ -249,7 +250,19 @@ void main (void)
 #else
     initUSB();
 #endif
-    init_RF();
+
+
+#ifdef RADIO_EU
+	uiRadioEu = 1;
+#endif
+
+#ifdef RECEIVE_TEST
+	init_RF(uiRadioEu,RECV);
+#else
+	/* Transmit has no special things, for now parse as normal */
+    init_RF(uiRadioEu,NORMAL);
+#endif
+
 
 #ifdef VIRTUAL_COM
     vcom_up();
@@ -275,7 +288,7 @@ void main (void)
 #endif
         appMainLoop();
 
-#ifndef RECEIVE_TEST
+#ifdef TRANSMIT_TEST
         transmit(u8Packet);
         sleepMillis(800);
 #endif
