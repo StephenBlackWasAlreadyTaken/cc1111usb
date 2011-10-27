@@ -20,23 +20,26 @@ xdata u8 lastCode[2];
 /*************************************************************************************************
  * RF init stuff                                                                                 *
  ************************************************************************************************/
-void init_RF(void)
+void init_RF(u8 bEuRadio, register_e rRegisterType)
 {
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
     memset(rftxbuf,0,BUFFER_SIZE);
-
+	
     IOCFG2      = 0x00;
 	IOCFG1      = 0x00;
 	IOCFG0      = 0x00;
 	SYNC1       = 0x0c;
 	SYNC0       = 0x4e;
 	PKTLEN      = 0xff;
-#ifdef RECEIVE_TEST
-	PKTCTRL1    = 0x40;
-#else
-	PKTCTRL1	= 0x00;
-#endif
+	if(rRegisterType == RECV)
+	{
+		PKTCTRL1    = 0x40;
+	}
+	else
+	{
+		PKTCTRL1	= 0x00;
+	}
 	PKTCTRL0    = 0x05;
 	ADDR        = 0x00;
 	CHANNR      = 0x00;
@@ -52,11 +55,14 @@ void init_RF(void)
 	MDMCFG0     = 0x11;
 	DEVIATN     = 0x36;
 	MCSM2       = 0x07;
-#ifdef RECEIVE_TEST
-	MCSM1       = 0x3C;
-#else
-	MCSM1       = 0x30;
-#endif
+	if(rRegisterType == RECV)
+	{
+		MCSM1       = 0x3C;
+	}
+	else
+	{
+		MCSM1       = 0x30;
+	}
 	MCSM0       = 0x18;
 	FOCCFG      = 0x16;
 	BSCFG       = 0x6c;
@@ -69,15 +75,33 @@ void init_RF(void)
 	FSCAL2      = 0x2a;
 	FSCAL1      = 0x00;
 	FSCAL0      = 0x1f;
-#ifdef RECEIVE_TEST
-	TEST2       = 0x81;
-	TEST1       = 0x35;
-#else
-	TEST2       = 0x88;
-	TEST1       = 0x31;
-#endif
+	if(rRegisterType == RECV)
+	{
+		TEST2       = 0x81;
+		TEST1       = 0x35;
+	}
+	else
+	{
+		TEST2       = 0x88;
+		TEST1       = 0x31;
+	}
 	TEST0       = 0x09;
 	PA_TABLE0   = 0x50;
+
+	/* If not EU change frequency */
+	if(!bEuRadio)
+	{
+		FSCTRL1 = 0x0c;
+		FREQ2 = 0x25;
+		FREQ1 = 0x95;
+		FREQ0 = 0x55;
+		FREND1 = 0xb6;
+		FREND0 = 0x10;
+		FSCAL3 = 0xea;
+		FSCAL2 = 0x2a;
+		FSCAL1 = 0x00;
+		FSCAL0 = 0x1f;
+	}
 
 	/* Setup interrupts */
 	RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
@@ -338,24 +362,6 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 			}
     	}
     }
-#ifdef RECEIVE_TEST
-    else if(RFIF & RFIF_IRQ_SFD)
-    {
-    	P0_3 ? (P0_3 = 0) : (P0_3 = 1);
-    }
-    else if(RFIF & RFIF_IRQ_CCA)
-	{
-		P0_2 ? (P0_2 = 0) : (P0_2 = 1);
-	}
-    else if(RFIF & RFIF_IRQ_PQT)
-    {
-    	P0_1 ? (P0_1 = 0) : (P0_1 = 1);
-    }
-    else if(RFIF & RFIF_IRQ_CS)
-    {
-    	P0_0 ? (P0_0 = 0) : (P0_0 = 1);
-    }
-#endif
     //RFIF &= ~RFIF_IRQ_DONE;
     RFIF = 0;
 }
