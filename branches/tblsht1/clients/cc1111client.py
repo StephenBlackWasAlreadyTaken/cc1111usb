@@ -891,6 +891,14 @@ class USBDongle:
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
 
+def mkFreq(freq=902000000, mhz=24):
+    freqmult = (0x10000 / 1000000.0) / mhz
+    num = int(freq * freqmult)
+    freq2 = num >> 16
+    freq1 = (num>>8) & 0xff
+    freq0 = num & 0xff
+    return (num, freq2,freq1,freq0)
+
 
 
 if __name__ == "__main__":

@@ -1278,18 +1278,7 @@
 #define MARC_STATE_RXTX_SWITCH            0x15
 #define MARC_STATE_TX_UNDERFLOW           0x16
 
-// 0xDF3C Packetstatus register
-#define PKTSTATUS_SFD					0x08
-#define PKTSTATUS_CCA					0x10
-#define PKTSTATUS_PQTREACHED			0x20
-#define PKTSTATUS_CS					0x40
-#define PKTSTATUS_CRCOK					0x80
 
-#define u8 unsigned char
-#define u16 unsigned int
-#define uint8 unsigned char
-#define uint16 unsigned int
-#define u32 unsigned long
 
 /***********************************************************************/
 #endif

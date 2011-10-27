@@ -3,6 +3,7 @@
 
 #include "cc1111.h"
 #include "cc1111usbdebug.h"
+#include "bits.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
 extern xdata u8 lastCode[2];
@@ -17,12 +18,17 @@ extern xdata u8 lastCode[2];
 
 
 /* board-specific defines */
-#ifdef IMMEDONGLE
+#ifdef IMME
     // CC1110 IMME pink dongle - 26mhz
     #define LED_RED   P2_3
     #define LED_GREEN P2_4
     #define SLEEPTIMER  1100
     
+ #include "immedisplay.h"
+ #include "immekeys.h"
+ #include "immeio.h"
+ //#include "pm.h"
+
 #elif defined DONSDONGLES
     // CC1111 USB Dongle with breakout debugging pins (EMK?) - 24mhz
     #define LED_RED   P1_1
