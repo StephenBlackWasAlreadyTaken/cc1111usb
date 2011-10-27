@@ -413,12 +413,18 @@ void vcom_disable()
   SLEEP &= ~SLEEP_USB_EN;
 }
 
-void vcom_init()
+void initUSB()
 {
   // Init ep0
 	usb_ep0_state = USB_EP0_IDLE;
 	usb_iif = 0;
 	vcom_enable();
+	vcom_up();
+}
+
+void usbProcessEvents()
+{	
+	return; /* dummy function */
 }
 
 void vcom_readline(char* buff) {
@@ -448,3 +454,17 @@ void vcom_down() {
   P1DIR &= ~0x02;
 }
 
+void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)
+{
+	u16 test = 0;
+
+	/*removes warning */	
+	test = app = cmd = len;
+
+	/* function from usb thing, only need data ptr */	
+  	while (*dataptr) 
+	{
+	  	vcom_putchar(*dataptr++);
+  	}
+    vcom_flush();
+}

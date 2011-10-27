@@ -23,7 +23,8 @@
 
 // External interface
 
-void vcom_init();
+void initUSB();
+void usbProcessEvents();
 void vcom_disable();
 void vcom_enable();
 char vcom_getchar();
@@ -34,6 +35,8 @@ void vcom_putstr(char* buff);
 void vcom(char* buff);
 void vcom_up();
 void vcom_down();
+
+void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr);
 
 // End external interface
 

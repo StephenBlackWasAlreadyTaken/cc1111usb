@@ -4,7 +4,7 @@ CFLAGSold=--no-pack-iram $(CF)
 LFLAGS=--xram-loc 0xF000 
 
 apps = cc1111rf.rel global.rel
-libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usb.rel cc1111usbdebug.rel
+libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel
 libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel
 #srcs = $(libs,.rel=.c) 
 
@@ -39,13 +39,11 @@ testrecvusb.hex: application.c $(libsusb)
 	packihx <application.ihx >bins/testrecv.hex
 
 testxmitapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DTRANSMIT_TEST 
-	#sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DTRANSMIT_TEST 
 	packihx <application.ihx >bins/testxmit.hex
 
 testrecvapplication.hex: application.c $(libsvcom)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DRECEIVE_TEST
-	#sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST
+	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsvcom) -DCHRONOSDONGLE -DVIRTUAL_COM -DRECEIVE_TEST
 	packihx <application.ihx >bins/testrecv.hex
 
 
