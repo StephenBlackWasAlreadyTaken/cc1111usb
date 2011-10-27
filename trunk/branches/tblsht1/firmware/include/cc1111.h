@@ -4,12 +4,6 @@
 #include "cc1110-ext.h"
 #include <cc1110.h>
 
-#define u8 unsigned char
-#define u16 unsigned int
-#define uint8 unsigned char
-#define uint16 unsigned int
-#define u32 unsigned long
-
 uint8 addr;               // temporarily store the incoming address until *after* the STATUS stage of the transaction... then assign the address.
 
 #define  EP_STATE_IDLE      0
