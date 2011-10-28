@@ -1,0 +1,18 @@
+cc1111nicserver.py
+    * listen on two TCP ports
+        * one to xmit/recv data
+        * one to reconfigure the radio/chip settings
+
+IMME Sniffer
+    * UI
+        * power off/on
+        * adjust frequency/channel/spacing
+        * adjust data rate and bw
+        * adjust GFSK/MSK/OOK
+        * adjust channel
+
+cc1111nic.py/appNIC
+    * add frequency hopping settings and sync/methods
+        * primary channel - method
+        * "waiting" method
+
