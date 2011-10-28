@@ -233,8 +233,10 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x35; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
+    //TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
+    //TEST1       = 0x35; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
+    TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x31; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 

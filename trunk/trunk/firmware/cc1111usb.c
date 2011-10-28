@@ -868,10 +868,10 @@ void handleOUTEP5(void)
                     switch (*ptr++)
                     {
                         case RF_STATE_RX:
-                            RxMode();
+                            RxOn();
                             break;
                         case RF_STATE_IDLE:
-                            IdleMode();
+                            RxIdle();
                             break;
                         case RF_STATE_TX:
                             transmit(ptr, len);
