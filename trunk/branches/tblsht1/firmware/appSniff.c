@@ -42,13 +42,11 @@
  * Application Code - these first few functions are what should get overwritten for your app     *
  ************************************************************************************************/
 
-xdata u32 loopCnt;
-xdata u8 recvCnt;
+xdata u32 recvCnt;
 
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
-    loopCnt = 0;
     recvCnt = 0;
 
     RxMode();
@@ -61,6 +59,13 @@ void appMainLoop(void)
 {
     xdata u8 processbuffer;
 
+#ifdef IMME
+    SSN=LOW;
+    drawhex(6, 0, MARCSTATE);
+    drawhex(6,10, rfif);
+    SSN=HIGH;
+
+#endif
     if (rfif)
     {
         lastCode[0] = 0xd;
@@ -78,14 +83,19 @@ void appMainLoop(void)
 
                 SSN=LOW;
                 LED_RED = !LED_RED;
-                //drawstr(2,0, "                                ");
+                drawstr(3,0, "                                ");
+                drawstr(3,0, "                                ");
                 //blink_binary_baby_lsb(len, 8);
                 drawstr(1,0, "Length: ");
                 drawhex(1,9, len);
-                //if (len>10)
-                    len = 10;
+                drawstr(2,0, "Curr: ");
+                drawhex(2,6, rfRxCurrentBuffer);
+                drawstr(2,12, "Cnt: ");
+                drawhex(2,17, ++recvCnt);
+                if (len>50)
+                    len = 50;
 
-                setCursor(2, 0);
+                setCursor(3, 0);
                 while (len--)
                 {
                     if (*pval > 0x1f && *pval < 0x7f)
@@ -114,10 +124,6 @@ void appMainLoop(void)
                 }
 
                 //drawstr(2,0, rfrxbuf[processbuffer]+1);
-                drawstr(3,0, "rfRxCurrBuff: ");
-                drawhex(3,14, rfRxCurrentBuffer);
-                drawstr(4,0, "RecvCnt: ");
-                drawhex(4,9, ++recvCnt);
                 SSN=HIGH;
 #else
  #ifdef VIRTUAL_COM
@@ -379,6 +385,7 @@ void initBoard(void)
 
 void main (void)
 {
+start:
     initBoard();
 #ifndef IMME
  #ifdef VIRTUAL_COM
@@ -399,10 +406,12 @@ void main (void)
 
     while (1)
     {  
-#ifndef VIRTUAL_COM
-#ifndef IMME
+#ifdef IMME
+        poll_keyboard();
+#else
+ #ifndef VIRTUAL_COM
         usbProcessEvents();
-#endif
+ #endif
 #endif
         //  LED_RED = !LED_RED;
         appMainLoop();
