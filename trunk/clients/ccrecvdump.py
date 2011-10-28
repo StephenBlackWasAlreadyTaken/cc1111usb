@@ -7,6 +7,7 @@ if len(sys.argv) > 1:
 
 dport = "/dev/tty" + port
 
+print "Opening serial port %s for listening..." % dport
 s=serial.Serial(dport, 115200)
 
 counter = 0

@@ -75,7 +75,7 @@ for lcl in lcls.keys():
 """  MODULATIONS
 Note that MSK is only supported for data rates above 26 kBaud and GFSK,
 ASK , and OOK is only supported for data rate up until 250 kBaud. MSK
-cannot be used if Manchester encoding/decoding is enabled.
+cannot be used if Manchester encoding/decding is enabled.
 """
 MOD_2FSK                        = 0x00
 MOD_GFSK                        = 0x10
@@ -132,7 +132,8 @@ LENGTH_CONFIGS = [
 
 class USBDongle:
     ######## INITIALIZATION ########
-    def __init__(self, debug=False):
+    def __init__(self, idx=0, debug=False):
+        self.idx = idx
         self.cleanup()
         self._debug = debug
         self._threadGo = False
@@ -151,11 +152,15 @@ class USBDongle:
         self.sema = threading.Semaphore()
     
     def setup(self, console=True):
+        idx = self.idx
         for bus in usb.busses():
             for dev in bus.devices:
                 if dev.idProduct == 0x4715:
-                    if console: print >>sys.stderr,(dev)
-                    d=dev
+                    if idx:
+                        idx -= 1
+                    else:
+                        if console: print >>sys.stderr,(dev)
+                        d=dev
         self._d = d
         self._do = d.open()
         self._do.claimInterface(0)
@@ -891,5 +896,8 @@ class USBDongle:
 
 
 if __name__ == "__main__":
-    d = USBDongle()
+    idx = 0
+    if len(sys.argv) > 1:
+        idx = int(sys.argv.pop())
+    d = USBDongle(idx=idx)
 
