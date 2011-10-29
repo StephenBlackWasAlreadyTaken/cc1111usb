@@ -61,7 +61,7 @@ void appMainLoop(void)
 	u8Packet[10] = 0x31;
 	u8Packet[11] = 0x31;
 	u8Packet[12] = 0x00;
-    transmit(u8Packet);
+    transmit(u8Packet,0,0);
     sleepMillis(800);
 #endif
 
