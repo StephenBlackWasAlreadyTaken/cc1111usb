@@ -14,13 +14,17 @@ volatile xdata u8 rfTxCounter = 0;
 
 u8 rfif;
 volatile xdata u8 rf_status;
-static xdata u8 rfDMACfg[DMA_CFG_SIZE];
+volatile xdata DMA_DESC rfDMA;
 
 /*************************************************************************************************
  * RF init stuff                                                                                 *
  ************************************************************************************************/
 void init_RF(u8 bEuRadio, register_e rRegisterType)
 {
+    /* Init DMA channel */
+    DMA0CFGH = ((u16)(&rfDMA))>>8;
+    DMA0CFGL = ((u16)(&rfDMA))&0xff;
+
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
     memset(rftxbuf,0,BUFFER_SIZE);
@@ -138,7 +142,8 @@ int waitRSSI()
 	return 0;
 }
 
-u8 transmit(xdata u8* buf, u16 len)
+/* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
+u8 transmit(xdata u8* buf, u16 len, u8 bDma)
 {
 	/* Put radio into idle state */
 	setRFIdle();
@@ -149,6 +154,9 @@ u8 transmit(xdata u8* buf, u16 len)
 		len = buf[0];
 	}
 
+    /* If DMA transfer, disable rxtx interrupt */
+	RFTXRXIE = !bDma; 
+
 	/* Clean tx buffer */
 	memset(rftxbuf,0,len);
 
@@ -157,6 +165,27 @@ u8 transmit(xdata u8* buf, u16 len)
 
 	/* Reset byte pointer */
 	rfTxCounter = 0;
+
+    /* Configure DMA struct */
+    if(bDma)
+    {
+        DMAARM |= (0x80 | DMAARM0);
+        rfDMA.srcAddrH = ((u16)buf)>>8;
+        rfDMA.srcAddrL = ((u16)buf)&0xff;
+        rfDMA.destAddrH = ((u16)X_RFD)>>8;
+        rfDMA.destAddrL = ((u16)X_RFD)&0xff;
+        rfDMA.lenH = 0;
+        rfDMA.vlen = 0;
+        rfDMA.lenL = len;
+        rfDMA.trig = 19;
+        rfDMA.tMode = 1;
+        rfDMA.wordSize = 0;
+        rfDMA.priority = 1;
+        rfDMA.m8 = 0;
+        rfDMA.irqMask = 0;
+        rfDMA.srcInc = 1;
+        rfDMA.destInc = 0;
+    }
 
 	/* Strobe to rx */
 	RFST = RFST_SRX;
@@ -169,6 +198,12 @@ u8 transmit(xdata u8* buf, u16 len)
 			break;
 		}
 	}
+
+    /* Arm DMA channel */
+    if(bDma)
+    {
+        DMAARM |= DMAARM0;
+    }
 
 	/* Put radio into tx state */
 	RFST = RFST_STX;
@@ -183,7 +218,6 @@ u8 transmit(xdata u8* buf, u16 len)
 //	else
 //	{
 //		/* failed, retry? */
-//		P1_3 = 1;
 //	}
 	return 0;
 }
