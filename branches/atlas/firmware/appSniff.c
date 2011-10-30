@@ -260,7 +260,7 @@ static void appInitRf(void)
 #endif
     MDMCFG4     = 0xca;
     MDMCFG3     = 0x83;//0xa3;//0x83;
-    MDMCFG2     = 0x03;//0x10;
+    MDMCFG2     = 0x00;//0x03;//0x10;
     MDMCFG1     = 0x23;//0x22;
     MDMCFG0     = 0x11;//0xf8;
     DEVIATN     = 0x35;
