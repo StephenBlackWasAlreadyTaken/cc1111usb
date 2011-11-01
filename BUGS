@@ -5,3 +5,8 @@
 
 2011-10-14 - atlas
 * if transmitter sending while first starting up, the receiver fails for some reason.  possibly due to accessing USB too early?  possibly due to receiving RF too early?  investigate.
+
+2011-10-29 - atlas
+* appSniff - hangs after fast repeated receiving of packets.  not clear what is causing it or why it stops receiving.
+
+

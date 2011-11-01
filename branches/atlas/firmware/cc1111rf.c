@@ -281,24 +281,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     rfif |= RFIF;
 
     // contingency - RX Overflow
-    if(RFIF & RFIF_IRQ_RXOVF)
-    {
-        REALLYFASTBLINK();
-        REALLYFASTBLINK();
-        /* RX overflow, only way to get out of this is to restart receiver */
-        //resetRf();
-        stopRX();
-        startRX();
-    }
-    // contingency - TX Underflow
-    else if(RFIF & RFIF_IRQ_TXUNF)
-    {
-        /* Put radio into idle state */
-        setRFIdle();
-        //resetRf();
-    }
-
-    else if(RFIF & RFIF_IRQ_DONE)
+    if(RFIF & RFIF_IRQ_DONE)
     {
         if(rf_status == RF_STATE_TX)
         {
@@ -324,12 +307,29 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
                 // contingency - Packet Not Handled!
                 /* Main app didn't process previous packet yet, drop this one */
                 REALLYFASTBLINK();
-                REALLYFASTBLINK();
-                REALLYFASTBLINK();
                 memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
                 rfRxCounter[rfRxCurrentBuffer] = 0;
             }
         }
+        //RFIF &= ~RFIF_IRQ_DONE;
+    }
+
+    if(RFIF & RFIF_IRQ_RXOVF)
+    {
+        REALLYFASTBLINK();
+        /* RX overflow, only way to get out of this is to restart receiver */
+        //resetRf();
+        stopRX();
+        startRX();
+        //RFIF &= ~RFIF_IRQ_RXOVF;
+    }
+    // contingency - TX Underflow
+    if(RFIF & RFIF_IRQ_TXUNF)
+    {
+        /* Put radio into idle state */
+        setRFIdle();
+        //resetRf();
+        //RFIF &= ~RFIF_IRQ_TXUNF;
     }
 
     RFIF = 0;

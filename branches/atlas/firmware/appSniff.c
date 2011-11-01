@@ -69,7 +69,7 @@ void appMainLoop(void)
     if (rfif)
     {
         lastCode[0] = 0xd;
-        IEN2 &= ~IEN2_RFIE;
+        //IEN2 &= ~IEN2_RFIE;
 
         if(rfif & RFIF_IRQ_DONE)
         {
@@ -77,6 +77,19 @@ void appMainLoop(void)
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {   // we've received a packet.  deliver it.
 #ifdef IMME
+                /* couple things for poll_keyboard:
+                 * Sleep (off)
+                 * pause (wow, the packets fly by!
+                 * slow... perhaps a settable delay that we can increment by kb
+                 * freq +-
+                 * channel +-
+                 * chanspc +-
+                 * baud +-
+                 * modulation +-
+                 * PQT mode +-
+                 * set sync word
+                 *
+                 */
                 xdata u8 *pval = &rfrxbuf[processbuffer][0];
                 u8 len   = *pval++;
                 u16 nibble;
@@ -139,7 +152,7 @@ void appMainLoop(void)
         }
 
         rfif = 0;
-        IEN2 |= IEN2_RFIE;
+        //IEN2 |= IEN2_RFIE;
     }
 }
 
@@ -238,9 +251,9 @@ static void appInitRf(void)
     IOCFG0      = 0x00;
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
-    PKTLEN      = 0xff;
-    PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
-    PKTCTRL0    = 0x01;
+    PKTLEN      = 0x0a;//0xff;
+    PKTCTRL1    = 0x20;//0x40; // PQT threshold  - was 0x00
+    PKTCTRL0    = 0x00;//0x01; // Fixed LEN:0, Variable LEN:1, CRC:4
     ADDR        = 0x00;
     CHANNR      = 0x00;
 #ifdef IMME
@@ -260,7 +273,7 @@ static void appInitRf(void)
 #endif
     MDMCFG4     = 0xca;
     MDMCFG3     = 0x83;//0xa3;//0x83;
-    MDMCFG2     = 0x00;//0x03;//0x10;
+    MDMCFG2     = 0x04;//0x03;//0x10;  // SYNC_MODE - 000-nopreamble/syncbits...111-30/32+carriersense
     MDMCFG1     = 0x23;//0x22;
     MDMCFG0     = 0x11;//0xf8;
     DEVIATN     = 0x35;
