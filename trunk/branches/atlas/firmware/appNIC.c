@@ -69,7 +69,10 @@ void appMainLoop(void)
                 vcom_putstr(rfrxbuf[processbuffer]);
                 vcom_flush();
 #else
-                txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                if (PKTCTRL0&1)
+                    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                else
+                    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
 #endif
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;

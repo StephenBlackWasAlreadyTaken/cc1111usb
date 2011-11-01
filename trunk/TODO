@@ -1,3 +1,13 @@
+make python client handle multiple dongles at once
+
+detection firmware
+    * reduce all dependence upon the data
+        * fixed length
+        * no address
+        * no encoding
+        * no crc
+        * no 
+
 cc1111nicserver.py
     * listen on two TCP ports
         * one to xmit/recv data
