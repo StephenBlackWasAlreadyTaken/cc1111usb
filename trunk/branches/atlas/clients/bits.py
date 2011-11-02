@@ -1,4 +1,4 @@
-
+import struct
 
 def shiftString(string, bits):
     carry = 0
@@ -11,7 +11,7 @@ def shiftString(string, bits):
     return "".join(news)
 
 
-
+"""
 def findDword(bytes):
     possDwords = []
     try:
@@ -80,6 +80,7 @@ def findDword(bytes):
 
     except Exception,e:
         sys.excepthook(*sys.exc_info())
+"""
 
 def findDword(byts):
         possDwords = []
