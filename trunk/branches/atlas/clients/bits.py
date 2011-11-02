@@ -116,33 +116,32 @@ def findDword(byts):
             bits2 <<= 8
             bits2 |= (ord(byts[4]) )
             frontbits = 0
-            for frontbits in xrange(24):    #FIXME: if this doesn't work, try 16, then 18+frontbits
-                dwb1 = (bits1 >> (16+frontbits)) & 1
-                dwb2 = (bits2 >> (16+frontbits)) & 1
-                print "\tfrontbits: %d \t\t dwb1: %d dwb2: %d" % (frontbits, dwb1, dwb2)
+            for frontbits in xrange(16, 40):    #FIXME: if this doesn't work, try 16, then 18+frontbits
+                dwb1 = (bits1 >> (frontbits)) & 1
+                dwb2 = (bits2 >> (frontbits)) & 1
+                print "\tfrontbits: %d \t\t dwb1: %s dwb2: %s" % (frontbits, bin(bits1 >> (frontbits)), bin(bits2 >> (frontbits)))
                 if dwb2 != dwb1:
+                    frontbits -= 1
                     break
 
             # frontbits now represents our unknowns...  let's go from the other side now
             for tailbits in xrange(23, -1, -1):
                 dwb1 = (bits1 >> (tailbits)) & 1
                 dwb2 = (bits2 >> (tailbits)) & 1
-                print "\ttailbits: %d\t\t dwb1: %d dwb2: %d" % (tailbits, dwb1, dwb2)
+                print "\ttailbits: %d\t\t dwb1: %s dwb2: %s" % (tailbits, bin(bits1 >> (tailbits)), bin(bits2 >> (tailbits)))
                 if dwb2 != dwb1:
+                    tailbits += 1
                     break
 
             # now, if we have a double syncword, iinm, tailbits + frontbits >= 16
             print "frontbits: %d\t\t tailbits: %d, bits: %s %s " % (frontbits, tailbits, bin(bits1), bin(bits2))
             if (frontbits + (24-tailbits) >= 16):
-                tbits = bits1 >> tailbits
+                tbits = bits1 >> (tailbits/2)
                 tbits >>= bitoff # yay, we get to use this!
                 tbits &= ((1<<(16+frontbits))-1)
-                x = tbits >> 16
-                y = tbits & 0xffff
-                #x,y = struct.pack(">HH", tbits)
                 print "tbits: %x" % tbits
-                print "first: %x\t\t second: %x" % (x, y)
-                while tbits:
+
+                for bs in xrange(tailbits, frontbits-16, 2):
                     poss = tbits&0xffff
                     if poss not in possDwords:
                         possDwords.append(tbits&0xffff)
