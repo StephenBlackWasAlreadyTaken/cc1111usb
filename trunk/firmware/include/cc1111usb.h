@@ -5,8 +5,8 @@
 #include "global.h"
 
 #define     EP0_MAX_PACKET_SIZE     64
-#define     EP5OUT_MAX_PACKET_SIZE  64
-#define     EP5IN_MAX_PACKET_SIZE   500
+#define     EP5OUT_MAX_PACKET_SIZE  255
+#define     EP5IN_MAX_PACKET_SIZE   255
 //   #define     EP5_MAX_PACKET_SIZE     255
         // note: descriptor needs to be adjusted to match EP5_MAX_PACKET_SIZE
 
@@ -83,7 +83,7 @@ int appHandleEP5();
 #define USBD_OIF_OUTEP4IF       (u16)0x2000
 #define USBD_OIF_OUTEP5IF       (u16)0x4000
 
-#define TXDATA_MAX_WAIT         100
+#define TXDATA_MAX_WAIT         30
 
 
 // setup Config Descriptor  (see cc1111.h for defaults and fields to change)
@@ -130,14 +130,15 @@ __asm
                .DB USB_DESC_ENDPOINT       ; bDescriptorType
                .DB 0x85                    ; bEndpointAddress
                .DB 0x02                    ; bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
-               .DB 0xf4, 0x01              ; wMaxPacketSize
+               ;//.DB 0xf4, 0x01              ; wMaxPacketSize
+               .DB 0xff, 0x00              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0005$:  ; Endpoint descriptor (EP5 OUT)
                .DB 0006$ - 0005$           ; bLength
                .DB USB_DESC_ENDPOINT       ; bDescriptorType
                .DB 0x05                    ; bEndpointAddress
                .DB 0x02                    ; bmAttributes
-               .DB 0x40, 0x00              ; wMaxPacketSize
+               .DB 0xff, 0x00              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0006$:    ; Language ID
                .DB 0007$ - 0006$           ; bLength
@@ -178,13 +179,13 @@ __asm
                .DB "S", 0
                .DB "B", 0
                .DB " ", 0
-               .DB "K", 0
+               .DB "n", 0
                .DB "i", 0
                .DB "c", 0
-               .DB "k", 0
-               .DB "a", 0
-               .DB "s", 0
-               .DB "s", 0
+               ;//.DB "k", 0
+               ;//.DB "a", 0
+               ;//.DB "s", 0
+               ;//.DB "s", 0
 0009$:   ;; Serial number
                .DB 0010$ - 0009$            ;; bLength
                .DB USB_DESC_STRING          ;; bDescriptorType

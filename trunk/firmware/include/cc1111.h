@@ -4,12 +4,6 @@
 #include "cc1110-ext.h"
 #include <cc1110.h>
 
-#define u8 unsigned char
-#define u16 unsigned int
-#define uint8 unsigned char
-#define uint16 unsigned int
-#define u32 unsigned long
-
 uint8 addr;               // temporarily store the incoming address until *after* the STATUS stage of the transaction... then assign the address.
 
 #define  EP_STATE_IDLE      0
@@ -296,6 +290,7 @@ typedef struct DMA_DESC_S {
 
 // USB activities
 #define USB_ENABLE_PIN              P1_0
+//#define USB_ENABLE_PIN              P1_1
 #define NOP()                       __asm; nop; __endasm;
 #define USB_DISABLE()               SLEEP &= ~SLEEP_USB_EN;
 #define USB_ENABLE()                SLEEP |= SLEEP_USB_EN;

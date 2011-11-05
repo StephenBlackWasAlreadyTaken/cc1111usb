@@ -55,7 +55,7 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
         {
             //REALLYFASTBLINK();
             //REALLYFASTBLINK();
-            REALLYFASTBLINK();
+            //REALLYFASTBLINK();
             //blink(100,50);
             lastCode[1] = 1;
             //loop--;
@@ -868,10 +868,10 @@ void handleOUTEP5(void)
                     switch (*ptr++)
                     {
                         case RF_STATE_RX:
-                            RxOn();
+                            RxMode();
                             break;
                         case RF_STATE_IDLE:
-                            RxIdle();
+                            IdleMode();
                             break;
                         case RF_STATE_TX:
                             transmit(ptr, len);
