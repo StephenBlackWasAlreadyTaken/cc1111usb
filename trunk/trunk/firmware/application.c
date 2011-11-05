@@ -42,9 +42,9 @@ void appMainInit(void)
 {
     loopCnt = 0;
     xmitCnt = 1;
-//#ifdef RECEIVE_TEST
-    startRX();
-//#endif
+
+    RxMode();
+    //startRX();
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
@@ -52,35 +52,6 @@ void appMainInit(void)
 void appMainLoop(void)
 {
     xdata u8 processbuffer;
-#ifdef TRANSMIT_TEST
-    xdata u8 testPacket[14];
-
-
-    if (loopCnt++ == 90000)
-    {
-        /* Send a packet */
-        testPacket[0] = 0x0D;
-        testPacket[1] = xmitCnt++;
-        testPacket[2] = 0x48;
-        testPacket[3] = 0x41;
-        testPacket[4] = 0x4C;
-        testPacket[5] = 0x4C;
-        testPacket[6] = 0x4F;
-        //testPacket[6] = 0x43;
-        //testPacket[7] = 0x43;
-        testPacket[7] = lastCode[0];
-        testPacket[8] = lastCode[1];
-        testPacket[9] = 0x31;
-        testPacket[10] = 0x31;
-        testPacket[11] = 0x31;
-        testPacket[12] = 0x31;
-
-        transmit(testPacket, 0);
-        //blink(400,400);
-        REALLYFASTBLINK();
-        loopCnt = 0;
-    }
-#endif
 
     if (rfif)
     {
@@ -154,7 +125,7 @@ void appHandleEP0OUTdone(void)
 }
 
 /* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
- * messages.  currently it implements a simple ping-like application.                           */
+ * messages.  currently it implements a simple debug, ping, and peek functionality.             */
 int appHandleEP0(USB_Setup_Header* pReq)
 {
 #ifdef VIRTUAL_COM
@@ -181,6 +152,7 @@ int appHandleEP0(USB_Setup_Header* pReq)
         {
             // FIXME: implement Poke functionality
             usb_recv_ep0OUT();
+            txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
             ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
         }
     }
@@ -197,7 +169,6 @@ int appHandleEP0(USB_Setup_Header* pReq)
 
 static void appInitRf(void)
 {
-
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
     IOCFG0      = 0x00;
@@ -233,10 +204,8 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    //TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
-    //TEST1       = 0x35; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x31; // always in tx-mode, for low data rates, increased sensitivity - was 0x31
+    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
@@ -273,6 +242,7 @@ static void appInitRf(void)
     //TEST0       = 0x09;
     //PA_TABLE0   = 0x83;
 #endif
+
 }
 
 /* initialize the IO subsystems for the appropriate dongles */

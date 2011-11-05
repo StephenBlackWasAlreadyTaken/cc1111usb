@@ -53,11 +53,12 @@ void rfIntHandler(void) interrupt RF_VECTOR; // interrupt handler should trigger
 
 void setRFIdle(void);
 int waitRSSI(void);
-void RxOn(void);
-void RxIdle(void);
+void RxMode(void);
+void IdleMode(void);
 u8 transmit(xdata u8* buf, u16 len);
 void stopRX(void);
 void startRX(void);
+void resetRf(void);
 void init_RF(void);
 void appInitRf(void);   // in application.c
 

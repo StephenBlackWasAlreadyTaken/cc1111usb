@@ -51,6 +51,7 @@ void setRFIdle(void)
     rf_status = RF_STATE_IDLE;
 }
 
+/************************** never used.. *****************************
 int waitRSSI()
 {
     u16 u16WaitTime = 0;
@@ -68,7 +69,7 @@ int waitRSSI()
     }
     return 0;
 }
-
+***********************************************************************/
 
 u8 transmit(xdata u8* buf, u16 len)
 {
@@ -76,7 +77,7 @@ u8 transmit(xdata u8* buf, u16 len)
     setRFIdle();
 
     /* Clean tx buffer */
-    memset(rftxbuf,0,BUFFER_SIZE);
+    //memset(rftxbuf,0,BUFFER_SIZE);
 
     if (len == 0)
         len = buf[0];
@@ -90,16 +91,18 @@ u8 transmit(xdata u8* buf, u16 len)
     //pDMACfg = buf;                //wtf was i thinking here?!?
 
     /* Strobe to rx */
-    RFST = RFST_SRX;
-    while(!(MARCSTATE & MARC_STATE_RX));
-    /* wait for good RSSI (clear channel) */
-    while(1)
-    {
-        if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-        {
-            break;
-        }
-    }
+    //RFST = RFST_SRX;
+    //while(!(MARCSTATE & MARC_STATE_RX));
+    /* wait for good RSSI (clear channel) */   ///// unnecessary when radio is in RX mode by default.
+    //while(!(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS)));
+    //while(1)
+    //{
+    //    if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+    //    {
+    //        break;
+    //    }
+    //}
+
 
     /* Put radio into tx state */
     RFST = RFST_STX;
@@ -207,20 +210,35 @@ void stopRX(void)
     S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
     RFIF &= ~RFIF_IRQ_DONE;
 }
+/*
+void resetRf(void)
+{
+    stopRX();
+    if (rf_status == RF_STATE_RX)
+    {
+            startRX();
+    }
 
-void RxOn(void)
+}
+*/
+
+void RxMode(void)
 {
     if (rf_status != RF_STATE_RX)
     {
+        //MCSM1 &= 0xf0;
+        //MCSM1 |= MCSM1_RXOFF_MODE_RX | MCSM1_TXOFF_MODE_RX;
         rf_status = RF_STATE_RX;
         startRX();
     }
 }
 
-void RxIdle(void)
+void IdleMode(void)
 {
     if (rf_status == RF_STATE_RX)
     {
+        //MCSM1 &= 0xf0;
+        //MCSM1 |= MCSM1_RXOFF_MODE_IDLE | MCSM1_TXOFF_MODE_IDLE;
         stopRX();
         rf_status = RF_STATE_IDLE;
     }
@@ -229,10 +247,10 @@ void RxIdle(void)
 
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {   // currently dormant, in favor of DMA transfers
-    lastCode[1] = 17;
+    lastCode[0] = 17;
 
     if(MARCSTATE == MARC_STATE_RX)
-    {
+    {   // Receive Byte
         rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
         if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
         {
@@ -240,36 +258,30 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
         }
     }
     else if(MARCSTATE == MARC_STATE_TX)
-    {
+    {  // Transmit Byte
         if(rftxbuf[rfTxCounter] != 0)
         {
             RFD = rftxbuf[rfTxCounter++];
         }
     }
+    //else
+    //{
+        // WTFO!??  should never get here.  FIXME: what's causing this interrupt to execute this code?!?
+        //debug("rfTxRxIntHandler: unknown MARCSTATE");
+        //lastCode[1] = MARCSTATE;
+    //}
+
     RFTXRXIF = 0;
 }
 
-
 void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
-    lastCode[1] = 16;
+    lastCode[0] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
 
-    if(RFIF & RFIF_IRQ_RXOVF)
-    {
-        REALLYFASTBLINK();
-        REALLYFASTBLINK();
-        /* RX overflow, only way to get out of this is to restart receiver */
-        stopRX();
-        startRX();
-    }
-    else if(RFIF & RFIF_IRQ_TXUNF)
-    {
-        /* Put radio into idle state */
-        setRFIdle();
-    }
-    else if(RFIF & RFIF_IRQ_DONE)
+    // contingency - RX Overflow
+    if(RFIF & RFIF_IRQ_DONE)
     {
         if(rf_status == RF_STATE_TX)
         {
@@ -279,7 +291,8 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         {
             if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
             {
-                //REALLYFASTBLINK();
+                // EXPECTED RESULT - RX complete.
+                //
                 /* Clear processed buffer */
                 memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
                 /* Switch current buffer */
@@ -291,14 +304,32 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
             }
             else
             {
+                // contingency - Packet Not Handled!
                 /* Main app didn't process previous packet yet, drop this one */
-                REALLYFASTBLINK();
-                REALLYFASTBLINK();
                 REALLYFASTBLINK();
                 memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
                 rfRxCounter[rfRxCurrentBuffer] = 0;
             }
         }
+        //RFIF &= ~RFIF_IRQ_DONE;
+    }
+
+    if(RFIF & RFIF_IRQ_RXOVF)
+    {
+        REALLYFASTBLINK();
+        /* RX overflow, only way to get out of this is to restart receiver */
+        //resetRf();
+        stopRX();
+        startRX();
+        //RFIF &= ~RFIF_IRQ_RXOVF;
+    }
+    // contingency - TX Underflow
+    if(RFIF & RFIF_IRQ_TXUNF)
+    {
+        /* Put radio into idle state */
+        setRFIdle();
+        //resetRf();
+        //RFIF &= ~RFIF_IRQ_TXUNF;
     }
 
     RFIF = 0;
