@@ -144,6 +144,8 @@ void appHandleEP0OUTdone(void)
  * messages.  currently it implements a simple debug, ping, and peek functionality.             */
 int appHandleEP0(USB_Setup_Header* pReq)
 {
+    u16 loop;
+    xdata u8* dst;
 #ifdef VIRTUAL_COM
     pReq = 0;
 #else
@@ -160,17 +162,44 @@ int appHandleEP0(USB_Setup_Header* pReq)
             case 2:
                 setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
                 break;
-
+            case 3:     // ping
+                setup_send_ep0((u8*)pReq, pReq->wLength);
+                break;
+            case 4:     // ping
+                setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
+                break;
         }
     } else                                                  // OUT from host
     {
-        if (pReq->wIndex&0xf)                               // EP0 receive.    CURRENTLY DOES NOTHING WITH THIS....
+        switch (pReq->bRequest)
         {
-            // FIXME: implement Poke functionality
-            usb_recv_ep0OUT();
-            txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-            ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
+            //usb_recv_ep0OUT();// FIXME: this isn't working
+            case 3:     // poke
+                
+                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                dst = (xdata u8*) pReq->wValue;
+                //*dst++ = loop;
+
+                while (! USBCS0 & USBCS0_OUTPKT_RDY);           // wait for it...
+                USBINDEX = 0;
+
+                //for (loop=pReq->wLength; loop>0; loop--)
+                for (loop=32; loop>0; loop--)
+                {
+                    *dst++ = USBF0;
+                }
+                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
+                break;
+
+
         }
+        //if (pReq->wIndex&0xf)                               // EP0 receive.    CURRENTLY DOES NOTHING WITH THIS....
+        //{
+        //    // FIXME: implement Poke functionality
+        //    usb_recv_ep0OUT();
+        //    txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
+        //}
+        ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
     }
 #endif
     return 0;
