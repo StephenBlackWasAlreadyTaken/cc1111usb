@@ -30,6 +30,10 @@ xdata USB_EP_IO_BUF     ep0iobuf;
 xdata USB_EP_IO_BUF     ep5iobuf;
 xdata u8 appstatus;
 
+xdata u8   ep0req;
+xdata u16  ep0len;
+xdata u16  ep0value;
+
 //xdata dmacfg_t usbdma;
 xdata DMA_DESC usbdma;
 //xdata u8 usbdmar[8];
@@ -401,16 +405,20 @@ u16 usb_recv_ep0OUT(){
     ep0iobuf.flags |= EP_OUTBUF_WRITTEN;            // hey, we've written here, don't write again until this is cleared by a application handler
 
     if (ep0iobuf.OUTlen>EP0_MAX_PACKET_SIZE)
-        ep0iobuf.OUTlen = EP0_MAX_PACKET_SIZE;
+        blink(300,300);
+        //ep0iobuf.OUTlen = EP0_MAX_PACKET_SIZE;
 
     ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
-    blink_binary_baby_lsb(ep0iobuf.OUTlen, 8);
+    //blink_binary_baby_lsb(ep0iobuf.OUTlen, 8);
     for (loop=ep0iobuf.OUTlen; loop>0; loop--){
     //for (loop=16; loop>0; loop--){
         *payload++ = USBF0;
     }
     //////////////////////////////////////////////////////////////////////////////////////////
-    
+   
+    // handle each packet
+    appHandleEP0OUT();
+
     if (ep0iobuf.OUTlen < EP0_MAX_PACKET_SIZE)
     {
         appHandleEP0OUTdone();
@@ -735,6 +743,9 @@ void handleCS0(void)
                         break;
                     case USB_BM_REQTYPE_TYPE_VENDOR:            // VENDOR type
                         ep0iobuf.epstatus = EP_STATE_RX;
+                        ep0req = req.bRequest;
+                        ep0value = req.wValue;
+                        ep0len = req.wLength;
                         //appHandleEP0(&req);
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED type
@@ -759,8 +770,6 @@ void handleCS0(void)
     {
         REALLYFASTBLINK();
         usb_recv_ep0OUT();
-
-        //appHandleEP0(&req);
     }
     
 }

@@ -4,7 +4,7 @@ CFLAGSold=--no-pack-iram $(CF)
 LFLAGS=--xram-loc 0xF000 
 
 apps = cc1111rf.rel global.rel
-libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usb.rel cc1111usbdebug.rel
+libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usbdebug.rel #cc1111usb.rel
 libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel
 libsimme  = $(apps) immeio.rel immekeys.rel immefont.rel   #  immedisplay.rel immeterm.rel
 #srcs = $(libs,.rel=.c) 

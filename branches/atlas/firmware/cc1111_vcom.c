@@ -177,17 +177,17 @@ static void vcom_ep0_setup()
         case USB_RECIP_DEVICE:
           switch(usb_setup.request) {
             case USB_REQ_GET_STATUS:
-                vcom_ep0_queue_byte(0);
-                vcom_ep0_queue_byte(0);
-                break;
+            	vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
+            	break;
             case USB_REQ_SET_ADDRESS:
-                vcom_set_address(usb_setup.value);
-                break;
+            	vcom_set_address(usb_setup.value);
+            	break;
             case USB_REQ_GET_DESCRIPTOR:
-                vcom_get_descriptor(usb_setup.value);
-                break;
+            	vcom_get_descriptor(usb_setup.value);
+            	break;
             case USB_REQ_GET_CONFIGURATION:
-                vcom_ep0_queue_byte(usb_configuration);
+            	vcom_ep0_queue_byte(usb_configuration);
               break;
             case USB_REQ_SET_CONFIGURATION:
               usb_configuration = usb_setup.value;
@@ -199,11 +199,11 @@ static void vcom_ep0_setup()
           #pragma disable_warning 110
           switch(usb_setup.request) {
             case USB_REQ_GET_STATUS:
-                vcom_ep0_queue_byte(0);
-                vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
               break;
             case USB_REQ_GET_INTERFACE:
-                vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
               break;
             case USB_REQ_SET_INTERFACE:
               break;
@@ -212,8 +212,8 @@ static void vcom_ep0_setup()
         case USB_RECIP_ENDPOINT:
           switch(usb_setup.request) {
             case USB_REQ_GET_STATUS:
-                vcom_ep0_queue_byte(0);
-                vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
+            	vcom_ep0_queue_byte(0);
               break;
           }
           break;
@@ -265,15 +265,15 @@ static void vcom_ep0()
     if (usb_ep0_state == USB_EP0_DATA_IN &&
         (cs0 & USBCS0_INPKT_RDY) == 0)
     {
-        vcom_ep0_flush();
+    	vcom_ep0_flush();
     }
     if (cs0 & USBCS0_OUTPKT_RDY) {
       switch (usb_ep0_state) {
         case USB_EP0_IDLE:
-            vcom_ep0_setup();
+        	vcom_ep0_setup();
           break;
         case USB_EP0_DATA_OUT:
-            vcom_ep0_fill();
+        	vcom_ep0_fill();
           if (usb_ep0_out_len == 0)
             usb_ep0_state = USB_EP0_IDLE;
           USBINDEX = 0;
@@ -296,7 +296,7 @@ void vcom_isr() __interrupt 6
   vcom_ep0();
 
   if (USBCIF & USBCIF_RSTIF)
-      vcom_set_interrupts();
+	  vcom_set_interrupts();
 }
 
 // Wait for a free IN buffer
@@ -327,8 +327,8 @@ void vcom_flush()
   // If there are pending bytes, or if the last packet was full,
   // send another IN packet
   if (usb_in_bytes || (usb_in_bytes_last == USB_IN_SIZE)) {
-      vcom_in_wait();
-      vcom_in_send();
+	  vcom_in_wait();
+	  vcom_in_send();
   }
 }
 
@@ -342,7 +342,7 @@ void vcom_putchar(char c) __reentrant
   // Queue a byte, sending the packet when full
   USBFIFO[USB_IN_EP << 1] = c;
   if (++usb_in_bytes == USB_IN_SIZE)
-      vcom_in_send();
+	  vcom_in_send();
 }
 
 char vcom_pollchar()
@@ -413,12 +413,17 @@ void vcom_disable()
   SLEEP &= ~SLEEP_USB_EN;
 }
 
-void vcom_init()
+void initUSB()
 {
   // Init ep0
-    usb_ep0_state = USB_EP0_IDLE;
-    usb_iif = 0;
-    vcom_enable();
+	usb_ep0_state = USB_EP0_IDLE;
+	usb_iif = 0;
+	vcom_enable();
+}
+
+void usbProcessEvents()
+{	
+	return; /* dummy function */
 }
 
 void vcom_readline(char* buff) {
@@ -431,17 +436,15 @@ void vcom_readline(char* buff) {
 
 void vcom_putstr(char* buff) {
   while (*buff) {
-      vcom_putchar(*buff++);
+	  vcom_putchar(*buff++);
   }
   vcom_flush();
 }
 
-void vcom_up() {
-    // deprecate?  vcom_up and vcom_down should be replaced with usb_up/usb_down, as they do the same things.  if not, usb should use P1_1 instead of P1_0, as that seems to work as well.
-    //
+void usb_up() {
   // Bring up the USB link
-    P1DIR |= 0x02;
-    P1_1 = 1;
+	P1DIR |= 0x02;
+	P1_1 = 1;
 }
 
 void vcom_down() {
@@ -450,3 +453,17 @@ void vcom_down() {
   P1DIR &= ~0x02;
 }
 
+void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)
+{
+	u16 test = 0;
+
+	/*removes warning */	
+	test = app = cmd = len;
+
+	/* function from usb thing, only need data ptr */	
+  	while (*dataptr) 
+	{
+	  	vcom_putchar(*dataptr++);
+  	}
+    vcom_flush();
+}

@@ -181,7 +181,8 @@ class USBDongle:
     def _sendEP0(self, request=0, buf=None, value=0x200, index=0, timeout=1000):
         if buf == None:
             buf = 'HELLO THERE'
-        return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, "\x00\x00\x00\x00\x00\x00\x00\x00"+buf, value, index, timeout), buf
+        #return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, "\x00\x00\x00\x00\x00\x00\x00\x00"+buf, value, index, timeout), buf
+        return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, buf, value, index, timeout), buf
 
     def _recvEP0(self, request=0, length=64, value=0, index=0, timeout=100):
         retary = ["%c"%x for x in self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_IN, request, length, value, index, timeout)]
@@ -400,7 +401,7 @@ class USBDongle:
         return x
 
     def ep0Poke(self, addr, buf='\x00', timeout=100):
-        x = self._sendEP0(request=0, buf=buf, value=addr, timeout=timeout)
+        x = self._sendEP0(request=1, buf=buf, value=addr, timeout=timeout)
         return x
 
     def ep0Ping(self, count=10):
@@ -408,7 +409,7 @@ class USBDongle:
         bad=0
         for x in range(count):
             #r = self._recvEP0(3, 10)
-            r = self._recvEP0(request=3, value=count, length=count, timeout=1000)
+            r = self._recvEP0(request=2, value=count, length=count, timeout=1000)
             print "PING: %d bytes received: %s"%(len(r), repr(r))
             if r==None:
                 bad+=1
