@@ -136,7 +136,63 @@ int appHandleEP5()
 void appHandleEP0OUTdone(void)
 {
 #ifndef VIRTUAL_COM
-//code here
+    u16 loop;
+    xdata u8* dst;
+    xdata u8* src;
+    //    switch (pReq->bRequest)
+        {
+    //        case 1:     // poke
+                
+                src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                //dst = (xdata u8*) pReq->wValue;
+                dst = (xdata u8*) 0xf040;
+
+                //for (loop=pReq->wLength; loop>0; loop--)
+                for (loop=32; loop>0; loop--)
+                {
+                    *dst++ = *src++;
+                }
+    //            break;
+/*
+            case 2:     // poke
+                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                dst = (xdata u8*) pReq->wValue;
+
+                REALLYFASTBLINK();
+                USBINDEX = 0;
+
+                loop=pReq->wLength;
+                *dst++ = loop;
+
+                for (loop=pReq->wLength; loop>0; loop--)
+                {
+                    *dst++ = USBF0;
+                }
+                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
+                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
+                break;
+            case 3:     // poke
+                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                dst = (xdata u8*) pReq->wValue;
+
+                REALLYFASTBLINK();
+                USBINDEX = 0;
+
+                loop=pReq->wLength;
+                *dst++ = loop;
+
+                for (loop=pReq->wLength; loop>0; loop--)
+                {
+                    *dst++ = USBF0;
+                }
+                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
+                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
+                break;
+
+
+*/
+        }
+        ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
 #endif
 }
 
@@ -146,6 +202,7 @@ int appHandleEP0(USB_Setup_Header* pReq)
 {
     u16 loop;
     xdata u8* dst;
+    xdata u8* src;
 #ifdef VIRTUAL_COM
     pReq = 0;
 #else
@@ -173,21 +230,53 @@ int appHandleEP0(USB_Setup_Header* pReq)
     {
         switch (pReq->bRequest)
         {
-            //usb_recv_ep0OUT();// FIXME: this isn't working
-            case 3:     // poke
+            case 1:     // poke
+                //usb_recv_ep0OUT();
                 
-                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                src = (xdata u8*) &ep0iobuf.OUTbuf[0];
                 dst = (xdata u8*) pReq->wValue;
+                //txdata(0xfe, 0xf0, 8, (xdata u8*)pReq);
                 //*dst++ = loop;
 
-                while (! USBCS0 & USBCS0_OUTPKT_RDY);           // wait for it...
+                for (loop=pReq->wLength; loop>0; loop--)
+                //for (loop=16; loop>0; loop--)
+                {
+                    *dst++ = *src++;
+                }
+                break;
+
+            case 2:     // poke
+                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                dst = (xdata u8*) pReq->wValue;
+
+                REALLYFASTBLINK();
                 USBINDEX = 0;
 
-                //for (loop=pReq->wLength; loop>0; loop--)
-                for (loop=32; loop>0; loop--)
+                loop=pReq->wLength;
+                *dst++ = loop;
+
+                for (loop=pReq->wLength; loop>0; loop--)
                 {
                     *dst++ = USBF0;
                 }
+                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
+                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
+                break;
+            case 3:     // poke
+                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+                dst = (xdata u8*) pReq->wValue;
+
+                REALLYFASTBLINK();
+                USBINDEX = 0;
+
+                loop=pReq->wLength;
+                *dst++ = loop;
+
+                for (loop=pReq->wLength; loop>0; loop--)
+                {
+                    *dst++ = USBF0;
+                }
+                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
                 //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
                 break;
 
