@@ -64,16 +64,13 @@ void appMainLoop(void)
         {
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
-            {   // we've received a packet.  deliver it.
-#ifdef VIRTUAL_COM
-                vcom_putstr(rfrxbuf[processbuffer]);
-                vcom_flush();
-#else
+            {   
+                // we've received a packet.  deliver it.
                 if (PKTCTRL0&1)
                     txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
                 else
                     txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
-#endif
+
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
             }
@@ -135,74 +132,47 @@ int appHandleEP5()
 /* in case your application cares when an OUT packet has been completely received on EP0.       */
 void appHandleEP0OUTdone(void)
 {
+}
+
+/* called each time a usb OUT packet is received */
+void appHandleEP0OUT(void)
+{
 #ifndef VIRTUAL_COM
     u16 loop;
     xdata u8* dst;
     xdata u8* src;
-    //    switch (pReq->bRequest)
-        {
-    //        case 1:     // poke
-                
-                src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                //dst = (xdata u8*) pReq->wValue;
-                dst = (xdata u8*) 0xf040;
 
-                //for (loop=pReq->wLength; loop>0; loop--)
-                for (loop=32; loop>0; loop--)
-                {
-                    *dst++ = *src++;
-                }
-    //            break;
-/*
-            case 2:     // poke
-                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                dst = (xdata u8*) pReq->wValue;
+    // we are not called with the Request header as is appHandleEP0.  this function is only called after an OUT packet has been received,
+    // which triggers another usb interrupt.  the important variables from the EP0 request are stored in ep0req, ep0len, and ep0value, as
+    // well as ep0iobuf.OUTlen (the actual length of ep0iobuf.OUTbuf, not just some value handed in).
 
-                REALLYFASTBLINK();
-                USBINDEX = 0;
+    // for our purposes, we only pay attention to single-packet transfers.  in more complex firmwares, this may not be sufficient.
+    switch (ep0req)
+    {
+        case 1:     // poke
+            
+            src = (xdata u8*) &ep0iobuf.OUTbuf[0];
+            dst = (xdata u8*) ep0value;
 
-                loop=pReq->wLength;
-                *dst++ = loop;
+            for (loop=ep0iobuf.OUTlen; loop>0; loop--)
+            {
+                *dst++ = *src++;
+            }
+            break;
+    }
 
-                for (loop=pReq->wLength; loop>0; loop--)
-                {
-                    *dst++ = USBF0;
-                }
-                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
-                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-                break;
-            case 3:     // poke
-                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                dst = (xdata u8*) pReq->wValue;
-
-                REALLYFASTBLINK();
-                USBINDEX = 0;
-
-                loop=pReq->wLength;
-                *dst++ = loop;
-
-                for (loop=pReq->wLength; loop>0; loop--)
-                {
-                    *dst++ = USBF0;
-                }
-                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
-                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-                break;
-
-
-*/
-        }
-        ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
+    // must be done with the buffer by now...
+    ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
 #endif
 }
 
 /* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
- * messages.  currently it implements a simple debug, ping, and peek functionality.             */
+ * messages.  currently it implements a simple debug, ping, and peek functionality.              *
+ * data is sent back through calls to either setup_send_ep0 or setup_sendx_ep0 for xdata vars    *
+ * theoretically you can process stuff without the IN-direction bit, but we've found it is better*
+ * to handle OUT packets in appHandleEP0OUTdone, which is called when the last packet is complete*/
 int appHandleEP0(USB_Setup_Header* pReq)
 {
-    u16 loop;
-    xdata u8* dst;
-    xdata u8* src;
 #ifdef VIRTUAL_COM
     pReq = 0;
 #else
@@ -226,69 +196,6 @@ int appHandleEP0(USB_Setup_Header* pReq)
                 setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
                 break;
         }
-    } else                                                  // OUT from host
-    {
-        switch (pReq->bRequest)
-        {
-            case 1:     // poke
-                //usb_recv_ep0OUT();
-                
-                src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                dst = (xdata u8*) pReq->wValue;
-                //txdata(0xfe, 0xf0, 8, (xdata u8*)pReq);
-                //*dst++ = loop;
-
-                for (loop=pReq->wLength; loop>0; loop--)
-                //for (loop=16; loop>0; loop--)
-                {
-                    *dst++ = *src++;
-                }
-                break;
-
-            case 2:     // poke
-                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                dst = (xdata u8*) pReq->wValue;
-
-                REALLYFASTBLINK();
-                USBINDEX = 0;
-
-                loop=pReq->wLength;
-                *dst++ = loop;
-
-                for (loop=pReq->wLength; loop>0; loop--)
-                {
-                    *dst++ = USBF0;
-                }
-                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
-                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-                break;
-            case 3:     // poke
-                //src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-                dst = (xdata u8*) pReq->wValue;
-
-                REALLYFASTBLINK();
-                USBINDEX = 0;
-
-                loop=pReq->wLength;
-                *dst++ = loop;
-
-                for (loop=pReq->wLength; loop>0; loop--)
-                {
-                    *dst++ = USBF0;
-                }
-                //USBCS0 |= USBCS0_CLR_OUTPKT_RDY | USBCS0_DATA_END;
-                //txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-                break;
-
-
-        }
-        //if (pReq->wIndex&0xf)                               // EP0 receive.    CURRENTLY DOES NOTHING WITH THIS....
-        //{
-        //    // FIXME: implement Poke functionality
-        //    usb_recv_ep0OUT();
-        //    txdata(0xfe, 0xf0, sizeof(USB_Setup_Header), (xdata u8*)pReq);
-        //}
-        ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
     }
 #endif
     return 0;
@@ -445,12 +352,8 @@ void initBoard(void)
 void main (void)
 {
     initBoard();
-#ifdef VIRTUAL_COM
-    vcom_init();
-#else
     initUSB();
     blink(300,300);
-#endif
 
     init_RF();
     appMainInit();
@@ -462,9 +365,7 @@ void main (void)
 
     while (1)
     {  
-#ifndef VIRTUAL_COM
         usbProcessEvents();
-#endif
         appMainLoop();
     }
 
