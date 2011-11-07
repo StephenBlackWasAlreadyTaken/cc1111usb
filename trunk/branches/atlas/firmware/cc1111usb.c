@@ -386,8 +386,12 @@ u16 usb_recv_ep0OUT(){
      ********************************************************************************************/
     u16 loop;
 
-    u8* payload = &ep0iobuf.OUTbuf[0];
-    ep0iobuf.OUTlen = (u16)USBCNT0;
+    xdata u8* payload = &ep0iobuf.OUTbuf[0];
+    while (! USBCS0 & USBCS0_OUTPKT_RDY);           // wait for it...
+
+    USBINDEX = 0;
+    loop = USBCNT0;
+    ep0iobuf.OUTlen = loop;
 
     if (ep0iobuf.flags & EP_OUTBUF_WRITTEN)
     {
@@ -400,14 +404,20 @@ u16 usb_recv_ep0OUT(){
         ep0iobuf.OUTlen = EP0_MAX_PACKET_SIZE;
 
     ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
+    blink_binary_baby_lsb(ep0iobuf.OUTlen, 8);
     for (loop=ep0iobuf.OUTlen; loop>0; loop--){
-        *payload = USBF0;
-        payload++;
+    //for (loop=16; loop>0; loop--){
+        *payload++ = USBF0;
     }
     //////////////////////////////////////////////////////////////////////////////////////////
     
     if (ep0iobuf.OUTlen < EP0_MAX_PACKET_SIZE)
+    {
         appHandleEP0OUTdone();
+        USBCS0 |= USBCS0_DATA_END;
+        ep0iobuf.epstatus = EP_STATE_IDLE;
+    }
+    USBCS0 |= USBCS0_CLR_OUTPKT_RDY;
     return ep0iobuf.OUTlen;
     
 }
@@ -724,7 +734,8 @@ void handleCS0(void)
                     case USB_BM_REQTYPE_TYPE_CLASS:             // CLASS type
                         break;
                     case USB_BM_REQTYPE_TYPE_VENDOR:            // VENDOR type
-                        appHandleEP0(&req);
+                        ep0iobuf.epstatus = EP_STATE_RX;
+                        //appHandleEP0(&req);
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED type
                         debugEP0Req((u8*)&req);
@@ -746,7 +757,10 @@ void handleCS0(void)
     }
     if (ep0iobuf.epstatus == EP_STATE_RX)
     {
+        REALLYFASTBLINK();
         usb_recv_ep0OUT();
+
+        //appHandleEP0(&req);
     }
     
 }
@@ -900,15 +914,6 @@ void handleOUTEP5(void)
 
 void usbProcessEvents(void)
 {
-    //REALLYFASTBLINK();
-    if (usb_data.event & (USBD_IIF_EP0IF))
-    {
-        // read the packet and interpret/handle
-        handleCS0();
-        usb_data.event &= 0xfe7;
-
-    } 
-    
     // handle Suspend signals
     if (usb_data.event & USBD_CIF_SUSPEND) {
         usb_data.usbstatus = USB_STATE_SUSPEND;
@@ -999,7 +1004,14 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
     usb_data.event |= (USBOIF << 9);
  
     // process events that are fast and not part of the main loop
-    //processFastEvents();
+    //REALLYFASTBLINK();
+    if (usb_data.event & (USBD_IIF_EP0IF))
+    {
+        // read the packet and interpret/handle
+        handleCS0();
+        usb_data.event &= 0xfe7;
+    } 
+    
     if (usb_data.event & (USBD_IIF_INEP5IF))
     {
         ep5iobuf.flags &= ~EP_INBUF_WRITTEN;
