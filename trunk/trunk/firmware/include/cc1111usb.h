@@ -28,6 +28,84 @@ typedef struct {
     //void*   OUTDONE_handle;                                     // this is a function pointer which is called when the OUT transfer is done.  i may destroy this.
 } USB_EP_IO_BUF;
 
+typedef struct USB_Device_Desc_Type {
+    uint8  bLength;             
+    uint8  bDescriptorType;     
+    uint16 bcdUSB;                             // cc1111 supports USB v2.0
+    uint8  bDeviceClass;                       // 0 (each interface defines), 0xff (vendor-specified class code), or a valid class code
+    uint8  bDeviceSubClass;                    // assigned by USB org
+    uint8  bDeviceProtocol;                    // assigned by USB org;
+    uint8  MaxPacketSize;                      // for EP0, 8,16,32,64;
+    uint16 idVendor;                           // assigned by USB org
+    uint16 idProduct;                          // assigned by vendor
+    uint16 bcdDevice;                          // device release number
+    uint8  iManufacturer;                      // index of the mfg string descriptor
+    uint8  iProduct;                           // index of the product string descriptor
+    uint8  iSerialNumber;                      // index of the serial number string descriptor
+    uint8  bNumConfigurations;                 // number of possible configs...  i wonder if the host obeys this?
+} USB_Device_Desc;
+
+
+typedef struct USB_Config_Desc_Type {
+    uint8  bLength;             
+    uint8  bDescriptorType;     
+    uint16 wTotalLength;
+    uint8  bNumInterfaces;      
+    uint8  bConfigurationValue; 
+    uint8  iConfiguration;                     // index of String Descriptor describing this configuration
+    uint8  bmAttributes;        
+    uint8  bMaxPower;                          // 2mA increments, 0xfa; 
+} USB_Config_Desc;
+
+
+typedef struct USB_Interface_Desc_Type {
+    uint8  bLength;             
+    uint8  bDescriptorType;     
+    uint8  bInterfaceNumber;
+    uint8  bAlternateSetting;
+    uint8  bNumEndpoints;       
+    uint8  bInterfaceClass;     
+    uint8  bInterfaceSubClass;  
+    uint8  bInterfaceProtocol;  
+    uint8  iInterface;          
+} USB_Interface_Desc;
+
+
+typedef struct USB_Endpoint_Desc_Type {
+    uint8  bLength;             
+    uint8  bDescriptorType;     
+    uint8  bEndpointAddress;
+    uint8  bmAttributes;                       // 0-1 Xfer Type (0;        Isoc, 2;
+    uint16 wMaxPacketSize;
+    uint8  bInterval;                          // Update interval in Frames (for isochronous, ignored for Bulk and Control)
+} USB_Endpoint_Desc;
+
+
+typedef struct USB_LANGID_Desc_Type {
+    uint8  bLength;
+    uint8  bDescriptorType;     
+    uint16 wLANGID0;                           // wLANGID[0]  0x0409; 
+    uint16 wLANGID1;                           // wLANGID[1]  0x0c09; 
+    uint16 wLANGID2;                           // wLANGID[1]  0x0407; 
+} USB_LANGID_Desc;
+
+
+typedef struct USB_String_Desc_Type {
+    uint8   bLength;
+    uint8   bDescriptorType;     
+    uint16* bString;
+} USB_String_Desc;
+
+
+typedef struct USB_Request_Type {
+    uint8  bmRequestType;
+    uint8  bRequest;
+    uint16 wValue;
+    uint16 wIndex;
+    uint16 wLength;
+} USB_Setup_Header;
+
+
 // extern global variables
 extern USB_STATE usb_data;
 extern xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
@@ -35,6 +113,10 @@ extern xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these 
 extern xdata USB_EP_IO_BUF     ep0iobuf;
 extern xdata USB_EP_IO_BUF     ep5iobuf;
 extern xdata u8 appstatus;
+
+extern xdata u8   ep0req;
+extern xdata u16  ep0len;
+extern xdata u16  ep0value;
 
 // provided by cc1111usb.c
 void usbIntHandler(void) interrupt P2INT_VECTOR;
@@ -57,6 +139,7 @@ void usbProcessEvents(void);
 
 // provided by user application
 void appHandleEP0OUTdone(void);
+void appHandleEP0OUT(void);
 int appHandleEP0(USB_Setup_Header* pReq);
 int appHandleEP5();
 
