@@ -43,8 +43,10 @@ void appMainInit(void)
     loopCnt = 0;
     xmitCnt = 1;
 
+#ifdef RECEIVE_TEST
     RxMode();
     //startRX();
+#endif
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
@@ -52,6 +54,36 @@ void appMainInit(void)
 void appMainLoop(void)
 {
     xdata u8 processbuffer;
+#ifdef TRANSMIT_TEST
+    xdata u8 testPacket[14];
+
+
+    if (loopCnt++ == 90000)
+    {
+        /* Send a packet */
+        testPacket[0] = 0x0D;
+        testPacket[1] = xmitCnt++;
+        testPacket[2] = 0x48;
+        testPacket[3] = 0x41;
+        testPacket[4] = 0x4C;
+        testPacket[5] = 0x4C;
+        testPacket[6] = 0x4F;
+        //testPacket[6] = 0x43;
+        //testPacket[7] = 0x43;
+        testPacket[7] = lastCode[0];
+        testPacket[8] = lastCode[1];
+        testPacket[9] = 0x31;
+        testPacket[10] = 0x31;
+        testPacket[11] = 0x31;
+        testPacket[12] = 0x31;
+
+        transmit(testPacket, 14);
+        //blink(400,400);
+        REALLYFASTBLINK();
+        debug("sent packet...");
+        loopCnt = 0;
+    }
+#endif
 
     if (rfif)
     {
@@ -115,6 +147,9 @@ int appHandleEP5()
 /* in case your application cares when an OUT packet has been completely received on EP0.       */
 void appHandleEP0OUTdone(void)
 {
+#ifndef VIRTUAL_COM
+    //code here
+#endif
 }
 
 /* called each time a usb OUT packet is received */
@@ -154,11 +189,9 @@ void appHandleEP0OUT(void)
  * data is sent back through calls to either setup_send_ep0 or setup_sendx_ep0 for xdata vars    *
  * theoretically you can process stuff without the IN-direction bit, but we've found it is better*
  * to handle OUT packets in appHandleEP0OUTdone, which is called when the last packet is complete*/
+#ifndef VIRTUAL_COM
 int appHandleEP0(USB_Setup_Header* pReq)
 {
-#ifdef VIRTUAL_COM
-    pReq = 0;
-#else
     if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
     {
         switch (pReq->bRequest)
@@ -180,10 +213,9 @@ int appHandleEP0(USB_Setup_Header* pReq)
                 break;
         }
     }
-#endif
     return 0;
 }
-
+#endif
 
 
 /*************************************************************************************************
@@ -199,7 +231,11 @@ static void appInitRf(void)
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
     PKTLEN      = 0xff;
+#ifdef RECEIVE_TEST
     PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
+#else
+    PKTCTRL1    = 0x00;
+#endif
     PKTCTRL0    = 0x01;
     ADDR        = 0x00;
     CHANNR      = 0x00;
@@ -215,7 +251,11 @@ static void appInitRf(void)
     MDMCFG0     = 0x11;
     DEVIATN     = 0x36;
     MCSM2       = 0x07;             // RX_TIMEOUT
-    MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+#ifdef RECEIVE_TEST
+    MCSM1       = 0x3c;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+#else
+    MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+#endif
     MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
     FOCCFG      = 0x17;
     BSCFG       = 0x6c;
@@ -228,8 +268,13 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
+#ifdef RECEIVE_TEST
+    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x35; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
+#else
     TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
     TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
+#endif
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 

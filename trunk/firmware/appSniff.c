@@ -1,11 +1,16 @@
 #include "cc1111rf.h"
 #include "global.h"
 
-#ifdef VIRTUAL_COM
+
+#ifdef IMME
+    #include "immefont.h"
+#else
+ #ifdef VIRTUAL_COM
     #include "cc1111.h"
     #include "cc1111_vcom.h"
-#else
+ #else
     #include "cc1111usb.h"
+ #endif
 #endif
 
 /*************************************************************************************************
@@ -28,20 +33,21 @@
  * */
 
 
-
+#define APP_NIC 0x42
+#define NIC_RECV 0x1
+#define NIC_XMIT 0x2
+#define SNIFF_RECV 0x1
 
 /*************************************************************************************************
  * Application Code - these first few functions are what should get overwritten for your app     *
  ************************************************************************************************/
 
-xdata u32 loopCnt;
-xdata u8 xmitCnt;
+xdata u32 recvCnt;
 
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
-    loopCnt = 0;
-    xmitCnt = 1;
+    recvCnt = 0;
 
     RxMode();
     //startRX();
@@ -53,27 +59,99 @@ void appMainLoop(void)
 {
     xdata u8 processbuffer;
 
+#ifdef IMME
+    SSN=LOW;
+    drawhex(6, 0, MARCSTATE);
+    drawhex(6,10, rfif);
+    SSN=HIGH;
+
+#endif
     if (rfif)
     {
         lastCode[0] = 0xd;
-        IEN2 &= ~IEN2_RFIE;
+        //IEN2 &= ~IEN2_RFIE;
 
         if(rfif & RFIF_IRQ_DONE)
         {
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
-            {
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+            {   // we've received a packet.  deliver it.
+#ifdef IMME
+                /* couple things for poll_keyboard:
+                 * Sleep (off)
+                 * pause (wow, the packets fly by!
+                 * slow... perhaps a settable delay that we can increment by kb
+                 * freq +-
+                 * channel +-
+                 * chanspc +-
+                 * baud +-
+                 * modulation +-
+                 * PQT mode +-
+                 * set sync word
+                 *
+                 */
+                xdata u8 *pval = &rfrxbuf[processbuffer][0];
+                u8 len   = *pval++;
+                u16 nibble;
 
+                SSN=LOW;
+                LED_RED = !LED_RED;
+                drawstr(3,0, "                                ");
+                drawstr(3,0, "                                ");
+                //blink_binary_baby_lsb(len, 8);
+                drawstr(1,0, "Length: ");
+                drawhex(1,9, len);
+                drawstr(2,0, "Curr: ");
+                drawhex(2,6, rfRxCurrentBuffer);
+                drawstr(2,12, "Cnt: ");
+                drawhex(2,17, ++recvCnt);
+                if (len>50)
+                    len = 50;
+
+                setCursor(3, 0);
+                while (len--)
+                {
+                    if (*pval > 0x1f && *pval < 0x7f)
+                    {
+                        putch(' ');
+                        putch(*pval);
+                    } else
+                    {
+
+                        // high nibble
+                        nibble=(*(pval) & 0xF0)>>4;
+                        if(nibble<10)
+                            putch('0'+nibble);
+                        else
+                            putch('A'+nibble-0xA);
+
+                        // low nibble
+                        nibble=((*pval)&0x0F);
+                        if(nibble<10)
+                            putch('0'+nibble);
+                        else
+                            putch('A'+nibble-0xA);
+                    }
+
+                    pval ++;
+                }
+
+                //drawstr(2,0, rfrxbuf[processbuffer]+1);
+                SSN=HIGH;
+#else
+                txdata(APP_NIC, SNIFF_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+#endif  // imme
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
             }
         }
 
         rfif = 0;
-        IEN2 |= IEN2_RFIE;
+        //IEN2 |= IEN2_RFIE;
     }
 }
+
+#ifndef IMME
 
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
  * main handler routine for the application as endpoint 0 is normally used for system stuff.
@@ -89,23 +167,21 @@ void appMainLoop(void)
 int appHandleEP5()
 {   // not used by VCOM
 #ifndef VIRTUAL_COM
-    u8 app, cmd;
-    u16 len;
+    u8 app, cmd, len;
     xdata u8 *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
-    len = (u16)*buf;
+    //len = (u16)*buf;    - original firmware
+    len = (u8)*buf;         // FIXME: should we use this?  or the lower byte of OUTlen?
     buf += 2;                                               // point at the address in memory
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
     //  then check the cmd
     //   then process the data
-    switch (cmd)
+    switch (app)
     {
-        default:
-            break;
     }
     ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
 #endif
@@ -184,7 +260,7 @@ int appHandleEP0(USB_Setup_Header* pReq)
     return 0;
 }
 
-
+#endif //   IMME
 
 /*************************************************************************************************
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
@@ -198,28 +274,38 @@ static void appInitRf(void)
     IOCFG0      = 0x00;
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
-    PKTLEN      = 0xff;
-    PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
-    PKTCTRL0    = 0x01;
+    PKTLEN      = 0x0a;//0xff;
+    PKTCTRL1    = 0x20;//0x40; // PQT threshold  - was 0x00
+    PKTCTRL0    = 0x00;//0x01; // Fixed LEN:0, Variable LEN:1, CRC:4
     ADDR        = 0x00;
     CHANNR      = 0x00;
+#ifdef IMME
+    //PKTCTRL1    = 0xe5;  - has PQT/SYNC/blah and ADDRESS CHECK and APPEND_STATUS
+    //PKTCTRL0    = 0x05;  - has CRC enabled.
+    FREQ2       = 0x21;
+    FREQ1       = 0x65;//0x71;
+    FREQ0       = 0x6a;//0x7c;
     FSCTRL1     = 0x06;
     FSCTRL0     = 0x00;
+#else
     FREQ2       = 0x24;
     FREQ1       = 0x3a;
     FREQ0       = 0xf1;
+    FSCTRL1     = 0x06;
+    FSCTRL0     = 0x00;
+#endif
     MDMCFG4     = 0xca;
-    MDMCFG3     = 0xa3;
-    MDMCFG2     = 0x03;
-    MDMCFG1     = 0x23;
-    MDMCFG0     = 0x11;
-    DEVIATN     = 0x36;
+    MDMCFG3     = 0x83;//0xa3;//0x83;
+    MDMCFG2     = 0x04;//0x03;//0x10;  // SYNC_MODE - 000-nopreamble/syncbits...111-30/32+carriersense
+    MDMCFG1     = 0x23;//0x22;
+    MDMCFG0     = 0x11;//0xf8;
+    DEVIATN     = 0x35;
     MCSM2       = 0x07;             // RX_TIMEOUT
-    MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
+    MCSM1       = 0x3f;//0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
     MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
-    FOCCFG      = 0x17;
+    FOCCFG      = 0x16;
     BSCFG       = 0x6c;
-    AGCCTRL2    = 0x03;
+    AGCCTRL2    = 0x43;
     AGCCTRL1    = 0x40;
     AGCCTRL0    = 0x91;
     FREND1      = 0x56;
@@ -228,43 +314,24 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
+    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x35; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
 
 #ifndef RADIO_EU
-    //PKTCTRL1    = 0x04;             // APPEND_STATUS
-    //PKTCTRL1    = 0x40;             // PQT threshold
-    //PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
-    //PKTCTRL0    = 0x00;             // FIXED LENGTH, no crc, no whitening
-    FSCTRL1     = 0x0c;             // Intermediate Frequency
-    //FSCTRL0     = 0x00;
+    // this is the NA radio freqs 902-928MHz
+    PA_TABLE0   = 0x8e;
+#ifdef IMME
+    FREQ2       = 0x22;
+    FREQ1       = 0xb1;
+    FREQ0       = 0x3b;
+#else
     FREQ2       = 0x25;
     FREQ1       = 0x95;
     FREQ0       = 0x55;
-    //MDMCFG4     = 0x1d;             // chan_bw and drate_e
-    //MDMCFG3     = 0x55;             // drate_m
-    //MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
-    //MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
-    //MDMCFG0     = 0x11;             // chanspc_m
-    //DEVIATN     = 0x63;
-    //FOCCFG      = 0x1d;             
-    //BSCFG       = 0x1c;             // bit sync config
-    //AGCCTRL2    = 0xc7;
-    //AGCCTRL1    = 0x00;
-    //AGCCTRL0    = 0xb0;
-    FREND1      = 0xb6;
-    FREND0      = 0x10;
-    FSCAL3      = 0xea;
-    FSCAL2      = 0x2a;
-    FSCAL1      = 0x00;
-    FSCAL0      = 0x1f;
-    //TEST2       = 0x88;
-    //TEST1       = 0x31;
-    //TEST0       = 0x09;
-    //PA_TABLE0   = 0x83;
+#endif
 #endif
 
 }
@@ -272,7 +339,9 @@ static void appInitRf(void)
 /* initialize the IO subsystems for the appropriate dongles */
 static void io_init(void)
 {
-#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
+#ifdef IMME
+    
+ #ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
     // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
     // to it's own Cypress USB chip
     P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
@@ -285,7 +354,25 @@ static void io_init(void)
 
     P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
     P1 &= ~BIT0;                // not ready to receive
+ #else              // full blown IMME with screen and keyboard
     
+  //Disable WDT
+  IEN2&=~IEN2_WDTIE;
+  IEN0&=~EA;
+	setIOPorts();
+	configureSPI();
+	LCDReset();
+  
+  //Startup display.
+  setDisplayStart(0);
+  SSN = LOW;
+  setNormalReverse(0);
+  erasescreen();
+  drawstr(0,0, "IMME SNIFF v0.1");
+  SSN = HIGH;
+  //sleepMillis(100);
+  
+ #endif 
 #else       // CC1111
 #ifdef DONSDONGLES
     // CC1111 USB Dongle
@@ -334,8 +421,11 @@ void initBoard(void)
 
 void main (void)
 {
+start:
     initBoard();
+#ifndef IMME
     initUSB();
+#endif
     blink(300,300);
 
     init_RF();
@@ -348,7 +438,12 @@ void main (void)
 
     while (1)
     {  
+#ifdef IMME
+        poll_keyboard();
+#else
         usbProcessEvents();
+#endif
+        //  LED_RED = !LED_RED;
         appMainLoop();
     }
 
