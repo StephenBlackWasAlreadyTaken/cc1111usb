@@ -289,6 +289,14 @@ __endasm;
 #define     CMD_STATUS      0x83
 #define     CMD_POKE_REG    0x84
 #define     CMD_RFMODE      0x85
+#define     CMD_RESET       0x8f
+
+#define     EP0_CMD_GET_DEBUG_CODES         0x00
+#define     EP0_CMD_GET_ADDRESS             0x01
+#define     EP0_CMD_PEEKX                   0x02
+#define     EP0_CMD_PING0                   0x03
+#define     EP0_CMD_PING1                   0x04
+#define     EP0_CMD_RESET                   0xfe
 
 #define     DEBUG_CMD_STRING    0xf0
 #define     DEBUG_CMD_HEX       0xf1

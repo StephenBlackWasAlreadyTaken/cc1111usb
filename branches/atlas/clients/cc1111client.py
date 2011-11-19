@@ -40,6 +40,7 @@ SYS_CMD_PING                    = 0x82
 SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
 SYS_CMD_RFMODE                  = 0x85
+SYS_CMD_RESET                   = 0x8f
 
 DEBUG_CMD_STRING                = 0xf0
 DEBUG_CMD_HEX                   = 0xf1
@@ -396,6 +397,10 @@ class USBDongle:
         else:
             return x
 
+    def ep0Reset(self):
+        x = self._recvEP0(request=0xfe, value=0x5352, index=0x4e54)
+        return x
+
     def ep0Peek(self, addr, length, timeout=100):
         x = self._recvEP0(request=2, value=addr, length=length, timeout=timeout)
         return x
@@ -442,6 +447,8 @@ class USBDongle:
                 good+=1
         return (good,bad)
 
+    def RESET(self):
+        r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
         return r[4:]
