@@ -900,6 +900,17 @@ void handleOUTEP5(void)
                             transmit(ptr, len);
                             break;
                     }
+                    txdata(app,cmd,len,ptr);
+                    break;
+
+                case CMD_RESET:
+                    if (strncmp(ptr, "RESET_NOW", 9))
+                        break;   //didn't match the signature.  must have been an accident.
+
+                    // implement a RESET by trigging the watchdog timer
+                    WDCTL = 0x80;   // Watchdog ENABLE, Watchdog mode, 1s until reset
+
+                    txdata(app,cmd,len,ptr);
                 default:
                     txdata(app,cmd,len,ptr);
             }

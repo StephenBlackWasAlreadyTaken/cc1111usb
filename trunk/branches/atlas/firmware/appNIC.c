@@ -180,21 +180,30 @@ int appHandleEP0(USB_Setup_Header* pReq)
     {
         switch (pReq->bRequest)
         {
-            case 0:
+            case EP0_CMD_GET_DEBUG_CODES:
                 setup_send_ep0(&lastCode[0], 2);
                 break;
-            case 1:
+            case EP0_CMD_GET_ADDRESS:
                 setup_sendx_ep0((xdata u8*)USBADDR, 40);
                 break;
-            case 2:
+            case EP0_CMD_PEEKX:
                 setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
                 break;
-            case 3:     // ping
+            case EP0_CMD_PING0:
                 setup_send_ep0((u8*)pReq, pReq->wLength);
                 break;
-            case 4:     // ping
+            case EP0_CMD_PING1:
                 setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
                 break;
+            case EP0_CMD_RESET:
+                if (strncmp((char*)&(pReq->wValue), "RSTN", 4))           // therefore, ->wValue == "RS" and ->wIndex == "TN" or no reset
+                {
+                    blink(300,300);
+                    break;   //didn't match the signature.  must have been an accident.
+                }
+
+                // implement a RESET by trigging the watchdog timer
+                WDCTL = 0x83;   // Watchdog ENABLE, Watchdog mode, 2ms until reset
         }
     }
 #endif
@@ -337,6 +346,15 @@ void clock_init(void){
     while (CLKCON & CLKCON_OSC);
     SLEEP |= SLEEP_OSC_PD;
     while (!IS_XOSC_STABLE());
+
+    // setup TIMER 1 to freerun
+    T1CTL |= T1CTL_DIV_128;
+    T1CTL |= T1CTL_MODE_FREERUN;
+
+    // setup TIMER 2
+    T2PR = 0;
+    T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+    T2CTL |= T2CTL_TIG;
 }
 
 /*************************************************************************************************

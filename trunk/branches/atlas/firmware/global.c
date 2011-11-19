@@ -113,3 +113,17 @@ int memset(volatile xdata void* dst, const char ch, u16 len)
     return loop+1;
 }
 */
+int strncmp(const char *s1, const char *s2, u16 n)
+{
+    char tst;
+
+    for (;n>0;n--)
+    {
+        tst = *s1 - *s2;
+        if (tst)
+            return tst;
+        s1++;
+        s2++;
+    }
+    return 0;
+}
