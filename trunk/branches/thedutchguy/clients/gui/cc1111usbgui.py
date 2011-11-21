@@ -13,9 +13,12 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
         self.setupUi(self)
 
         #connect signals
-        self.connect(self.continiousBox,SIGNAL("clicked()"),self.handle_recvcontinious)
-        self.connect(self.startButton,SIGNAL("clicked()"),self.handle_recvstart)
-        self.connect(self.stopButton,SIGNAL("clicked()"),self.handle_recvstop)
+        self.connect(self.continiousRecvBox,SIGNAL("clicked()"),self.handle_recvcontinious)
+        self.connect(self.startRecvButton,SIGNAL("clicked()"),self.handle_recvstart)
+        self.connect(self.stopRecvButton,SIGNAL("clicked()"),self.handle_recvstop)
+        self.connect(self.continiousSendBox,SIGNAL("clicked()"),self.handle_sendcontinious)
+        self.connect(self.startSendButton,SIGNAL("clicked()"),self.handle_sendstart)
+        self.connect(self.stopSendButton,SIGNAL("clicked()"),self.handle_sendstop)
         self.connect(self.actionLoad,SIGNAL("triggered()"),self.load_configuration)
         self.connect(self.actionSave,SIGNAL("triggered()"),self.write_configuration)
     
@@ -78,18 +81,32 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
             stream << ("</registers>\n")
 
     def handle_recvcontinious(self):
-        if self.continiousBox.isChecked():
-            self.countBox.setEnabled(0)
+        if self.continiousRecvBox.isChecked():
+            self.countRecvBox.setEnabled(0)
         else:
-            self.countBox.setEnabled(1)
+            self.countRecvBox.setEnabled(1)
 
     def handle_recvstart(self):
-        self.startButton.setEnabled(0)
-        self.stopButton.setEnabled(1)
+        self.startRecvButton.setEnabled(0)
+        self.stopRecvButton.setEnabled(1)
 
     def handle_recvstop(self):
-        self.stopButton.setEnabled(0)
-        self.startButton.setEnabled(1)
+        self.stopRecvButton.setEnabled(0)
+        self.startRecvButton.setEnabled(1)
+    
+    def handle_sendcontinious(self):
+        if self.continiousSendBox.isChecked():
+            self.countSendBox.setEnabled(0)
+        else:
+            self.countSendBox.setEnabled(1)
+
+    def handle_sendstart(self):
+        self.startSendButton.setEnabled(0)
+        self.stopSendButton.setEnabled(1)
+
+    def handle_sendstop(self):
+        self.stopSendButton.setEnabled(0)
+        self.startSendButton.setEnabled(1)
 
 app = QApplication(sys.argv)
 form = CC1111UsbGui()
