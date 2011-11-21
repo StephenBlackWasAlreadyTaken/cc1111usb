@@ -664,27 +664,115 @@
           <attribute name="title">
            <string>Transmit</string>
           </attribute>
-          <widget class="QLabel" name="label_6">
-           <property name="geometry">
-            <rect>
-             <x>10</x>
-             <y>10</y>
-             <width>59</width>
-             <height>16</height>
-            </rect>
-           </property>
-           <property name="text">
-            <string>TBD</string>
-           </property>
-          </widget>
+          <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,4">
+           <item>
+            <widget class="QGroupBox" name="parameterSendBox">
+             <property name="title">
+              <string>Parameters</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QLabel" name="sendcountLabel">
+                <property name="text">
+                 <string>Send count</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="countSendBox">
+                <property name="minimum">
+                 <number>1</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="continiousSendBox">
+                <property name="text">
+                 <string>Continious</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="sendspacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="startSendButton">
+                <property name="text">
+                 <string>Start</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="stopSendButton">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Stop</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widget_2" native="true">
+             <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="3,1">
+              <item>
+               <widget class="QWidget" name="widget_3" native="true">
+                <layout class="QGridLayout" name="gridLayout">
+                 <item row="0" column="0">
+                  <widget class="QRadioButton" name="radioButton">
+                   <property name="text">
+                    <string>Plain text</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QRadioButton" name="radioButton_2">
+                   <property name="text">
+                    <string>Hexadecimal</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0" colspan="2">
+                  <widget class="QPlainTextEdit" name="plainTextEdit"/>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="groupBox_2">
+                <property name="title">
+                 <string>Status</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
          </widget>
          <widget class="QWidget" name="receiveTab">
           <attribute name="title">
            <string>Receive</string>
           </attribute>
-          <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,3">
+          <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,4">
            <item>
-            <widget class="QGroupBox" name="parameterBox">
+            <widget class="QGroupBox" name="parameterRecvBox">
              <property name="title">
               <string>Parameters</string>
              </property>
@@ -703,7 +791,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QSpinBox" name="countBox">
+               <widget class="QSpinBox" name="countRecvBox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                   <horstretch>0</horstretch>
@@ -716,7 +804,7 @@
                </widget>
               </item>
               <item>
-               <widget class="QCheckBox" name="continiousBox">
+               <widget class="QCheckBox" name="continiousRecvBox">
                 <property name="sizePolicy">
                  <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                   <horstretch>0</horstretch>
@@ -742,14 +830,14 @@
                </spacer>
               </item>
               <item>
-               <widget class="QPushButton" name="startButton">
+               <widget class="QPushButton" name="startRecvButton">
                 <property name="text">
                  <string>Start</string>
                 </property>
                </widget>
               </item>
               <item>
-               <widget class="QPushButton" name="stopButton">
+               <widget class="QPushButton" name="stopRecvButton">
                 <property name="enabled">
                  <bool>false</bool>
                 </property>
