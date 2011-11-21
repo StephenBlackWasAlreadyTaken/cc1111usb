@@ -7,8 +7,12 @@ if len(sys.argv) > 1:
 
 dport = "/dev/tty" + port
 
-s=serial.Serial(dport)
+print "Opening serial port %s for listening..." % dport
+s=serial.Serial(dport, 115200)
 
+counter = 0
 while True:
-    sys.stdout.write(s.read(1))
-    sys.stdout.flush()
+    print ("%d: %s" % (counter, repr(s.read(12))))
+    counter += 1
+    #sys.stdout.write(s.read(1))
+    #sys.stdout.flush()
