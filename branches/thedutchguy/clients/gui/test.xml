@@ -1,0 +1,42 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<registers>
+	<register name='IOCFG2' value='0x00' />
+	<register name='IOCFG1' value='0x00' />
+	<register name='IOCFG0' value='0x06' />
+	<register name='SYNC1' value='0xD3' />
+	<register name='SYNC0' value='0x91' />
+	<register name='PKTLEN' value='0xFF' />
+	<register name='PKTCTRL1' value='0x00' />
+	<register name='PKTCTRL0' value='0x05' />
+	<register name='ADDR' value='0x00' />
+	<register name='CHANNR' value='0x00' />
+	<register name='FSCTRL1' value='0x08' />
+	<register name='FSCTRL0' value='0x00' />
+	<register name='FREQ2' value='0x24' />
+	<register name='FREQ1' value='0x2D' />
+	<register name='FREQ0' value='0xDD' />
+	<register name='MDMCFG4' value='0xCA' />
+	<register name='MDMCFG3' value='0xA3' />
+	<register name='MDMCFG2' value='0x93' />
+	<register name='MDMCFG1' value='0x23' />
+	<register name='MDMCFG0' value='0x11' />
+	<register name='DEVIATN' value='0x36' />
+	<register name='MCSM2' value='0x07' />
+	<register name='MCSM1' value='0x30' />
+	<register name='MCSM0' value='0x18' />
+	<register name='FOCCFG' value='0x16' />
+	<register name='BSCFG' value='0x6C' />
+	<register name='AGCCTRL2' value='0x43' />
+	<register name='AGCCTRL1' value='0x40' />
+	<register name='AGCCTRL0' value='0x91' />
+	<register name='FREND1' value='0x56' />
+	<register name='FREND0' value='0x10' />
+	<register name='FSCAL3' value='0xE9' />
+	<register name='FCSAL2' value='0x2A' />
+	<register name='FSCAL1' value='0x00' />
+	<register name='FSCAL0' value='0x1F' />
+	<register name='TEST2' value='0x88' />
+	<register name='TEST1' value='0x31' />
+	<register name='TEST0' value='0x09' />
+	<register name='PA_TABLE0' value='0x50' />
+</registers>
