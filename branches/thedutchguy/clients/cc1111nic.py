@@ -2,6 +2,10 @@
 import sys, usb, threading, time, struct
 from chipcondefs import *
 
+APP_NIC = 0x42
+NIC_RECV = 0x1
+NIC_XMIT = 0x2
+
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
 USB_BM_REQTYPE_TGT_INTF         =0x01
@@ -75,7 +79,7 @@ for lcl in lcls.keys():
 """  MODULATIONS
 Note that MSK is only supported for data rates above 26 kBaud and GFSK,
 ASK , and OOK is only supported for data rate up until 250 kBaud. MSK
-cannot be used if Manchester encoding/decoding is enabled.
+cannot be used if Manchester encoding/decding is enabled.
 """
 MOD_2FSK                        = 0x00
 MOD_GFSK                        = 0x10
@@ -181,10 +185,9 @@ class USBDongle:
     def _sendEP0(self, request=0, buf=None, value=0x200, index=0, timeout=1000):
         if buf == None:
             buf = 'HELLO THERE'
-        #return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, "\x00\x00\x00\x00\x00\x00\x00\x00"+buf, value, index, timeout), buf
-        return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, buf, value, index, timeout), buf
+        return self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_OUT, request, "\x00\x00\x00\x00\x00\x00\x00\x00"+buf, value, index, timeout), buf
 
-    def _recvEP0(self, request=0, length=64, value=0, index=0, timeout=100):
+    def _recvEP0(self, request=0, value=0, length=64, index=0, timeout=100):
         retary = ["%c"%x for x in self._do.controlMsg(USB_BM_REQTYPE_TGT_EP|USB_BM_REQTYPE_TYPE_VENDOR|USB_BM_REQTYPE_DIR_IN, request, length, value, index, timeout)]
         if len(retary):
             return ''.join(retary)
@@ -396,26 +399,9 @@ class USBDongle:
         else:
             return x
 
-    def ep0Peek(self, addr, length, timeout=100):
+    def getDebugPeek(self, addr, length, timeout=100):
         x = self._recvEP0(request=2, value=addr, length=length, timeout=timeout)
         return x
-
-    def ep0Poke(self, addr, buf='\x00', timeout=100):
-        x = self._sendEP0(request=1, buf=buf, value=addr, timeout=timeout)
-        return x
-
-    def ep0Ping(self, count=10):
-        good=0
-        bad=0
-        for x in range(count):
-            #r = self._recvEP0(3, 10)
-            r = self._recvEP0(request=2, value=count, length=count, timeout=1000)
-            print "PING: %d bytes received: %s"%(len(r), repr(r))
-            if r==None:
-                bad+=1
-            else:
-                good+=1
-        return (good,bad)
 
     def debug(self):
         while True:
@@ -909,13 +895,14 @@ class USBDongle:
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
 
-def mkFreq(freq=902000000, mhz=24):
-    freqmult = (0x10000 / 1000000.0) / mhz
-    num = int(freq * freqmult)
-    freq2 = num >> 16
-    freq1 = (num>>8) & 0xff
-    freq0 = num & 0xff
-    return (num, freq2,freq1,freq0)
+    def RFxmit(self, data):
+        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
+
+    def RFrecv(self, timeout=100):
+        return self.recv(APP_NIC, timeout)
+
+
+
 
 
 
