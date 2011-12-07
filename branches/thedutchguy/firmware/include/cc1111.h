@@ -250,15 +250,15 @@ typedef struct DMA_DESC_S {
     uint8 lenH      : 5;
     uint8 vlen      : 3;
     uint8 lenL      : 8;
-    uint8 trig      : 5;
-    uint8 tMode     : 2;
     uint8 wordSize  : 1;
+    uint8 tMode     : 2;
+    uint8 trig      : 5;
 
-    uint8 priority  : 2;
-    uint8 m8        : 1;
-    uint8 irqMask   : 1;
-    uint8 destInc   : 2;
     uint8 srcInc    : 2;
+    uint8 destInc   : 2;
+    uint8 irqMask   : 1;
+    uint8 m8        : 1;
+    uint8 priority  : 2;
 } DMA_DESC;
 
 // Request Types (bmRequestType)
