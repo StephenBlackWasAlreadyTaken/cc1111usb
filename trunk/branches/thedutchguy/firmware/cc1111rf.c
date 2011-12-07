@@ -177,14 +177,16 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
         rfDMA.lenH = 0;
         rfDMA.vlen = 0;
         rfDMA.lenL = len;
-        rfDMA.trig = 19;
-        rfDMA.tMode = 1;
+        
         rfDMA.wordSize = 0;
-        rfDMA.priority = 1;
-        rfDMA.m8 = 0;
-        rfDMA.irqMask = 0;
+        rfDMA.tMode = 1;
+        rfDMA.trig = 19;
+        
         rfDMA.srcInc = 1;
         rfDMA.destInc = 0;
+        rfDMA.irqMask = 0;
+        rfDMA.m8 = 0;
+        rfDMA.priority = 1;
     }
 
 	/* Strobe to rx */
