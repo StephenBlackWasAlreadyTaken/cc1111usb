@@ -21,11 +21,11 @@
 #include "cc1111.h"
 #include "cc1111_vcom.h"
 
-static __xdata u16 usb_in_bytes;
-static __xdata u16 usb_in_bytes_last;
-static __xdata u16 usb_out_bytes;
-volatile static __xdata u8  usb_iif;
-static __xdata u8  usb_running;
+static __xdata uint16_t usb_in_bytes;
+static __xdata uint16_t usb_in_bytes_last;
+static __xdata uint16_t usb_out_bytes;
+volatile static __xdata uint8_t  usb_iif;
+static __xdata uint8_t  usb_running;
 
 static void vcom_set_interrupts()
 {
@@ -38,26 +38,26 @@ static void vcom_set_interrupts()
 }
 
 struct usb_setup {
-  u8   dir_type_recip;
-  u8   request;
-  u16  value;
-  u16  index;
-  u16  length;
+  uint8_t   dir_type_recip;
+  uint8_t   request;
+  uint16_t  value;
+  uint16_t  index;
+  uint16_t  length;
 } __xdata usb_setup;
 
-__xdata u8 usb_ep0_state;
-u8 * __xdata usb_ep0_in_data;
-__xdata u8 usb_ep0_in_len;
-__xdata u8 usb_ep0_in_buf[2];
-__xdata u8 usb_ep0_out_len;
-__xdata u8 *__xdata usb_ep0_out_data;
-__xdata u8 usb_configuration;
+__xdata uint8_t usb_ep0_state;
+uint8_t * __xdata usb_ep0_in_data;
+__xdata uint8_t usb_ep0_in_len;
+__xdata uint8_t usb_ep0_in_buf[2];
+__xdata uint8_t usb_ep0_out_len;
+__xdata uint8_t *__xdata usb_ep0_out_data;
+__xdata uint8_t usb_configuration;
 
 // Send an IN data packet
 static void vcom_ep0_flush()
 {
-  __xdata u8 this_len;
-  __xdata u8 cs0;
+  __xdata uint8_t this_len;
+  __xdata uint8_t cs0;
 
   // If the IN packet hasn't been picked up, just return
   USBINDEX = 0;
@@ -83,11 +83,11 @@ static void vcom_ep0_flush()
 xdata static struct usb_line_coding usb_line_codings = {115200, 0, 0, 8};
 
 // Walk through the list of descriptors and find a match
-static void vcom_get_descriptor(u16 value)
+static void vcom_get_descriptor(uint16_t value)
 {
-  const u8   *__xdata descriptor;
-  __xdata u8   type = value >> 8;
-  __xdata u8   index = value;
+  const uint8_t   *__xdata descriptor;
+  __xdata uint8_t   type = value >> 8;
+  __xdata uint8_t   index = value;
 
   descriptor = usb_descriptors;
   while (descriptor[0] != 0) {
@@ -106,7 +106,7 @@ static void vcom_get_descriptor(u16 value)
 // Read data from the ep0 OUT fifo
 static void vcom_ep0_fill()
 {
-  __xdata u8 len;
+  __xdata uint8_t len;
 
   USBINDEX = 0;
   len = USBCNT0;
@@ -117,12 +117,12 @@ static void vcom_ep0_fill()
     *usb_ep0_out_data++ = USBFIFO[0];
 }
 
-void vcom_ep0_queue_byte (u8 a)
+void vcom_ep0_queue_byte (uint8_t a)
 {
   usb_ep0_in_buf[usb_ep0_in_len++] = a;
 }
 
-void vcom_set_address (u8 address)
+void vcom_set_address (uint8_t address)
 {
   usb_running = 1;
   USBADDR = address | 0x80;
@@ -145,7 +145,7 @@ static void vcom_set_configuration()
 static void vcom_ep0_setup()
 {
   // Pull the setup packet out of the fifo
-  usb_ep0_out_data = (__xdata u8 *) &usb_setup;
+  usb_ep0_out_data = (__xdata uint8_t *) &usb_setup;
   usb_ep0_out_len = 8;
   vcom_ep0_fill();
   if (usb_ep0_out_len != 0)
@@ -223,11 +223,11 @@ static void vcom_ep0_setup()
       switch (usb_setup.request) {
         case SET_LINE_CODING:
           usb_ep0_out_len = 7;
-          usb_ep0_out_data = (__xdata u8 *) &usb_line_codings;
+          usb_ep0_out_data = (__xdata uint8_t *) &usb_line_codings;
           break;
         case GET_LINE_CODING:
           usb_ep0_in_len = 7;
-          usb_ep0_in_data = (u8 *) &usb_line_codings;
+          usb_ep0_in_data = (uint8_t *) &usb_line_codings;
           break;
         case SET_CONTROL_LINE_STATE:
           break;
@@ -245,7 +245,7 @@ static void vcom_ep0_setup()
 // This function must be called periodically to process ep0 messages.
 static void vcom_ep0()
 {
-  __xdata u8 cs0;
+  __xdata uint8_t cs0;
 
   // If the ep0 flag has been set by the USB interrupt then do some processing
   if (usb_iif & 1)
@@ -454,9 +454,9 @@ void vcom_down() {
   P1DIR &= ~0x02;
 }
 
-void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)
+void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr)
 {
-	u16 test = 0;
+	uint16_t test = 0;
 
 	/*removes warning */	
 	test = app = cmd = len;

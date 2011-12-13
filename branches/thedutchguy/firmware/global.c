@@ -1,7 +1,7 @@
 #include "global.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-xdata u8 lastCode[2];
+xdata uint8_t lastCode[2];
 
 
 void sleepMillis(int ms) 
@@ -29,7 +29,7 @@ void sleepMicros(int us)
     sleepMillis(off_cycles);
 }*/
 
-void blink_binary_baby_lsb(u16 num, char bits)
+void blink_binary_baby_lsb(uint16_t num, char bits)
 {
     EA=0;
     LED = 1;
