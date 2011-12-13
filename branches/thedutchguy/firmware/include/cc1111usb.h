@@ -11,42 +11,42 @@
         // note: descriptor needs to be adjusted to match EP5_MAX_PACKET_SIZE
 
 typedef struct {
-    u8   usbstatus;
-    u16  event;
-    u8   config;
+    uint8_t   usbstatus;
+    uint16_t  event;
+    uint8_t   config;
 } USB_STATE;
 
 typedef struct {
-    u8*  INbuf;
-    u16  INbytesleft;
-    u8*  OUTbuf;
-    u16  OUTlen;
-    u16  BUFmaxlen;
-    volatile u8   flags;
-    u8   epstatus;
-    //xdata u8*  reg;
+    uint8_t*  INbuf;
+    uint16_t  INbytesleft;
+    uint8_t*  OUTbuf;
+    uint16_t  OUTlen;
+    uint16_t  BUFmaxlen;
+    volatile uint8_t   flags;
+    uint8_t   epstatus;
+    //xdata uint8_t*  reg;
     //void*   OUTDONE_handle;                                     // this is a function pointer which is called when the OUT transfer is done.  i may destroy this.
 } USB_EP_IO_BUF;
 
 // extern global variables
 extern USB_STATE usb_data;
-extern xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
-extern xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
+extern xdata uint8_t  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
+extern xdata uint8_t  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
 extern xdata USB_EP_IO_BUF     ep0iobuf;
 extern xdata USB_EP_IO_BUF     ep5iobuf;
-extern xdata u8 appstatus;
+extern xdata uint8_t appstatus;
 
 // provided by cc1111usb.c
 void usbIntHandler(void) interrupt P2INT_VECTOR;
 void p0IntHandler(void) interrupt P0INT_VECTOR;
 void clock_init(void);
-void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr);
-void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr);
-int setup_send_ep0(u8* payload, u16 length);
-int setup_sendx_ep0(xdata u8* payload, u16 length);
-u16 usb_recv_ep0OUT();
+void txdataold(uint8_t app, uint8_t cmd, uint16_t len, uint8_t* dataptr);
+void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr);
+int setup_send_ep0(uint8_t* payload, uint16_t length);
+int setup_sendx_ep0(xdata uint8_t* payload, uint16_t length);
+uint16_t usb_recv_ep0OUT();
 
-u16 usb_recv_epOUT(u8 epnum, USB_EP_IO_BUF* epiobuf);
+uint16_t usb_recv_epOUT(uint8_t epnum, USB_EP_IO_BUF* epiobuf);
 void initUSB(void);
 void usb_up(void);
 void usb_down(void);
@@ -67,21 +67,21 @@ int appHandleEP5();
 
 
 // usb_data bits
-#define USBD_CIF_SUSPEND        (u16)0x1
-#define USBD_CIF_RESUME         (u16)0x2
-#define USBD_CIF_RESET          (u16)0x4
-#define USBD_CIF_SOFIF          (u16)0x8
-#define USBD_IIF_EP0IF          (u16)0x10
-#define USBD_IIF_INEP1IF        (u16)0x20
-#define USBD_IIF_INEP2IF        (u16)0x40
-#define USBD_IIF_INEP3IF        (u16)0x80
-#define USBD_IIF_INEP4IF        (u16)0x100
-#define USBD_IIF_INEP5IF        (u16)0x200
-#define USBD_OIF_OUTEP1IF       (u16)0x400
-#define USBD_OIF_OUTEP2IF       (u16)0x800
-#define USBD_OIF_OUTEP3IF       (u16)0x1000
-#define USBD_OIF_OUTEP4IF       (u16)0x2000
-#define USBD_OIF_OUTEP5IF       (u16)0x4000
+#define USBD_CIF_SUSPEND        (uint16_t)0x1
+#define USBD_CIF_RESUME         (uint16_t)0x2
+#define USBD_CIF_RESET          (uint16_t)0x4
+#define USBD_CIF_SOFIF          (uint16_t)0x8
+#define USBD_IIF_EP0IF          (uint16_t)0x10
+#define USBD_IIF_INEP1IF        (uint16_t)0x20
+#define USBD_IIF_INEP2IF        (uint16_t)0x40
+#define USBD_IIF_INEP3IF        (uint16_t)0x80
+#define USBD_IIF_INEP4IF        (uint16_t)0x100
+#define USBD_IIF_INEP5IF        (uint16_t)0x200
+#define USBD_OIF_OUTEP1IF       (uint16_t)0x400
+#define USBD_OIF_OUTEP2IF       (uint16_t)0x800
+#define USBD_OIF_OUTEP3IF       (uint16_t)0x1000
+#define USBD_OIF_OUTEP4IF       (uint16_t)0x2000
+#define USBD_OIF_OUTEP5IF       (uint16_t)0x4000
 
 #define TXDATA_MAX_WAIT         100
 
