@@ -1,886 +1,1267 @@
-#ifndef CC1111_H
-#define CC1111_H
+/*-------------------------------------------------------------------------
+   Register Declarations for the ChipCon CC1111 Processor Range
 
-#include "cc1110-ext.h"
+   Copyright © 2008 Keith Packard <keithp@keithp.com>
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful, but
+   WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   General Public License for more details.
+
+   You should have received a copy of the GNU General Public License along
+   with this program; if not, write to the Free Software Foundation, Inc.,
+   59 Temple Place, Suite 330, Boston, MA 02111-1307 USA.
+
+   Adapted from the Cygnal C8051F12x config file which is:
+
+   Copyright (C) 2003 - Maarten Brock, sourceforge.brock@dse.nl
+
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   This library is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+   Lesser General Public License for more details.
+
+   You should have received a copy of the GNU Lesser General Public
+   License along with this library; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
+-------------------------------------------------------------------------*/
+
+#ifndef _CC1111_H_
+#define _CC1111_H_
 #include <cc1110.h>
+#include <stdint.h>
 
-#define u8 unsigned char
-#define u16 unsigned int
-#define uint8 unsigned char
-#define uint16 unsigned int
-#define u32 unsigned long
+sfr at 0xA8 IEN0;		/* Interrupt Enable 0 Register */
 
-uint8 addr;               // temporarily store the incoming address until *after* the STATUS stage of the transaction... then assign the address.
+sbit at 0xA8 RFTXRXIE;		/* RF TX/RX done interrupt enable */
+sbit at 0xA9 ADCIE;		/* ADC interrupt enable */
+sbit at 0xAA URX0IE;		/* USART0 RX interrupt enable */
+sbit at 0xAB URX1IE;		/* USART1 RX interrupt enable (shared with I2S RX) */
+sbit at 0xAB I2SRXIE;		/* I2S RX interrupt enable (shared with USART1 RX) */
+sbit at 0xAC ENCIE;		/* AES encryption/decryption interrupt enable */
+sbit at 0xAD STIE;		/* Sleep Timer interrupt enable */
+sbit at 0xAF EA;		/* Enable All */
 
-#define  EP_STATE_IDLE      0
-#define  EP_STATE_TX        1
-#define  EP_STATE_RX        2
-#define  EP_STATE_STALL     3
-#define USB_STATE_IDLE      0
-#define USB_STATE_SUSPEND   1
-#define USB_STATE_RESUME    2
-#define USB_STATE_RESET     3
-#define USB_STATE_WAIT_ADDR 4
-#define USB_STATE_BLINK     0xff
+#define IEN0_EA			(1 << 7)
+#define IEN0_STIE		(1 << 5)
+#define IEN0_ENCIE		(1 << 4)
+#define IEN0_URX1IE		(1 << 3)
+#define IEN0_I2SRXIE		(1 << 3)
+#define IEN0_URX0IE		(1 << 2)
+#define IEN0_ADCIE		(1 << 1)
+#define IEN0_RFTXRXIE		(1 << 0)
 
+sfr at 0xB8 IEN1;		/* Interrupt Enable 1 Register */
 
+#define IEN1_P0IE		(1 << 5)	/* Port 0 interrupt enable */
+#define IEN1_T4IE		(1 << 4)	/* Timer 4 interrupt enable */
+#define IEN1_T3IE		(1 << 3)	/* Timer 3 interrupt enable */
+#define IEN1_T2IE		(1 << 2)	/* Timer 2 interrupt enable */
+#define IEN1_T1IE		(1 << 1)	/* Timer 1 interrupt enable */
+#define IEN1_DMAIE		(1 << 0)	/* DMA transfer interrupt enable */
 
-SFRX(USBADDR,   0xDE00);        // Function Address
-SFRX(USBPOW,    0xDE01);        // Power / Control Register
-SFRX(USBIIF,    0xDE02);        // IN Endpoints and EP0 Interrupt Flags
-SFRX(USBOIF,    0xDE04);        // OUT Endpoints Interrupt Flags
-SFRX(USBCIF,    0xDE06);        // Common USB Interrupt Flags
-SFRX(USBIIE,    0xDE07);        // IN Endpoints and EP0 Interrupt Enable Mask
-SFRX(USBOIE,    0xDE09);        // Out Endpoints Interrupt Enable Mask
-SFRX(USBCIE,    0xDE0B);        // Common USB Interrupt Enable Mask
-SFRX(USBFRML,   0xDE0C);        // Current Frame Number (Low byte)
-SFRX(USBFRMH,   0xDE0D);        // Current Frame Number (High byte)
-SFRX(USBINDEX,  0xDE0E);        // Selects current endpoint. Make sure this register has the required value before any of the following registers are accessed. This register must be set to a value in the range 0 - 5.
+/* IEN2 */
+sfr at 0x9A IEN2;		/* Interrupt Enable 2 Register */
 
-SFRX(USBMAXI,   0xDE10);        // Max. packet size for IN endpoint,            1-5
-SFRX(USBCS0,    0xDE11);        // EP0 Control and Status (USBINDEX = 0),       0
-SFRX(USBCSIL,   0xDE11);        // IN EP{1 - 5} Control and Status Low,         1-5
-SFRX(USBCSIH,   0xDE12);        // IN EP{1 - 5} Control and Status High,        1-5
-SFRX(USBMAXO,   0xDE13);        // Max. packet size for OUT endpoint,           1-5
-SFRX(USBCSOL,   0xDE14);        // OUT EP{1 - 5} Control and Status Low,        1-5
-SFRX(USBCSOH,   0xDE15);        // OUT EP{1 - 5} Control and Status High,       1-5
-SFRX(USBCNT0,   0xDE16);        // Number of received bytes in EP0 FIFO (USBINDEX = 0), 0
-SFRX(USBCNTL,   0xDE16);        // Number of bytes in OUT FIFO Low,             1-5
-SFRX(USBCNTH,   0xDE17);        // Number of bytes in OUT FIFO High,            1-5
+#define IEN2_WDTIE		(1 << 5)	/* Watchdog timer interrupt enable */
+#define IEN2_P1IE		(1 << 4)	/* Port 1 interrupt enable */
+#define IEN2_UTX1IE		(1 << 3)	/* USART1 TX interrupt enable */
+#define IEN2_I2STXIE		(1 << 3)	/* I2S TX interrupt enable */
+#define IEN2_UTX0IE		(1 << 2)	/* USART0 TX interrupt enable */
+#define IEN2_P2IE		(1 << 1)	/* Port 2 interrupt enable */
+#define IEN2_USBIE		(1 << 1)	/* USB interrupt enable */
+#define IEN2_RFIE		(1 << 0)	/* RF general interrupt enable */
 
+/* CLKCON 0xC6 */
+sfr at 0xC6 CLKCON;		/* Clock Control */
 
-SFRX(USBF0,     0xDE20);        // Endpoint 0 FIFO
-SFRX(USBF1,     0xDE22);        // Endpoint 1 FIFO
-SFRX(USBF2,     0xDE24);        // Endpoint 2 FIFO
-SFRX(USBF3,     0xDE26);        // Endpoint 3 FIFO
-SFRX(USBF4,     0xDE28);        // Endpoint 4 FIFO
-SFRX(USBF5,     0xDE2A);        // Endpoint 5 FIFO
+#define CLKCON_OSC32K_RC	(1 << 7)
+#define CLKCON_OSC32K_XTAL	(0 << 7)
+#define CLKCON_OSC32K_MASK	(1 << 7)
+#define CLKCON_OSC_RC		(1 << 6)
+#define CLKCON_OSC_XTAL		(0 << 6)
+#define CLKCON_OSC_MASK		(1 << 6)
+#define CLKCON_TICKSPD_MASK	(7 << 3)
+# define CLKCON_TICKSPD_1	(0 << 3)
+# define CLKCON_TICKSPD_1_2	(1 << 3)
+# define CLKCON_TICKSPD_1_4	(2 << 3)
+# define CLKCON_TICKSPD_1_8	(3 << 3)
+# define CLKCON_TICKSPD_1_16	(4 << 3)
+# define CLKCON_TICKSPD_1_32	(5 << 3)
+# define CLKCON_TICKSPD_1_64	(6 << 3)
+# define CLKCON_TICKSPD_1_128	(7 << 3)
 
-  
-  
-#define USBADDR_UPDATE          0x80    //r
+#define CLKCON_CLKSPD_MASK	(7 << 0)
+# define CLKCON_CLKSPD_1	(0 << 0)
+# define CLKCON_CLKSPD_1_2	(1 << 0)
+# define CLKCON_CLKSPD_1_4	(2 << 0)
+# define CLKCON_CLKSPD_1_8	(3 << 0)
+# define CLKCON_CLKSPD_1_16	(4 << 0)
+# define CLKCON_CLKSPD_1_32	(5 << 0)
+# define CLKCON_CLKSPD_1_64	(6 << 0)
+# define CLKCON_CLKSPD_1_128	(7 << 0)
 
-// Power/Control Register
-#define USBPOW_SUSPEND_EN       0x01    //rw
-#define USBPOW_SUSPEND          0x02    //r
-#define USBPOW_RESUME           0x04    //rw
-#define USBPOW_RST              0x08    //r
-#define USBPOW_ISO_WAIT_SOF     0x80    //rw
+/* SLEEP 0xBE */
+#define SLEEP_USB_EN		(1 << 7)
+#define SLEEP_XOSC_STB		(1 << 6)
+#define SLEEP_HFRC_STB		(1 << 5)
+#define SLEEP_RST_POWER		(0 << 3)
+#define SLEEP_RST_EXTERNAL	(1 << 3)
+#define SLEEP_RST_WATCHDOG	(2 << 3)
+#define SLEEP_RST_MASK		(3 << 3)
+#define SLEEP_OSC_PD		(1 << 2)
+#define SLEEP_MODE_PM0		(0 << 0)
+#define SLEEP_MODE_PM1		(1 << 0)
+#define SLEEP_MODE_PM2		(2 << 0)
+#define SLEEP_MODE_PM3		(3 << 0)
+#define SLEEP_MODE_MASK		(3 << 0)
 
-// IN Enpoints and EP0 Interrupt Flags
-#define USBIIF_EP0IF            0x01    //r h0
-#define USBIIF_INEP1IF          0x02    //r h0
-#define USBIIF_INEP2IF          0x04    //r h0
-#define USBIIF_INEP3IF          0x08    //r h0
-#define USBIIF_INEP4IF          0x10    //r h0
-#define USBIIF_INEP5IF          0x20    //r h0
+/* PCON 0x87 */
+sfr at 0x87 PCON;		/* Power Mode Control Register */
 
-// OUT Endpoints Interrupt Flags
-#define USBOIF_OUTEP1IF         0x02    //r h0
-#define USBOIF_OUTEP2IF         0x04    //r h0
-#define USBOIF_OUTEP3IF         0x08    //r h0
-#define USBOIF_OUTEP4IF         0x10    //r h0
-#define USBOIF_OUTEP5IF         0x20    //r h0
+#define PCON_IDLE		(1 << 0)
 
-// USBCIF is all Read/Only
-// Common USB Interrupt Flags
-#define USBCIF_SUSPENDIF        0x01    //r h0
-#define USBCIF_RESUMEIF         0x02    //r h0
-#define USBCIF_RSTIF            0x04    //r h0
-#define USBCIF_SOFIF            0x08    //r h0
+/*
+ * TCON
+ */
+sfr at 0x88 TCON;	/* CPU Interrupt Flag 1 */
 
-// IN Endpoints and EP0 Interrupt Enable Mask
-#define USBIIE_EP0IE            0x01    //rw
-#define USBIIE_INEP1IE          0x02    //rw
-#define USBIIE_INEP2IE          0x04    //rw
-#define USBIIE_INEP3IE          0x08    //rw
-#define USBIIE_INEP4IE          0x10    //rw
-#define USBIIE_INEP5IE          0x20    //rw
+sbit at 0x8F URX1IF;	/* USART1 RX interrupt flag. Automatically cleared */
+sbit at 0x8F I2SRXIF;	/* I2S RX interrupt flag. Automatically cleared */
+sbit at 0x8D ADCIF;	/* ADC interrupt flag. Automatically cleared */
+sbit at 0x8B URX0IF;	/* USART0 RX interrupt flag. Automatically cleared */
+sbit at 0x89 RFTXRXIF;	/* RF TX/RX complete interrupt flag. Automatically cleared */
 
-// OUT Endpoint Interrupt Enable Mask
-#define USBOIE_EP1IE            0x02    //rw
-#define USBOIE_EP2IE            0x04    //rw
-#define USBOIE_EP3IE            0x08    //rw
-#define USBOIE_EP4IE            0x10    //rw
-#define USBOIE_EP5IE            0x20    //rw
+#define TCON_URX1IF	(1 << 7)
+#define TCON_I2SRXIF	(1 << 7)
+#define TCON_ADCIF	(1 << 5)
+#define TCON_URX0IF	(1 << 3)
+#define TCON_RFTXRXIF	(1 << 1)
 
-// Common USB Interrupt Enable Mask
-#define USBCIE_SUSPENDIE        0x01    //rw
-#define USBCIE_RESUMEIE         0x02    //rw
-#define USBCIE_RSTIE            0x04    //rw
-#define USBCIE_SOFIE            0x08    //rw
+/*
+ * S0CON
+ */
+sfr at 0x98 S0CON;	/* CPU Interrupt Flag 2 */
 
-// EP0 Control and Status
-#define USBCS0_OUTPKT_RDY       0x01    //r
-#define USBCS0_INPKT_RDY        0x02    //rw h0
-#define USBCS0_SENT_STALL       0x04    //rw h1
-#define USBCS0_DATA_END         0x08    //rw h0
-#define USBCS0_SETUP_END        0x10    //r
-#define USBCS0_SEND_STALL       0x20    //rw h0
-#define USBCS0_CLR_OUTPKT_RDY   0x40    //rw h0
-#define USBCS0_CLR_SETUP_END    0x80    //rw h0
+sbit at 0x98 ENCIF_0;	/* AES interrupt 0. */
+sbit at 0x99 ENCIF_1;	/* AES interrupt 1. */
 
-// IN EP 1-5 Control and STatus (low)
-#define USBCSIL_INPKT_RDY       0x01    //rw h0
-#define USBCSIL_PKT_PRESENT     0x02    //r
-#define USBCSIL_UNDERRUN        0x04    //rw
-#define USBCSIL_FLUSH_PACKET    0x08    //rw h0
-#define USBCSIL_SEND_STALL      0x10    //rw
-#define USBCSIL_SENT_STALL      0x20    //rw
-#define USBCSIL_CLR_DATA_TOG    0x40    //rw h0
+#define S0CON_ENCIF_1	(1 << 1)
+#define S0CON_ENCIF_0	(1 << 0)
 
-// IN EP 1-5 Control and STatus (high)
-#define USBCSIH_IN_DBL_BUF      0x01    //rw
-#define USBCSIH_FORCE_DATA_TOG  0x08    //rw
-#define USBCSIH_ISO             0x40    //rw
-#define USBCSIH_AUTOSET         0x80    //rw
+/*
+ * S1CON
+ */
+sfr at 0x9B S1CON;	/* CPU Interrupt Flag 3 */
 
-// OUT EP 1-5 Control and Status (low)
-#define USBCSOL_OUTPKT_RDY      0x01    //rw
-#define USBCSOL_FIFO_FULL       0x02    //r
-#define USBCSOL_OVERRUN         0x04    //rw
-#define USBCSOL_DATA_ERROR      0x08    //r
-#define USBCSOL_FLUSH_PACKET    0x10    //rw
-#define USBCSOL_SEND_STALL      0x20    //rw
-#define USBCSOL_SENT_STALL      0x40    //rw
-#define USBCSOL_CLR_DATA_TOG    0x80    //rw h0
+#define S1CON_RFIF_1	(1 << 1)
+#define S1CON_RFIF_0	(1 << 0)
 
-// OUT EP 1-5 Control and Status (high)
-#define USBCSOH_OUT_DBL_BUF     0x01    //rw
-#define USBCSOH_ISO             0x40    //rw
-#define USBCSOH_AUTOCLEAR       0x80    //rw
+/*
+ * IRCON
+ */
+sfr at 0xC0 IRCON;	/* CPU Interrupt Flag 4 */
 
-__xdata __at (0xde20) volatile u8 USBFIFO[12];
+sbit at 0xC0 DMAIF;	/* DMA complete interrupt flag */
+sbit at 0xC1 T1IF;	/* Timer 1 interrupt flag. Automatically cleared */
+sbit at 0xC2 T2IF;	/* Timer 2 interrupt flag. Automatically cleared */
+sbit at 0xC3 T3IF;	/* Timer 3 interrupt flag. Automatically cleared */
+sbit at 0xC4 T4IF;	/* Timer 4 interrupt flag. Automatically cleared */
+sbit at 0xC5 P0IF;	/* Port0 interrupt flag */
+sbit at 0xC7 STIF;	/* Sleep Timer interrupt flag */
 
-#define P0IFG_USB_RESUME        0x80    //rw0
+#define IRCON_DMAIF	(1 << 0)	/* DMA complete interrupt flag */
+#define IRCON_T1IF	(1 << 1)	/* Timer 1 interrupt flag. Automatically cleared */
+#define IRCON_T2IF	(1 << 2)	/* Timer 2 interrupt flag. Automatically cleared */
+#define IRCON_T3IF	(1 << 3)	/* Timer 3 interrupt flag. Automatically cleared */
+#define IRCON_T4IF	(1 << 4)	/* Timer 4 interrupt flag. Automatically cleared */
+#define IRCON_P0IF	(1 << 5)	/* Port0 interrupt flag */
+#define IRCON_STIF	(1 << 7)	/* Sleep Timer interrupt flag */
 
-   SBIT(USBIF,    0xE8, 0); // USB Interrupt Flag
+/*
+ * IRCON2
+ */
+sfr at 0xE8 IRCON2;	/* CPU Interrupt Flag 5 */
 
+sbit at 0xE8 USBIF;	/* USB interrupt flag (shared with Port2) */
+sbit at 0xE8 P2IF;	/* Port2 interrupt flag (shared with USB) */
+sbit at 0xE9 UTX0IF;	/* USART0 TX interrupt flag */
+sbit at 0xEA UTX1IF;	/* USART1 TX interrupt flag (shared with I2S TX) */
+sbit at 0xEA I2STXIF;	/* I2S TX interrupt flag (shared with USART1 TX) */
+sbit at 0xEB P1IF;	/* Port1 interrupt flag */
+sbit at 0xEC WDTIF;	/* Watchdog timer interrupt flag */
 
-typedef struct USB_Device_Desc_Type {
-    uint8  bLength;             
-    uint8  bDescriptorType;     
-    uint16 bcdUSB;                             // cc1111 supports USB v2.0
-    uint8  bDeviceClass;                       // 0 (each interface defines), 0xff (vendor-specified class code), or a valid class code
-    uint8  bDeviceSubClass;                    // assigned by USB org
-    uint8  bDeviceProtocol;                    // assigned by USB org;
-    uint8  MaxPacketSize;                      // for EP0, 8,16,32,64;
-    uint16 idVendor;                           // assigned by USB org
-    uint16 idProduct;                          // assigned by vendor
-    uint16 bcdDevice;                          // device release number
-    uint8  iManufacturer;                      // index of the mfg string descriptor
-    uint8  iProduct;                           // index of the product string descriptor
-    uint8  iSerialNumber;                      // index of the serial number string descriptor
-    uint8  bNumConfigurations;                 // number of possible configs...  i wonder if the host obeys this?
-} USB_Device_Desc;
+#define IRCON2_USBIF	(1 << 0)	/* USB interrupt flag (shared with Port2) */
+#define IRCON2_P2IF	(1 << 0)	/* Port2 interrupt flag (shared with USB) */
+#define IRCON2_UTX0IF	(1 << 1)	/* USART0 TX interrupt flag */
+#define IRCON2_UTX1IF	(1 << 2)	/* USART1 TX interrupt flag (shared with I2S TX) */
+#define IRCON2_I2STXIF	(1 << 2)	/* I2S TX interrupt flag (shared with USART1 TX) */
+#define IRCON2_P1IF	(1 << 3)	/* Port1 interrupt flag */
+#define IRCON2_WDTIF	(1 << 4)	/* Watchdog timer interrupt flag */
 
+/*
+ * IP1 - Interrupt Priority 1
+ */
 
-typedef struct USB_Config_Desc_Type {
-    uint8  bLength;             
-    uint8  bDescriptorType;     
-    uint16 wTotalLength;
-    uint8  bNumInterfaces;      
-    uint8  bConfigurationValue; 
-    uint8  iConfiguration;                     // index of String Descriptor describing this configuration
-    uint8  bmAttributes;        
-    uint8  bMaxPower;                          // 2mA increments, 0xfa; 
-} USB_Config_Desc;
-
-
-typedef struct USB_Interface_Desc_Type {
-    uint8  bLength;             
-    uint8  bDescriptorType;     
-    uint8  bInterfaceNumber;
-    uint8  bAlternateSetting;
-    uint8  bNumEndpoints;       
-    uint8  bInterfaceClass;     
-    uint8  bInterfaceSubClass;  
-    uint8  bInterfaceProtocol;  
-    uint8  iInterface;          
-} USB_Interface_Desc;
-
-
-typedef struct USB_Endpoint_Desc_Type {
-    uint8  bLength;             
-    uint8  bDescriptorType;     
-    uint8  bEndpointAddress;
-    uint8  bmAttributes;                       // 0-1 Xfer Type (0;        Isoc, 2;
-    uint16 wMaxPacketSize;
-    uint8  bInterval;                          // Update interval in Frames (for isochronous, ignored for Bulk and Control)
-} USB_Endpoint_Desc;
-
-
-typedef struct USB_LANGID_Desc_Type {
-    uint8  bLength;
-    uint8  bDescriptorType;     
-    uint16 wLANGID0;                           // wLANGID[0]  0x0409; 
-    uint16 wLANGID1;                           // wLANGID[1]  0x0c09; 
-    uint16 wLANGID2;                           // wLANGID[1]  0x0407; 
-} USB_LANGID_Desc;
-
-
-typedef struct USB_String_Desc_Type {
-    uint8   bLength;
-    uint8   bDescriptorType;     
-    uint16* bString;
-} USB_String_Desc;
-
-
-
-typedef struct USB_Request_Type {
-    uint8  bmRequestType;
-    uint8  bRequest;
-    uint16 wValue;
-    uint16 wIndex;
-    uint16 wLength;
-} USB_Setup_Header;
-
-typedef union
-{
-    u16 ui16;
-    u8  ui8[2];
-} U16_U8;
-
-// sdcc requires this bit ordering.  this struct appears differently from the IAR version, which uses "#pragma bitfields=reversed"
-typedef struct DMA_DESC_S {
-    uint8 srcAddrH;
-    uint8 srcAddrL;
-    uint8 destAddrH;
-    uint8 destAddrL;
-    uint8 lenH      : 5;
-    uint8 vlen      : 3;
-    uint8 lenL      : 8;
-    uint8 wordSize  : 1;
-    uint8 tMode     : 2;
-    uint8 trig      : 5;
-
-    uint8 srcInc    : 2;
-    uint8 destInc   : 2;
-    uint8 irqMask   : 1;
-    uint8 m8        : 1;
-    uint8 priority  : 2;
-} DMA_DESC;
-
-// Request Types (bmRequestType)
-#define USB_BM_REQTYPE_TGTMASK          0x1f
-#define USB_BM_REQTYPE_TGT_DEV          0x00
-#define USB_BM_REQTYPE_TGT_INTF         0x01
-#define USB_BM_REQTYPE_TGT_EP           0x02
-#define USB_BM_REQTYPE_TYPEMASK         0x60
-#define USB_BM_REQTYPE_TYPE_STD         0x00
-#define USB_BM_REQTYPE_TYPE_CLASS       0x20
-#define USB_BM_REQTYPE_TYPE_VENDOR      0x40
-#define USB_BM_REQTYPE_TYPE_RESERVED    0x60
-#define USB_BM_REQTYPE_DIRMASK          0x80
-#define USB_BM_REQTYPE_DIR_OUT          0x00
-#define USB_BM_REQTYPE_DIR_IN           0x80
-// Standard Requests (bRequest)
-#define USB_GET_STATUS                  0x00
-#define USB_CLEAR_FEATURE               0x01
-#define USB_SET_FEATURE                 0x03
-#define USB_SET_ADDRESS                 0x05
-#define USB_GET_DESCRIPTOR              0x06
-#define USB_SET_DESCRIPTOR              0x07
-#define USB_GET_CONFIGURATION           0x08
-#define USB_SET_CONFIGURATION           0x09
-#define USB_GET_INTERFACE               0x0a
-#define USB_SET_INTERFACE               0x11
-#define USB_SYNCH_FRAME                 0x12
-
-// Descriptor Types
-#define USB_DESC_DEVICE                 0x01
-#define USB_DESC_CONFIG                 0x02
-#define USB_DESC_STRING                 0x03
-#define USB_DESC_INTERFACE              0x04
-#define USB_DESC_ENDPOINT               0x05
-
-// USB activities
-#define USB_ENABLE_PIN              P1_0
-#define NOP()                       __asm; nop; __endasm;
-#define USB_DISABLE()               SLEEP &= ~SLEEP_USB_EN;
-#define USB_ENABLE()                SLEEP |= SLEEP_USB_EN;
-#define USB_RESET()                 USB_DISABLE(); NOP(); USB_ENABLE();
-#define USB_INT_ENABLE()            IEN2|= 0x02;
-#define USB_INT_DISABLE()           IEN2&= ~0x02;
-#define USB_INT_CLEAR()             P2IFG= 0; P2IF= 0;
-
-#define USB_PULLUP_ENABLE()         USB_ENABLE_PIN = 1;
-#define USB_PULLUP_DISABLE()        USB_ENABLE_PIN = 0;
-
-#define USB_RESUME_INT_ENABLE()     P0IE= 1
-#define USB_RESUME_INT_DISABLE()    P0IE= 0
-#define USB_RESUME_INT_CLEAR()      P0IFG= 0; P0IF= 0
-#define PM1()                       SLEEP |= 1
-
-// Checks
-#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_S)
-
-
-
-/******************************** TROUBLESHOOTING *****************************************
-#define	EPERM		 1	* Operation not permitted /
-#define	ENOENT		 2	* No such file or directory /
-#define	ESRCH		 3	* No such process /
-#define	EINTR		 4	* Interrupted system call /
-#define	EIO		 5	* I/O error /
-#define	ENXIO		 6	* No such device or address /
-#define	E2BIG		 7	* Argument list too long /
-#define	ENOEXEC		 8	* Exec format error /
-#define	EBADF		 9	* Bad file number /
-#define	ECHILD		10	* No child processes /
-#define	EAGAIN		11	* Try again /
-#define	ENOMEM		12	* Out of memory /
-#define	EACCES		13	* Permission denied /
-#define	EFAULT		14	* Bad address /
-#define	ENOTBLK		15	* Block device required /
-#define	EBUSY		16	* Device or resource busy /
-#define	EEXIST		17	* File exists /
-#define	EXDEV		18	* Cross-device link /
-#define	ENODEV		19	* No such device /
-#define	ENOTDIR		20	* Not a directory /
-#define	EISDIR		21	* Is a directory /
-#define	EINVAL		22	* Invalid argument /
-#define	ENFILE		23	* File table overflow /
-#define	EMFILE		24	* Too many open files /
-#define	ENOTTY		25	* Not a typewriter /
-#define	ETXTBSY		26	* Text file busy /
-#define	EFBIG		27	* File too large /
-#define	ENOSPC		28	* No space left on device /
-#define	ESPIPE		29	* Illegal seek /
-#define	EROFS		30	* Read-only file system /
-#define	EMLINK		31	* Too many links /
-#define	EPIPE		32	* Broken pipe /
-#define	EDOM		33	* Math argument out of domain of func /
-#define	ERANGE		34	* Math result not representable /
-#define	EDEADLK		35	* Resource deadlock would occur /
-#define	ENAMETOOLONG	36	* File name too long /
-#define	ENOLCK		37	* No record locks available /
-#define	ENOSYS		38	* Function not implemented /
-#define	ENOTEMPTY	39	* Directory not empty /
-#define	ELOOP		40	* Too many symbolic links encountered /
-#define	EWOULDBLOCK	EAGAIN	* Operation would block /
-#define	ENOMSG		42	* No message of desired type /
-#define	EIDRM		43	* Identifier removed /
-#define	ECHRNG		44	* Channel number out of range /
-#define	EL2NSYNC	45	* Level 2 not synchronized /
-#define	EL3HLT		46	* Level 3 halted /
-#define	EL3RST		47	* Level 3 reset /
-#define	ELNRNG		48	* Link number out of range /
-#define	EUNATCH		49	* Protocol driver not attached /
-#define	ENOCSI		50	* No CSI structure available /
-#define	EL2HLT		51	* Level 2 halted /
-#define	EBADE		52	* Invalid exchange /
-#define	EBADR		53	* Invalid request descriptor /
-#define	EXFULL		54	* Exchange full /
-#define	ENOANO		55	* No anode /
-#define	EBADRQC		56	* Invalid request code /
-#define	EBADSLT		57	* Invalid slot /
-
-#define	EDEADLOCK	EDEADLK
-
-#define	EBFONT		59	* Bad font file format /
-#define	ENOSTR		60	* Device not a stream /
-#define	ENODATA		61	* No data available /
-#define	ETIME		62	* Timer expired /
-#define	ENOSR		63	* Out of streams resources /
-#define	ENONET		64	* Machine is not on the network /
-#define	ENOPKG		65	* Package not installed /
-#define	EREMOTE		66	* Object is remote /
-#define	ENOLINK		67	* Link has been severed /
-#define	EADV		68	* Advertise error /
-#define	ESRMNT		69	* Srmount error /
-#define	ECOMM		70	* Communication error on send /
-#define	EPROTO		71	* Protocol error /
-#define	EMULTIHOP	72	* Multihop attempted /
-#define	EDOTDOT		73	* RFS specific error /
-#define	EBADMSG		74	* Not a data message /
-#define	EOVERFLOW	75	* Value too large for defined data type /
-#define	ENOTUNIQ	76	* Name not unique on network /
-#define	EBADFD		77	* File descriptor in bad state /
-#define	EREMCHG		78	* Remote address changed /
-#define	ELIBACC		79	* Can not access a needed shared library /
-#define	ELIBBAD		80	* Accessing a corrupted shared library /
-#define	ELIBSCN		81	* .lib section in a.out corrupted /
-#define	ELIBMAX		82	* Attempting to link in too many shared libraries /
-#define	ELIBEXEC	83	* Cannot exec a shared library directly /
-#define	EILSEQ		84	* Illegal byte sequence /
-#define	ERESTART	85	* Interrupted system call should be restarted /
-#define	ESTRPIPE	86	* Streams pipe error /
-#define	EUSERS		87	* Too many users /
-#define	ENOTSOCK	88	* Socket operation on non-socket /
-#define	EDESTADDRREQ	89	* Destination address required /
-#define	EMSGSIZE	90	* Message too long /
-#define	EPROTOTYPE	91	* Protocol wrong type for socket /
-#define	ENOPROTOOPT	92	* Protocol not available /
-#define	EPROTONOSUPPORT	93	* Protocol not supported /
-#define	ESOCKTNOSUPPORT	94	* Socket type not supported /
-#define	EOPNOTSUPP	95	* Operation not supported on transport endpoint /
-#define	EPFNOSUPPORT	96	* Protocol family not supported /
-#define	EAFNOSUPPORT	97	* Address family not supported by protocol /
-#define	EADDRINUSE	98	* Address already in use /
-#define	EADDRNOTAVAIL	99	* Cannot assign requested address /
-#define	ENETDOWN	100	* Network is down /
-#define	ENETUNREACH	101	* Network is unreachable /
-#define	ENETRESET	102	* Network dropped connection because of reset /
-#define	ECONNABORTED	103	* Software caused connection abort /
-#define	ECONNRESET	104	* Connection reset by peer /
-#define	ENOBUFS		105	* No buffer space available /
-#define	EISCONN		106	* Transport endpoint is already connected /
-#define	ENOTCONN	107	* Transport endpoint is not connected /
-#define	ESHUTDOWN	108	* Cannot send after transport endpoint shutdown /
-#define	ETOOMANYREFS	109	* Too many references: cannot splice /
-#define	ETIMEDOUT	110	* Connection timed out /
-#define	ECONNREFUSED	111	* Connection refused /
-#define	EHOSTDOWN	112	* Host is down /
-#define	EHOSTUNREACH	113	* No route to host /
-#define	EALREADY	114	* Operation already in progress /
-#define	EINPROGRESS	115	* Operation now in progress /
-#define	ESTALE		116	* Stale NFS file handle /
-#define	EUCLEAN		117	* Structure needs cleaning /
-#define	ENOTNAM		118	* Not a XENIX named type file /
-#define	ENAVAIL		119	* No XENIX semaphores available /
-#define	EISNAM		120	* Is a named type file /
-#define	EREMOTEIO	121	* Remote I/O error /
-#define	EDQUOT		122	* Quota exceeded /
-
-#define	ENOMEDIUM	123	* No medium found /
-#define	EMEDIUMTYPE	124	* Wrong medium type /
-#define	ECANCELED	125	* Operation Canceled /
-#define	ENOKEY		126	* Required key not available /
-#define	EKEYEXPIRED	127	* Key has expired /
-#define	EKEYREVOKED	128	* Key has been revoked /
-#define	EKEYREJECTED	129	* Key was rejected by service /
-
-* for robust mutexes /
-#define	EOWNERDEAD	130	* Owner died /
-#define	ENOTRECOVERABLE	131	* State not recoverable /
-
-#define ERFKILL		132	* Operation not possible due to RF-kill /
-
+/*
+ * Interrupt priority groups:
  *
- * usb_get_device_descriptor - (re)reads the device descriptor (usbcore)
- * @dev: the device whose device descriptor is being updated
- * @size: how much of the descriptor to read
- * Context: !in_interrupt ()
+ * IPG0		RFTXRX		RF		DMA
+ * IPG1		ADC		T1		P2INT/USB
+ * IPG2		URX0		T2		UTX0
+ * IPG3		URX1/I2SRX	T3		UTX1 / I2STX
+ * IPG4		ENC		T4		P1INT
+ * IPG5		ST		P0INT		WDT
  *
- * Updates the copy of the device descriptor stored in the device structure,
- * which dedicates space for this purpose.
- *
- * Not exported, only for use by the core.  If drivers really want to read
- * the device descriptor directly, they can call usb_get_descriptor() with
- * type = USB_DT_DEVICE and index = 0.
- *
- * This call is synchronous, and may not be used in an interrupt context.
- *
- * Returns the number of bytes received on success, or else the status code
- * returned by the underlying usb_control_msg() call.
-      
-int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
-{
-    struct usb_device_descriptor *desc;
-    int ret;
+ * Priority = (IP1 << 1) | IP0. Higher priority interrupts served first
+ */
 
-    if (size > sizeof(*desc))
-        return -EINVAL;
-    desc = kmalloc(sizeof(*desc), GFP_NOIO);
-    if (!desc)
-        return -ENOMEM;
+sfr at 0xB9 IP1;	/* Interrupt Priority 1 */
+sfr at 0xA9 IP0;	/* Interrupt Priority 0 */
 
-    ret = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, size);
-    if (ret >= 0)
-        memcpy(&dev->descriptor, desc, size);
-    kfree(desc);
-    return ret;
-}
- * usb_get_descriptor - issues a generic GET_DESCRIPTOR request
- * @dev: the device whose descriptor is being retrieved
- * @type: the descriptor type (USB_DT_*)
- * @index: the number of the descriptor
- * @buf: where to put the descriptor
- * @size: how big is "buf"?
- * Context: !in_interrupt ()
- *
- * Gets a USB descriptor.  Convenience functions exist to simplify
- * getting some types of descriptors.  Use
- * usb_get_string() or usb_string() for USB_DT_STRING.
- * Device (USB_DT_DEVICE) and configuration descriptors (USB_DT_CONFIG)
- * are part of the device structure.
- * In addition to a number of USB-standard descriptors, some
- * devices also use class-specific or vendor-specific descriptors.
- *
- * This call is synchronous, and may not be used in an interrupt context.
- *
- * Returns the number of bytes received on success, or else the status code
- * returned by the underlying usb_control_msg() call.
-int usb_get_descriptor(struct usb_device *dev, unsigned char type,
-                   unsigned char index, void *buf, int size)
-{
-    int i;
-    int result;
+#define IP1_IPG5	(1 << 5)
+#define IP1_IPG4	(1 << 4)
+#define IP1_IPG3	(1 << 3)
+#define IP1_IPG2	(1 << 2)
+#define IP1_IPG1	(1 << 1)
+#define IP1_IPG0	(1 << 0)
 
-    memset(buf, 0, size);   * Make sure we parse really received data *
+#define IP0_IPG5	(1 << 5)
+#define IP0_IPG4	(1 << 4)
+#define IP0_IPG3	(1 << 3)
+#define IP0_IPG2	(1 << 2)
+#define IP0_IPG1	(1 << 1)
+#define IP0_IPG0	(1 << 0)
 
-    for (i = 0; i < 3; ++i) {
-        * retry on length 0 or error; some devices are flakey *
-        result = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0),
-                    USB_REQ_GET_DESCRIPTOR, USB_DIR_IN,
-                    (type << 8) + index, 0, buf, size,
-                    USB_CTRL_GET_TIMEOUT);
-        if (result <= 0 && result != -ETIMEDOUT)
-            continue;
-        if (result > 1 && ((u8 *)buf)[1] != type) {
-            result = -ENODATA;
-            continue;
-        }
-        break;
-        }
-    return result;
-}
-EXPORT_SYMBOL_GPL(usb_get_descriptor);
+/*
+ * Timer 1
+ */
+#define T1CTL_MODE_SUSPENDED	(0 << 0)
+#define T1CTL_MODE_FREE		(1 << 0)
+#define T1CTL_MODE_MODULO	(2 << 0)
+#define T1CTL_MODE_UP_DOWN	(3 << 0)
+#define T1CTL_MODE_MASK		(3 << 0)
+#define T1CTL_DIV_1		(0 << 2)
+#define T1CTL_DIV_8		(1 << 2)
+#define T1CTL_DIV_32		(2 << 2)
+#define T1CTL_DIV_128		(3 << 2)
+#define T1CTL_DIV_MASK		(3 << 2)
+#define T1CTL_OVFIF		(1 << 4)
+#define T1CTL_CH0IF		(1 << 5)
+#define T1CTL_CH1IF		(1 << 6)
+#define T1CTL_CH2IF		(1 << 7)
 
-**
- * usb_control_msg - Builds a control urb, sends it off and waits for completion
- * @dev: pointer to the usb device to send the message to
- * @pipe: endpoint "pipe" to send the message to
- * @request: USB message request value
- * @requesttype: USB message request type value
- * @value: USB message value
- * @index: USB message index value
- * @data: pointer to the data to send
- * @size: length in bytes of the data to send
- * @timeout: time in msecs to wait for the message to complete before timing
- *  out (if 0 the wait is forever)
- *
- * Context: !in_interrupt ()
- *
- * This function sends a simple control message to a specified endpoint and
- * waits for the message to complete, or timeout.
- *
- * If successful, it returns the number of bytes transferred, otherwise a
- * negative error number.
- *
- * Don't use this function from within an interrupt context, like a bottom half
- * handler.  If you need an asynchronous message, or need to send a message
- * from within interrupt context, use usb_submit_urb().
- * If a thread in your driver uses this call, make sure your disconnect()
- * method can wait for it to complete.  Since you don't have a handle on the
- * URB used, you can't cancel the request.
-int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request,
-            __u8 requesttype, __u16 value, __u16 index, void *data,
-            __u16 size, int timeout)
-{
-    struct usb_ctrlrequest *dr;
-    int ret;
+#define T1CCTL_NO_CAPTURE	(0 << 0)
+#define T1CCTL_CAPTURE_RISING	(1 << 0)
+#define T1CCTL_CAPTURE_FALLING	(2 << 0)
+#define T1CCTL_CAPTURE_BOTH	(3 << 0)
+#define T1CCTL_CAPTURE_MASK	(3 << 0)
 
-    dr = kmalloc(sizeof(struct usb_ctrlrequest), GFP_NOIO);
-    if (!dr)
-            return -ENOMEM;
+#define T1CCTL_MODE_CAPTURE	(0 << 2)
+#define T1CCTL_MODE_COMPARE	(1 << 2)
 
-    dr->bRequestType = requesttype;
-    dr->bRequest = request;
-    dr->wValue = cpu_to_le16(value);
-    dr->wIndex = cpu_to_le16(index);
-    dr->wLength = cpu_to_le16(size);
+#define T1CTL_CMP_SET		(0 << 3)
+#define T1CTL_CMP_CLEAR		(1 << 3)
+#define T1CTL_CMP_TOGGLE	(2 << 3)
+#define T1CTL_CMP_SET_CLEAR	(3 << 3)
+#define T1CTL_CMP_CLEAR_SET	(4 << 3)
 
-    * dbg("usb_control_msg"); *
+#define T1CTL_IM_DISABLED	(0 << 6)
+#define T1CTL_IM_ENABLED	(1 << 6)
 
-    ret = usb_internal_control_msg(dev, pipe, dr, data, size, timeout);
+#define T1CTL_CPSEL_NORMAL	(0 << 7)
+#define T1CTL_CPSEL_RF		(1 << 7)
 
-    kfree(dr);
+/*
+ * Timer 3 and Timer 4
+ */
 
-    return ret;
-}
-EXPORT_SYMBOL_GPL(usb_control_msg);
+/* Timer count */
+sfr at 0xCA T3CNT;
+sfr at 0xEA T4CNT;
 
-* returns status (negative) or length (positive) *
-static int usb_internal_control_msg(struct usb_device *usb_dev,
-            unsigned int pipe,
-                            struct usb_ctrlrequest *cmd,
-                                                void *data, int len, int timeout)
-{
-    struct urb *urb;
-    int retv;
-    int length;
+/* Timer control */
 
-    urb = usb_alloc_urb(0, GFP_NOIO);
-    if (!urb)
-        return -ENOMEM;
+sfr at 0xCB T3CTL;
+sfr at 0xEB T4CTL;
 
-    usb_fill_control_urb(urb, usb_dev, pipe, (unsigned char *)cmd, data,
-                         len, usb_api_blocking_completion, NULL);
+#define TxCTL_DIV_1		(0 << 5)
+#define TxCTL_DIV_2		(1 << 5)
+#define TxCTL_DIV_4		(2 << 5)
+#define TxCTL_DIV_8		(3 << 5)
+#define TxCTL_DIV_16		(4 << 5)
+#define TxCTL_DIV_32		(5 << 5)
+#define TxCTL_DIV_64		(6 << 5)
+#define TxCTL_DIV_128		(7 << 5)
+#define TxCTL_START		(1 << 4)
+#define TxCTL_OVFIM		(1 << 3)
+#define TxCTL_CLR		(1 << 2)
+#define TxCTL_MODE_FREE		(0 << 0)
+#define TxCTL_MODE_DOWN		(1 << 0)
+#define TxCTL_MODE_MODULO	(2 << 0)
+#define TxCTL_MODE_UP_DOWN	(3 << 0)
 
-    retv = usb_start_wait_urb(urb, timeout, &length);
-    if (retv < 0)
-        return retv;
-    else
-        return length;
-}
+/* Timer 4 channel 0 compare control */
 
+sfr at 0xCC T3CCTL0;
+sfr at 0xCE T3CCTL1;
+sfr at 0xEC T4CCTL0;
+sfr at 0xEE T4CCTL1;
 
- * Starts urb and waits for completion or timeout. Note that this call
- * is NOT interruptible. Many device driver i/o requests should be
- * interruptible and therefore these drivers should implement their
- * own interruptible routines.
-static int usb_start_wait_urb(struct urb *urb, int timeout, int *actual_length)
-{
-    struct api_context ctx;
-    unsigned long expire;
-    int retval;
+#define TxCCTLy_IM			(1 << 6)
+#define TxCCTLy_CMP_SET			(0 << 3)
+#define TxCCTLy_CMP_CLEAR		(1 << 3)
+#define TxCCTLy_CMP_TOGGLE		(2 << 3)
+#define TxCCTLy_CMP_SET_UP_CLEAR_DOWN	(3 << 3)
+#define TxCCTLy_CMP_CLEAR_UP_SET_DOWN	(4 << 3)
+#define TxCCTLy_CMP_SET_CLEAR_FF	(5 << 3)
+#define TxCCTLy_CMP_CLEAR_SET_00	(6 << 3)
+#define TxCCTLy_CMP_MODE_ENABLE		(1 << 2)
 
-    init_completion(&ctx.done);
-    urb->context = &ctx;
-    urb->actual_length = 0;
-    retval = usb_submit_urb(urb, GFP_NOIO);
-    if (unlikely(retval))
-        goto out;
+/* Timer compare value */
+sfr at 0xCD T3CC0;
+sfr at 0xCF T3CC1;
+sfr at 0xED T4CC0;
+sfr at 0xEF T4CC1;
 
-    expire = timeout ? msecs_to_jiffies(timeout) : MAX_SCHEDULE_TIMEOUT;
-    if (!wait_for_completion_timeout(&ctx.done, expire)) {
-        usb_kill_urb(urb);
-        retval = (ctx.status == -ENOENT ? -ETIMEDOUT : ctx.status);
+/*
+ * Peripheral control
+ */
 
-        dev_dbg(&urb->dev->dev,
-            "%s timed out on ep%d%s len=%u/%u\n",
-            current->comm,
-            usb_endpoint_num(&urb->ep->desc),
-            usb_urb_dir_in(urb) ? "in" : "out",
-            urb->actual_length,
-            urb->transfer_buffer_length);
-    } else
-        retval = ctx.status;
-out:
-    if (actual_length)
-        *actual_length = urb->actual_length;
+sfr at 0xf1 PERCFG;
+#define PERCFG_T1CFG_ALT_1      (0 << 6)
+#define PERCFG_T1CFG_ALT_2      (1 << 6)
+#define PERCFG_T1CFG_ALT_MASK   (1 << 6)
 
-    usb_free_urb(urb);
-    return retval;
-}
-int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
-{
-    int             xfertype, max;
-    struct usb_device       *dev;
-    struct usb_host_endpoint    *ep;
-    int             is_out;
+#define PERCFG_T3CFG_ALT_1      (0 << 5)
+#define PERCFG_T3CFG_ALT_2      (1 << 5)
+#define PERCFG_T3CFG_ALT_MASK   (1 << 5)
 
-    if (!urb || urb->hcpriv || !urb->complete)
-        return -EINVAL;
-    dev = urb->dev;
-    if ((!dev) || (dev->state < USB_STATE_UNAUTHENTICATED))
-        return -ENODEV;
+#define PERCFG_T4CFG_ALT_1      (0 << 4)
+#define PERCFG_T4CFG_ALT_2      (1 << 4)
+#define PERCFG_T4CFG_ALT_MASK   (1 << 4)
 
-    * For now, get the endpoint from the pipe.  Eventually drivers
-     * will be required to set urb->ep directly and we will eliminate
-     * urb->pipe.
-    ep = (usb_pipein(urb->pipe) ? dev->ep_in : dev->ep_out)
-            [usb_pipeendpoint(urb->pipe)];
-    if (!ep)
-        return -ENOENT;
+#define PERCFG_U1CFG_ALT_1      (0 << 1)
+#define PERCFG_U1CFG_ALT_2      (1 << 1)
+#define PERCFG_U1CFG_ALT_MASK   (1 << 1)
 
-    urb->ep = ep;
-    urb->status = -EINPROGRESS;
-    urb->actual_length = 0;
+#define PERCFG_U0CFG_ALT_1      (0 << 0)
+#define PERCFG_U0CFG_ALT_2      (1 << 0)
+#define PERCFG_U0CFG_ALT_MASK   (1 << 0)
 
-    * Lots of sanity checks, so HCDs can rely on clean data
-     * and don't need to duplicate tests
-    xfertype = usb_endpoint_type(&ep->desc);
-    if (xfertype == USB_ENDPOINT_XFER_CONTROL) {
-        struct usb_ctrlrequest *setup =
-                (struct usb_ctrlrequest *) urb->setup_packet;
+/* directly addressed USB registers */
+__xdata __at (0xde00) volatile uint8_t USBADDR;
+__xdata __at (0xde01) volatile uint8_t USBPOW;
+__xdata __at (0xde02) volatile uint8_t USBIIF;
 
-        if (!setup)
-            return -ENOEXEC;
-        is_out = !(setup->bRequestType & USB_DIR_IN) ||
-                !setup->wLength;
-    } else {
-        is_out = usb_endpoint_dir_out(&ep->desc);
-    }
+__xdata __at (0xde04) volatile uint8_t USBOIF;
 
-    * Cache the direction for later use /
-    urb->transfer_flags = (urb->transfer_flags & ~URB_DIR_MASK) |
-            (is_out ? URB_DIR_OUT : URB_DIR_IN);
+__xdata __at (0xde06) volatile uint8_t USBCIF;
 
-    if (xfertype != USB_ENDPOINT_XFER_CONTROL &&
-            dev->state < USB_STATE_CONFIGURED)
-        return -ENODEV;
+# define USBCIF_SOFIF		(1 << 3)
+# define USBCIF_RSTIF		(1 << 2)
+# define USBCIF_RESUMEIF	(1 << 1)
+# define USBCIF_SUSPENDIF	(1 << 0)
 
-    max = le16_to_cpu(ep->desc.wMaxPacketSize);
-    if (max <= 0) {
-        dev_dbg(&dev->dev,
-            "bogus endpoint ep%d%s in %s (bad maxpacket %d)\n",
-            usb_endpoint_num(&ep->desc), is_out ? "out" : "in",
-            __func__, max);
-        return -EMSGSIZE;
-    }
+__xdata __at (0xde07) volatile uint8_t USBIIE;
 
-    * periodic transfers limit size per frame/uframe,
-     * but drivers only control those sizes for ISO.
-     * while we're checking, initialize return status.
-     /
-    if (xfertype == USB_ENDPOINT_XFER_ISOC) {
-        int n, len;
+__xdata __at (0xde09) volatile uint8_t USBOIE;
 
-        * FIXME SuperSpeed isoc endpoints have up to 16 bursts /
-        * "high bandwidth" mode, 1-3 packets/uframe? /
-        if (dev->speed == USB_SPEED_HIGH) {
-            int mult = 1 + ((max >> 11) & 0x03);
-        if (dev->speed == USB_SPEED_HIGH) {
-            int mult = 1 + ((max >> 11) & 0x03);
-            max &= 0x07ff;
-            max *= mult;
-        }
+__xdata __at (0xde0b) volatile uint8_t USBCIE;
 
-        if (urb->number_of_packets <= 0)
-            return -EINVAL;
-        for (n = 0; n < urb->number_of_packets; n++) {
-            len = urb->iso_frame_desc[n].length;
-            if (len < 0 || len > max)
-                return -EMSGSIZE;
-            urb->iso_frame_desc[n].status = -EXDEV;
-            urb->iso_frame_desc[n].actual_length = 0;
-        }
-    }
+# define USBCIE_SOFIE		(1 << 3)
+# define USBCIE_RSTIE		(1 << 2)
+# define USBCIE_RESUMEIE	(1 << 1)
+# define USBCIE_SUSPENDIE	(1 << 0)
 
-    * the I/O buffer must be mapped/unmapped, except when length=0 /
-    if (urb->transfer_buffer_length > INT_MAX)
-        return -EMSGSIZE;
+__xdata __at (0xde0c) volatile uint8_t USBFRML;
+__xdata __at (0xde0d) volatile uint8_t USBFRMH;
+__xdata __at (0xde0e) volatile uint8_t USBINDEX;
 
-#ifdef DEBUG
-    * stuff that drivers shouldn't do, but which shouldn't
-     * cause problems in HCDs if they get it wrong.
-     /
-    {
-    unsigned int    orig_flags = urb->transfer_flags;
-    unsigned int    allowed;
+/* indexed USB registers, must set USBINDEX to 0-5 */
+__xdata __at (0xde10) volatile uint8_t USBMAXI;
+__xdata __at (0xde11) volatile uint8_t USBCS0;
 
-    * enforce simple/standard policy /
-    allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
-            URB_NO_INTERRUPT | URB_DIR_MASK | URB_FREE_BUFFER);
-    switch (xfertype) {
-    case USB_ENDPOINT_XFER_BULK:
-        if (is_out)
-            allowed |= URB_ZERO_PACKET;
-        * FALLTHROUGH /
-    case USB_ENDPOINT_XFER_CONTROL:
-        allowed |= URB_NO_FSBR; * only affects UHCI /
-        * FALLTHROUGH /
-    default:            * all non-iso endpoints /
-        if (!is_out)
-            allowed |= URB_SHORT_NOT_OK;
-        break;
-    case USB_ENDPOINT_XFER_ISOC:
-        allowed |= URB_ISO_ASAP;
-        break;
-    }
-    urb->transfer_flags &= allowed;
+# define USBCS0_CLR_SETUP_END		(1 << 7)
+# define USBCS0_CLR_OUTPKT_RDY		(1 << 6)
+# define USBCS0_SEND_STALL		(1 << 5)
+# define USBCS0_SETUP_END		(1 << 4)
+# define USBCS0_DATA_END		(1 << 3)
+# define USBCS0_SENT_STALL		(1 << 2)
+# define USBCS0_INPKT_RDY		(1 << 1)
+# define USBCS0_OUTPKT_RDY		(1 << 0)
 
-    * fail if submitter gave bogus flags /
-    if (urb->transfer_flags != orig_flags) {
-        dev_err(&dev->dev, "BOGUS urb flags, %x --> %x\n",
-            orig_flags, urb->transfer_flags);
-        return -EINVAL;
-    }
-    }
-#endif
-    *
-     * Force periodic transfer intervals to be legal values that are
-     * a power of two (so HCDs don't need to).
-     *
-     * FIXME want bus->{intr,iso}_sched_horizon values here.  Each HC
-     * supports different values... this uses EHCI/UHCI defaults (and
-     * EHCI can use smaller non-default values).
-     /
-    switch (xfertype) {
-    case USB_ENDPOINT_XFER_ISOC:
-    case USB_ENDPOINT_XFER_INT:
-        * too small? /
-        if (urb->interval <= 0)
-            return -EINVAL;
-        * too big? /
-        switch (dev->speed) {
-        case USB_SPEED_SUPER:   * units are 125us /
-            * Handle up to 2^(16-1) microframes /
-            if (urb->interval > (1 << 15))
-                return -EINVAL;
-            max = 1 << 15;
-        case USB_SPEED_HIGH:    * units are microframes /
-            * NOTE usb handles 2^15 /
-            if (urb->interval > (1024 * 8))
-                urb->interval = 1024 * 8;
-            max = 1024 * 8;
-            break;
-        case USB_SPEED_FULL:    * units are frames/msec /
-        case USB_SPEED_LOW:
-            if (xfertype == USB_ENDPOINT_XFER_INT) {
-                if (urb->interval > 255)
-                    return -EINVAL;
-                * NOTE ohci only handles up to 32 /
-                max = 128;
-            } else {
-                if (urb->interval > 1024)
-                    urb->interval = 1024;
-                * NOTE usb and ohci handle up to 2^15 /
-                max = 1024;
-            }
-            break;
-        default:
-            return -EINVAL;
-        }
-        * Round down to a power of 2, no more than max /
-        urb->interval = min(max, 1 << ilog2(urb->interval));
-    }
+__xdata __at (0xde11) volatile uint8_t USBCSIL;
 
-    return usb_hcd_submit_urb(urb, mem_flags);
-}
-EXPORT_SYMBOL_GPL(usb_submit_urb);
+# define USBCSIL_CLR_DATA_TOG		(1 << 6)
+# define USBCSIL_SENT_STALL		(1 << 5)
+# define USBCSIL_SEND_STALL		(1 << 4)
+# define USBCSIL_FLUSH_PACKET		(1 << 3)
+# define USBCSIL_UNDERRUN		(1 << 2)
+# define USBCSIL_PKT_PRESENT		(1 << 1)
+# define USBCSIL_INPKT_RDY		(1 << 0)
 
-int usb_hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
-{
-    int         status;
-    struct usb_hcd      *hcd = bus_to_hcd(urb->dev->bus);
+__xdata __at (0xde12) volatile uint8_t USBCSIH;
 
-    * increment urb's reference count as part of giving it to the HCD
-     * (which will control it).  HCD guarantees that it either returns
-     * an error or calls giveback(), but not both.
-     /
-    usb_get_urb(urb);
-    atomic_inc(&urb->use_count);
-    atomic_inc(&urb->dev->urbnum);
-    usbmon_urb_submit(&hcd->self, urb);
+# define USBCSIH_AUTOSET		(1 << 7)
+# define USBCSIH_ISO			(1 << 6)
+# define USBCSIH_FORCE_DATA_TOG		(1 << 3)
+# define USBCSIH_IN_DBL_BUF		(1 << 0)
 
-    * NOTE requirements on root-hub callers (usbfs and the hub
-     * driver, for now):  URBs' urb->transfer_buffer must be
-     * valid and usb_buffer_{sync,unmap}() not be needed, since
-     * they could clobber root hub response data.  Also, control
-     * URBs must be submitted in process context with interrupts
-     * enabled.
-     /
-    status = map_urb_for_dma(hcd, urb, mem_flags);
-    if (unlikely(status)) {
-        usbmon_urb_submit_error(&hcd->self, urb, status);
-        goto error;
-    }
+__xdata __at (0xde13) volatile uint8_t USBMAXO;
+__xdata __at (0xde14) volatile uint8_t USBCSOL;
 
-    if (is_root_hub(urb->dev))
-        status = rh_urb_enqueue(hcd, urb);
-    else
-        status = hcd->driver->urb_enqueue(hcd, urb, mem_flags);
+# define USBCSOL_CLR_DATA_TOG		(1 << 7)
+# define USBCSOL_SENT_STALL		(1 << 6)
+# define USBCSOL_SEND_STALL		(1 << 5)
+# define USBCSOL_FLUSH_PACKET		(1 << 4)
+# define USBCSOL_DATA_ERROR		(1 << 3)
+# define USBCSOL_OVERRUN		(1 << 2)
+# define USBCSOL_FIFO_FULL		(1 << 1)
+# define USBCSOL_OUTPKT_RDY		(1 << 0)
 
-    if (unlikely(status)) {
-        usbmon_urb_submit_error(&hcd->self, urb, status);
-        unmap_urb_for_dma(hcd, urb);
- error:
-        urb->hcpriv = NULL;
-        INIT_LIST_HEAD(&urb->urb_list);
-        atomic_dec(&urb->use_count);
-        atomic_dec(&urb->dev->urbnum);
-        if (atomic_read(&urb->reject))
-            wake_up(&usb_kill_urb_queue);
-        usb_put_urb(urb);
-    }
-    return status;
-}
+__xdata __at (0xde15) volatile uint8_t USBCSOH;
+
+# define USBCSOH_AUTOCLEAR		(1 << 7)
+# define USBCSOH_ISO			(1 << 6)
+# define USBCSOH_OUT_DBL_BUF		(1 << 0)
+
+__xdata __at (0xde16) volatile uint8_t USBCNT0;
+__xdata __at (0xde16) volatile uint8_t USBCNTL;
+__xdata __at (0xde17) volatile uint8_t USBCNTH;
+
+__xdata __at (0xde20) volatile uint8_t USBFIFO[12];
+
+/* ADC Data register, low and high */
+sfr at 0xBA ADCL;
+sfr at 0xBB ADCH;
+__xdata __at (0xDFBA) volatile uint16_t ADCXDATA;
+
+/* ADC Control Register 1 */
+sfr at 0xB4 ADCCON1;
+
+# define ADCCON1_EOC		(1 << 7)	/* conversion complete */
+# define ADCCON1_ST		(1 << 6)	/* start conversion */
+
+# define ADCCON1_STSEL_MASK	(3 << 4)	/* start select */
+# define ADCCON1_STSEL_EXTERNAL	(0 << 4)	/* P2_0 pin triggers */
+# define ADCCON1_STSEL_FULLSPEED (1 << 4)	/* full speed, no waiting */
+# define ADCCON1_STSEL_TIMER1	(2 << 4)	/* timer 1 channel 0 */
+# define ADCCON1_STSEL_START	(3 << 4)	/* set start bit */
+
+# define ADCCON1_RCTRL_MASK	(3 << 2)	/* random number control */
+# define ADCCON1_RCTRL_COMPLETE	(0 << 2)	/* operation completed */
+# define ADCCON1_RCTRL_CLOCK_LFSR (1 << 2)	/* Clock the LFSR once */
+
+/* ADC Control Register 2 */
+sfr at 0xB5 ADCCON2;
+
+# define ADCCON2_SREF_MASK	(3 << 6)	/* reference voltage */
+# define ADCCON2_SREF_1_25V	(0 << 6)	/* internal 1.25V */
+# define ADCCON2_SREF_EXTERNAL	(1 << 6)	/* external on AIN7 cc1110 */
+# define ADCCON2_SREF_VDD	(2 << 6)	/* VDD on the AVDD pin */
+# define ADCCON2_SREF_EXTERNAL_DIFF (3 << 6)	/* external on AIN6-7 cc1110 */
+
+# define ADCCON2_SDIV_MASK	(3 << 4)	/* decimation rate */
+# define ADCCON2_SDIV_64	(0 << 4)	/* 7 bits */
+# define ADCCON2_SDIV_128	(1 << 4)	/* 9 bits */
+# define ADCCON2_SDIV_256	(2 << 4)	/* 10 bits */
+# define ADCCON2_SDIV_512	(3 << 4)	/* 12 bits */
+
+# define ADCCON2_SCH_MASK	(0xf << 0)	/* Sequence channel select */
+# define ADCCON2_SCH_SHIFT	0
+# define ADCCON2_SCH_AIN0	(0 << 0)
+# define ADCCON2_SCH_AIN1	(1 << 0)
+# define ADCCON2_SCH_AIN2	(2 << 0)
+# define ADCCON2_SCH_AIN3	(3 << 0)
+# define ADCCON2_SCH_AIN4	(4 << 0)
+# define ADCCON2_SCH_AIN5	(5 << 0)
+# define ADCCON2_SCH_AIN6	(6 << 0)
+# define ADCCON2_SCH_AIN7	(7 << 0)
+# define ADCCON2_SCH_AIN0_AIN1	(8 << 0)
+# define ADCCON2_SCH_AIN2_AIN3	(9 << 0)
+# define ADCCON2_SCH_AIN4_AIN5	(0xa << 0)
+# define ADCCON2_SCH_AIN6_AIN7	(0xb << 0)
+# define ADCCON2_SCH_GND	(0xc << 0)
+# define ADCCON2_SCH_VREF	(0xd << 0)
+# define ADCCON2_SCH_TEMP	(0xe << 0)
+# define ADCCON2_SCH_VDD_3	(0xf << 0)
 
 
+/* ADC Control Register 3 */
+sfr at 0xB6 ADCCON3;
 
-*/
+# define ADCCON3_EREF_MASK	(3 << 6)	/* extra conversion reference */
+# define ADCCON3_EREF_1_25	(0 << 6)	/* internal 1.25V */
+# define ADCCON3_EREF_EXTERNAL	(1 << 6)	/* external AIN7 cc1110 */
+# define ADCCON3_EREF_VDD	(2 << 6)	/* VDD on the AVDD pin */
+# define ADCCON3_EREF_EXTERNAL_DIFF (3 << 6)	/* external AIN6-7 cc1110 */
+# define ADCCON3_EDIV_MASK	(3 << 4)	/* extral decimation */
+# define ADCCON3_EDIV_64	(0 << 4)	/* 7 bits */
+# define ADCCON3_EDIV_128	(1 << 4)	/* 9 bits */
+# define ADCCON3_EDIV_256	(2 << 4)	/* 10 bits */
+# define ADCCON3_EDIV_512	(3 << 4)	/* 12 bits */
+# define ADCCON3_ECH_MASK	(0xf << 0)	/* Sequence channel select */
+# define ADCCON3_ECH_SHIFT	0
+# define ADCCON3_ECH_AIN0	(0 << 0)
+# define ADCCON3_ECH_AIN1	(1 << 0)
+# define ADCCON3_ECH_AIN2	(2 << 0)
+# define ADCCON3_ECH_AIN3	(3 << 0)
+# define ADCCON3_ECH_AIN4	(4 << 0)
+# define ADCCON3_ECH_AIN5	(5 << 0)
+# define ADCCON3_ECH_AIN6	(6 << 0)
+# define ADCCON3_ECH_AIN7	(7 << 0)
+# define ADCCON3_ECH_AIN0_AIN1	(8 << 0)
+# define ADCCON3_ECH_AIN2_AIN3	(9 << 0)
+# define ADCCON3_ECH_AIN4_AIN5	(0xa << 0)
+# define ADCCON3_ECH_AIN6_AIN7	(0xb << 0)
+# define ADCCON3_ECH_GND	(0xc << 0)
+# define ADCCON3_ECH_VREF	(0xd << 0)
+# define ADCCON3_ECH_TEMP	(0xe << 0)
+# define ADCCON3_ECH_VDD_3	(0xf << 0)
+
+/*
+ * ADC configuration register, this selects which
+ * GPIO pins are to be used as ADC inputs
+ */
+sfr at 0xF2 ADCCFG;
+
+/*
+ * Watchdog timer
+ */
+
+sfr at 0xc9 WDCTL;
+
+#define WDCTL_CLEAR_FIRST	(0xa << 4)
+#define WDCTL_CLEAR_SECOND	(0x5 << 4)
+#define WDCTL_EN		(1 << 3)
+#define WDCTL_MODE_WATCHDOG	(0 << 2)
+#define WDCTL_MODE_TIMER	(1 << 2)
+#define WDCTL_MODE_MASK		(1 << 2)
+#define WDCTL_INT_32768		(0 << 0)
+#define WDCTL_INT_8192		(1 << 0)
+#define WDCTL_INT_512		(2 << 0)
+#define WDCTL_INT_64		(3 << 0)
+
+/*
+ * Pin selectors, these set which pins are
+ * using their peripheral function
+ */
+sfr at 0xF3 P0SEL;
+sfr at 0xF4 P1SEL;
+sfr at 0xF5 P2SEL;
+
+#define P2SEL_PRI3P1_USART0		(0 << 6)
+#define P2SEL_PRI3P1_USART1		(1 << 6)
+#define P2SEL_PRI3P1_MASK		(1 << 6)
+#define P2SEL_PRI2P1_USART1		(0 << 5)
+#define P2SEL_PRI2P1_TIMER3		(1 << 5)
+#define P2SEL_PRI1P1_TIMER1		(0 << 4)
+#define P2SEL_PRI1P1_TIMER4		(1 << 4)
+#define P2SEL_PRI0P1_USART0		(0 << 3)
+#define P2SEL_PRI0P1_TIMER1		(1 << 3)
+#define P2SEL_SELP2_4_GPIO		(0 << 2)
+#define P2SEL_SELP2_4_PERIPHERAL	(1 << 2)
+#define P2SEL_SELP2_3_GPIO		(0 << 1)
+#define P2SEL_SELP2_3_PERIPHERAL	(1 << 1)
+#define P2SEL_SELP2_0_GPIO		(0 << 0)
+#define P2SEL_SELP2_0_PERIPHERAL	(1 << 0)
+#define P2SEL_SELP2_0_MASK		(1 << 0)
+
+/*
+ * For pins used as GPIOs, these set which are used as outputs
+ */
+sfr at 0xFD P0DIR;
+sfr at 0xFE P1DIR;
+sfr at 0xFF P2DIR;
+
+sfr at 0x8F P0INP;
+
+/* Select between tri-state and pull up/down
+ * for pins P0_0 - P0_7.
+ */
+#define P0INP_MDP0_7_PULL	(0 << 7)
+#define P0INP_MDP0_7_TRISTATE	(1 << 7)
+#define P0INP_MDP0_6_PULL	(0 << 6)
+#define P0INP_MDP0_6_TRISTATE	(1 << 6)
+#define P0INP_MDP0_5_PULL	(0 << 5)
+#define P0INP_MDP0_5_TRISTATE	(1 << 5)
+#define P0INP_MDP0_4_PULL	(0 << 4)
+#define P0INP_MDP0_4_TRISTATE	(1 << 4)
+#define P0INP_MDP0_3_PULL	(0 << 3)
+#define P0INP_MDP0_3_TRISTATE	(1 << 3)
+#define P0INP_MDP0_2_PULL	(0 << 2)
+#define P0INP_MDP0_2_TRISTATE	(1 << 2)
+#define P0INP_MDP0_1_PULL	(0 << 1)
+#define P0INP_MDP0_1_TRISTATE	(1 << 1)
+#define P0INP_MDP0_0_PULL	(0 << 0)
+#define P0INP_MDP0_0_TRISTATE	(1 << 0)
+
+sfr at 0xF6 P1INP;
+
+/* Select between tri-state and pull up/down
+ * for pins P1_2 - P1_7. Pins P1_0 and P1_1 are
+ * always tri-stated
+ */
+#define P1INP_MDP1_7_PULL	(0 << 7)
+#define P1INP_MDP1_7_TRISTATE	(1 << 7)
+#define P1INP_MDP1_6_PULL	(0 << 6)
+#define P1INP_MDP1_6_TRISTATE	(1 << 6)
+#define P1INP_MDP1_5_PULL	(0 << 5)
+#define P1INP_MDP1_5_TRISTATE	(1 << 5)
+#define P1INP_MDP1_4_PULL	(0 << 4)
+#define P1INP_MDP1_4_TRISTATE	(1 << 4)
+#define P1INP_MDP1_3_PULL	(0 << 3)
+#define P1INP_MDP1_3_TRISTATE	(1 << 3)
+#define P1INP_MDP1_2_PULL	(0 << 2)
+#define P1INP_MDP1_2_TRISTATE	(1 << 2)
+
+sfr at 0xF7 P2INP;
+/* P2INP has three extra bits which are used to choose
+ * between pull-up and pull-down when they are not tri-stated
+ */
+#define P2INP_PDUP2_PULL_UP	(0 << 7)
+#define P2INP_PDUP2_PULL_DOWN	(1 << 7)
+#define P2INP_PDUP1_PULL_UP	(0 << 6)
+#define P2INP_PDUP1_PULL_DOWN	(1 << 6)
+#define P2INP_PDUP0_PULL_UP	(0 << 5)
+#define P2INP_PDUP0_PULL_DOWN	(1 << 5)
+
+/* For the P2 pins, choose between tri-state and pull up/down
+ * mode
+ */
+#define P2INP_MDP2_4_PULL	(0 << 4)
+#define P2INP_MDP2_4_TRISTATE	(1 << 4)
+#define P2INP_MDP2_3_PULL	(0 << 3)
+#define P2INP_MDP2_3_TRISTATE	(1 << 3)
+#define P2INP_MDP2_2_PULL	(0 << 2)
+#define P2INP_MDP2_2_TRISTATE	(1 << 2)
+#define P2INP_MDP2_1_PULL	(0 << 1)
+#define P2INP_MDP2_1_TRISTATE	(1 << 1)
+#define P2INP_MDP2_0_PULL	(0 << 0)
+#define P2INP_MDP2_0_TRISTATE	(1 << 0)
+
+/* GPIO interrupt status flags */
+sfr at 0x89 P0IFG;
+sfr at 0x8A P1IFG;
+sfr at 0x8B P2IFG;
+
+#define P0IFG_USB_RESUME	(1 << 7)
+
+/* GPIO pins */
+sfr at 0x80 P0;
+
+sbit at 0x80 P0_0;
+sbit at 0x81 P0_1;
+sbit at 0x82 P0_2;
+sbit at 0x83 P0_3;
+sbit at 0x84 P0_4;
+sbit at 0x85 P0_5;
+sbit at 0x86 P0_6;
+sbit at 0x87 P0_7;
+
+sfr at 0x90 P1;
+
+sbit at 0x90 P1_0;
+sbit at 0x91 P1_1;
+sbit at 0x92 P1_2;
+sbit at 0x93 P1_3;
+sbit at 0x94 P1_4;
+sbit at 0x95 P1_5;
+sbit at 0x96 P1_6;
+sbit at 0x97 P1_7;
+
+sfr at 0xa0 P2;
+
+sbit at 0xa0 P2_0;
+sbit at 0xa1 P2_1;
+sbit at 0xa2 P2_2;
+sbit at 0xa3 P2_3;
+sbit at 0xa4 P2_4;
+
+/* DMA controller */
+struct cc_dma_channel {
+	uint8_t	src_high;
+	uint8_t	src_low;
+	uint8_t	dst_high;
+	uint8_t	dst_low;
+	uint8_t	len_high;
+	uint8_t	len_low;
+	uint8_t	cfg0;
+	uint8_t	cfg1;
+};
+
+# define DMA_LEN_HIGH_VLEN_MASK		(7 << 5)
+# define DMA_LEN_HIGH_VLEN_LEN		(0 << 5)
+# define DMA_LEN_HIGH_VLEN_PLUS_1	(1 << 5)
+# define DMA_LEN_HIGH_VLEN		(2 << 5)
+# define DMA_LEN_HIGH_VLEN_PLUS_2	(3 << 5)
+# define DMA_LEN_HIGH_VLEN_PLUS_3	(4 << 5)
+# define DMA_LEN_HIGH_MASK		(0x1f)
+
+# define DMA_CFG0_WORDSIZE_8		(0 << 7)
+# define DMA_CFG0_WORDSIZE_16		(1 << 7)
+# define DMA_CFG0_TMODE_MASK		(3 << 5)
+# define DMA_CFG0_TMODE_SINGLE		(0 << 5)
+# define DMA_CFG0_TMODE_BLOCK		(1 << 5)
+# define DMA_CFG0_TMODE_REPEATED_SINGLE	(2 << 5)
+# define DMA_CFG0_TMODE_REPEATED_BLOCK	(3 << 5)
+
+/*
+ * DMA triggers
+ */
+# define DMA_CFG0_TRIGGER_NONE		0
+# define DMA_CFG0_TRIGGER_PREV		1
+# define DMA_CFG0_TRIGGER_T1_CH0	2
+# define DMA_CFG0_TRIGGER_T1_CH1	3
+# define DMA_CFG0_TRIGGER_T1_CH2	4
+# define DMA_CFG0_TRIGGER_T2_OVFL	6
+# define DMA_CFG0_TRIGGER_T3_CH0	7
+# define DMA_CFG0_TRIGGER_T3_CH1	8
+# define DMA_CFG0_TRIGGER_T4_CH0	9
+# define DMA_CFG0_TRIGGER_T4_CH1	10
+# define DMA_CFG0_TRIGGER_IOC_0		12
+# define DMA_CFG0_TRIGGER_IOC_1		13
+# define DMA_CFG0_TRIGGER_URX0		14
+# define DMA_CFG0_TRIGGER_UTX0		15
+# define DMA_CFG0_TRIGGER_URX1		16
+# define DMA_CFG0_TRIGGER_UTX1		17
+# define DMA_CFG0_TRIGGER_FLASH		18
+# define DMA_CFG0_TRIGGER_RADIO		19
+# define DMA_CFG0_TRIGGER_ADC_CHALL	20
+# define DMA_CFG0_TRIGGER_ADC_CH0	21
+# define DMA_CFG0_TRIGGER_ADC_CH1	22
+# define DMA_CFG0_TRIGGER_ADC_CH2	23
+# define DMA_CFG0_TRIGGER_ADC_CH3	24
+# define DMA_CFG0_TRIGGER_ADC_CH4	25
+# define DMA_CFG0_TRIGGER_ADC_CH5	26
+# define DMA_CFG0_TRIGGER_ADC_CH6	27
+# define DMA_CFG0_TRIGGER_I2SRX		27
+# define DMA_CFG0_TRIGGER_ADC_CH7	28
+# define DMA_CFG0_TRIGGER_I2STX		28
+# define DMA_CFG0_TRIGGER_ENC_DW	29
+# define DMA_CFG0_TRIGGER_DNC_UP	30
+
+# define DMA_CFG1_SRCINC_MASK		(3 << 6)
+# define DMA_CFG1_SRCINC_0		(0 << 6)
+# define DMA_CFG1_SRCINC_1		(1 << 6)
+# define DMA_CFG1_SRCINC_2		(2 << 6)
+# define DMA_CFG1_SRCINC_MINUS_1	(3 << 6)
+
+# define DMA_CFG1_DESTINC_MASK		(3 << 4)
+# define DMA_CFG1_DESTINC_0		(0 << 4)
+# define DMA_CFG1_DESTINC_1		(1 << 4)
+# define DMA_CFG1_DESTINC_2		(2 << 4)
+# define DMA_CFG1_DESTINC_MINUS_1	(3 << 4)
+
+# define DMA_CFG1_IRQMASK		(1 << 3)
+# define DMA_CFG1_M8			(1 << 2)
+
+# define DMA_CFG1_PRIORITY_MASK		(3 << 0)
+# define DMA_CFG1_PRIORITY_LOW		(0 << 0)
+# define DMA_CFG1_PRIORITY_NORMAL	(1 << 0)
+# define DMA_CFG1_PRIORITY_HIGH		(2 << 0)
+
+/*
+ * DMAARM - DMA Channel Arm
+ */
+
+sfr at 0xD6 DMAARM;
+
+# define DMAARM_ABORT			(1 << 7)
+# define DMAARM_DMAARM4			(1 << 4)
+# define DMAARM_DMAARM3			(1 << 3)
+# define DMAARM_DMAARM2			(1 << 2)
+# define DMAARM_DMAARM1			(1 << 1)
+# define DMAARM_DMAARM0			(1 << 0)
+
+/*
+ * DMAREQ - DMA Channel Start Request and Status
+ */
+
+sfr at 0xD7 DMAREQ;
+
+# define DMAREQ_DMAREQ4			(1 << 4)
+# define DMAREQ_DMAREQ3			(1 << 3)
+# define DMAREQ_DMAREQ2			(1 << 2)
+# define DMAREQ_DMAREQ1			(1 << 1)
+# define DMAREQ_DMAREQ0			(1 << 0)
+
+/*
+ * DMA configuration 0 address
+ */
+
+sfr at 0xD5 DMA0CFGH;
+sfr at 0xD4 DMA0CFGL;
+
+/*
+ * DMA configuration 1-4 address
+ */
+
+sfr at 0xD3 DMA1CFGH;
+sfr at 0xD2 DMA1CFGL;
+
+/*
+ * DMAIRQ - DMA Interrupt Flag
+ */
+
+sfr at 0xD1 DMAIRQ;
+
+# define DMAIRQ_DMAIF4			(1 << 4)
+# define DMAIRQ_DMAIF3			(1 << 3)
+# define DMAIRQ_DMAIF2			(1 << 2)
+# define DMAIRQ_DMAIF1			(1 << 1)
+# define DMAIRQ_DMAIF0			(1 << 0)
+
+/*
+ * UART registers
+ */
+
+/* USART config/status registers */
+sfr at 0x86 U0CSR;
+sfr at 0xF8 U1CSR;
+
+# define UxCSR_MODE_UART		(1 << 7)
+# define UxCSR_MODE_SPI			(0 << 7)
+# define UxCSR_RE			(1 << 6)
+# define UxCSR_SLAVE			(1 << 5)
+# define UxCSR_MASTER			(0 << 5)
+# define UxCSR_FE			(1 << 4)
+# define UxCSR_ERR			(1 << 3)
+# define UxCSR_RX_BYTE			(1 << 2)
+# define UxCSR_TX_BYTE			(1 << 1)
+# define UxCSR_ACTIVE			(1 << 0)
+
+/* UART configuration registers */
+sfr at 0xc4 U0UCR;
+sfr at 0xfb U1UCR;
+
+# define UxUCR_FLUSH                    (1 << 7)
+# define UxUCR_FLOW_DISABLE             (0 << 6)
+# define UxUCR_FLOW_ENABLE              (1 << 6)
+# define UxUCR_D9_EVEN_PARITY           (0 << 5)
+# define UxUCR_D9_ODD_PARITY            (1 << 5)
+# define UxUCR_BIT9_8_BITS              (0 << 4)
+# define UxUCR_BIT9_9_BITS              (1 << 4)
+# define UxUCR_PARITY_DISABLE           (0 << 3)
+# define UxUCR_PARITY_ENABLE            (1 << 3)
+# define UxUCR_SPB_1_STOP_BIT           (0 << 2)
+# define UxUCR_SPB_2_STOP_BITS          (1 << 2)
+# define UxUCR_STOP_LOW                 (0 << 1)
+# define UxUCR_STOP_HIGH                (1 << 1)
+# define UxUCR_START_LOW                (0 << 0)
+# define UxUCR_START_HIGH               (1 << 0)
+
+/* USART General configuration registers (mostly SPI) */
+sfr at 0xc5 U0GCR;
+sfr at 0xfc U1GCR;
+
+# define UxGCR_CPOL_NEGATIVE		(0 << 7)
+# define UxGCR_CPOL_POSITIVE		(1 << 7)
+# define UxGCR_CPHA_FIRST_EDGE		(0 << 6)
+# define UxGCR_CPHA_SECOND_EDGE		(1 << 6)
+# define UxGCR_ORDER_LSB		(0 << 5)
+# define UxGCR_ORDER_MSB		(1 << 5)
+# define UxGCR_BAUD_E_MASK		(0x1f)
+# define UxGCR_BAUD_E_SHIFT		0
+
+/* USART data registers */
+sfr at 0xc1 U0DBUF;
+__xdata __at (0xDFC1) volatile uint8_t U0DBUFXADDR;
+sfr at 0xf9 U1DBUF;
+__xdata __at (0xDFF9) volatile uint8_t U1DBUFXADDR;
+
+/* USART baud rate registers, M value */
+sfr at 0xc2 U0BAUD;
+sfr at 0xfa U1BAUD;
+
+/* Radio */
+
+sfr at 0xD9 RFD;
+__xdata at (0xDFD9) volatile uint8_t RFDXADDR;
+
+sfr at 0xE9 RFIF;
+#define RFIF_IM_TXUNF	(1 << 7)
+#define RFIF_IM_RXOVF	(1 << 6)
+#define RFIF_IM_TIMEOUT	(1 << 5)
+#define RFIF_IM_DONE	(1 << 4)
+#define RFIF_IM_CS	(1 << 3)
+#define RFIF_IM_PQT	(1 << 2)
+#define RFIF_IM_CCA	(1 << 1)
+#define RFIF_IM_SFD	(1 << 0)
+
+sfr at 0x91 RFIM;
+#define RFIM_IM_TXUNF	(1 << 7)
+#define RFIM_IM_RXOVF	(1 << 6)
+#define RFIM_IM_TIMEOUT	(1 << 5)
+#define RFIM_IM_DONE	(1 << 4)
+#define RFIM_IM_CS	(1 << 3)
+#define RFIM_IM_PQT	(1 << 2)
+#define RFIM_IM_CCA	(1 << 1)
+#define RFIM_IM_SFD	(1 << 0)
+
+sfr at 0xE1 RFST;
+
+#define RFST_SFSTXON	0x00
+#define RFST_SCAL	0x01
+#define RFST_SRX	0x02
+#define RFST_STX	0x03
+#define RFST_SIDLE	0x04
+
+__xdata __at (0xdf00) uint8_t RF[0x3c];
+
+__xdata __at (0xdf2f) uint8_t RF_IOCFG2;
+#define RF_IOCFG2_OFF	0x2f
+
+__xdata __at (0xdf30) uint8_t RF_IOCFG1;
+#define RF_IOCFG1_OFF	0x30
+
+__xdata __at (0xdf31) uint8_t RF_IOCFG0;
+#define RF_IOCFG0_OFF	0x31
+
+__xdata __at (0xdf00) uint8_t RF_SYNC1;
+#define RF_SYNC1_OFF	0x00
+
+__xdata __at (0xdf01) uint8_t RF_SYNC0;
+#define RF_SYNC0_OFF	0x01
+
+__xdata __at (0xdf02) uint8_t RF_PKTLEN;
+#define RF_PKTLEN_OFF	0x02
+
+__xdata __at (0xdf03) uint8_t RF_PKTCTRL1;
+#define RF_PKTCTRL1_OFF	0x03
+#define PKTCTRL1_PQT_MASK			(0x7 << 5)
+#define PKTCTRL1_PQT_SHIFT			5
+#define PKTCTRL1_APPEND_STATUS			(1 << 2)
+#define PKTCTRL1_ADR_CHK_NONE			(0 << 0)
+#define PKTCTRL1_ADR_CHK_NO_BROADCAST		(1 << 0)
+#define PKTCTRL1_ADR_CHK_00_BROADCAST		(2 << 0)
+#define PKTCTRL1_ADR_CHK_00_FF_BROADCAST	(3 << 0)
+
+/* If APPEND_STATUS is used, two bytes will be added to the packet data */
+#define PKT_APPEND_STATUS_0_RSSI_MASK		(0xff)
+#define PKT_APPEND_STATUS_0_RSSI_SHIFT		0
+#define PKT_APPEND_STATUS_1_CRC_OK		(1 << 7)
+#define PKT_APPEND_STATUS_1_LQI_MASK		(0x7f)
+#define PKT_APPEND_STATUS_1_LQI_SHIFT		0
+
+__xdata __at (0xdf04) uint8_t RF_PKTCTRL0;
+#define RF_PKTCTRL0_OFF	0x04
+#define RF_PKTCTRL0_WHITE_DATA			(1 << 6)
+#define RF_PKTCTRL0_PKT_FORMAT_NORMAL		(0 << 4)
+#define RF_PKTCTRL0_PKT_FORMAT_RANDOM		(2 << 4)
+#define RF_PKTCTRL0_CRC_EN			(1 << 2)
+#define RF_PKTCTRL0_LENGTH_CONFIG_FIXED		(0 << 0)
+#define RF_PKTCTRL0_LENGTH_CONFIG_VARIABLE	(1 << 0)
+
+__xdata __at (0xdf05) uint8_t RF_ADDR;
+#define RF_ADDR_OFF	0x05
+
+__xdata __at (0xdf06) uint8_t RF_CHANNR;
+#define RF_CHANNR_OFF	0x06
+
+__xdata __at (0xdf07) uint8_t RF_FSCTRL1;
+#define RF_FSCTRL1_OFF	0x07
+
+#define RF_FSCTRL1_FREQ_IF_SHIFT	(0)
+
+__xdata __at (0xdf08) uint8_t RF_FSCTRL0;
+#define RF_FSCTRL0_OFF	0x08
+
+#define RF_FSCTRL0_FREQOFF_SHIFT	(0)
+
+__xdata __at (0xdf09) uint8_t RF_FREQ2;
+#define RF_FREQ2_OFF	0x09
+
+__xdata __at (0xdf0a) uint8_t RF_FREQ1;
+#define RF_FREQ1_OFF	0x0a
+
+__xdata __at (0xdf0b) uint8_t RF_FREQ0;
+#define RF_FREQ0_OFF	0x0b
+
+__xdata __at (0xdf0c) uint8_t RF_MDMCFG4;
+#define RF_MDMCFG4_OFF	0x0c
+
+#define RF_MDMCFG4_CHANBW_E_SHIFT	6
+#define RF_MDMCFG4_CHANBW_M_SHIFT	4
+#define RF_MDMCFG4_DRATE_E_SHIFT	0
+
+__xdata __at (0xdf0d) uint8_t RF_MDMCFG3;
+#define RF_MDMCFG3_OFF	0x0d
+
+#define RF_MDMCFG3_DRATE_M_SHIFT	0
+
+__xdata __at (0xdf0e) uint8_t RF_MDMCFG2;
+#define RF_MDMCFG2_OFF	0x0e
+
+#define RF_MDMCFG2_DEM_DCFILT_OFF	(1 << 7)
+#define RF_MDMCFG2_DEM_DCFILT_ON	(0 << 7)
+
+#define RF_MDMCFG2_MOD_FORMAT_MASK	(7 << 4)
+#define RF_MDMCFG2_MOD_FORMAT_2_FSK	(0 << 4)
+#define RF_MDMCFG2_MOD_FORMAT_GFSK	(1 << 4)
+#define RF_MDMCFG2_MOD_FORMAT_ASK_OOK	(3 << 4)
+#define RF_MDMCFG2_MOD_FORMAT_MSK	(7 << 4)
+
+#define RF_MDMCFG2_MANCHESTER_EN	(1 << 3)
+
+#define RF_MDMCFG2_SYNC_MODE_MASK		(0x7 << 0)
+#define RF_MDMCFG2_SYNC_MODE_NONE		(0x0 << 0)
+#define RF_MDMCFG2_SYNC_MODE_15_16		(0x1 << 0)
+#define RF_MDMCFG2_SYNC_MODE_16_16		(0x2 << 0)
+#define RF_MDMCFG2_SYNC_MODE_30_32		(0x3 << 0)
+#define RF_MDMCFG2_SYNC_MODE_NONE_THRES		(0x4 << 0)
+#define RF_MDMCFG2_SYNC_MODE_15_16_THRES	(0x5 << 0)
+#define RF_MDMCFG2_SYNC_MODE_16_16_THRES	(0x6 << 0)
+#define RF_MDMCFG2_SYNC_MODE_30_32_THRES	(0x7 << 0)
+
+__xdata __at (0xdf0f) uint8_t RF_MDMCFG1;
+#define RF_MDMCFG1_OFF	0x0f
+
+#define RF_MDMCFG1_FEC_EN			(1 << 7)
+#define RF_MDMCFG1_FEC_DIS			(0 << 7)
+
+#define RF_MDMCFG1_NUM_PREAMBLE_MASK		(7 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_2		(0 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_3		(1 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_4		(2 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_6		(3 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_8		(4 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_12		(5 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_16		(6 << 4)
+#define RF_MDMCFG1_NUM_PREAMBLE_24		(7 << 4)
+
+#define RF_MDMCFG1_CHANSPC_E_MASK		(3 << 0)
+#define RF_MDMCFG1_CHANSPC_E_SHIFT		(0)
+
+__xdata __at (0xdf10) uint8_t RF_MDMCFG0;
+#define RF_MDMCFG0_OFF	0x10
+
+#define RF_MDMCFG0_CHANSPC_M_SHIFT		(0)
+
+__xdata __at (0xdf11) uint8_t RF_DEVIATN;
+#define RF_DEVIATN_OFF	0x11
+
+#define RF_DEVIATN_DEVIATION_E_SHIFT		4
+#define RF_DEVIATN_DEVIATION_M_SHIFT		0
+
+__xdata __at (0xdf12) uint8_t RF_MCSM2;
+#define RF_MCSM2_OFF	0x12
+#define RF_MCSM2_RX_TIME_RSSI			(1 << 4)
+#define RF_MCSM2_RX_TIME_QUAL			(1 << 3)
+#define RF_MCSM2_RX_TIME_MASK			(0x7)
+#define RF_MCSM2_RX_TIME_SHIFT			0
+#define RF_MCSM2_RX_TIME_END_OF_PACKET		(7)
+
+__xdata __at (0xdf13) uint8_t RF_MCSM1;
+#define RF_MCSM1_OFF	0x13
+#define RF_MCSM1_CCA_MODE_ALWAYS			(0 << 4)
+#define RF_MCSM1_CCA_MODE_RSSI_BELOW			(1 << 4)
+#define RF_MCSM1_CCA_MODE_UNLESS_RECEIVING		(2 << 4)
+#define RF_MCSM1_CCA_MODE_RSSI_BELOW_UNLESS_RECEIVING	(3 << 4)
+#define RF_MCSM1_RXOFF_MODE_IDLE			(0 << 2)
+#define RF_MCSM1_RXOFF_MODE_FSTXON			(1 << 2)
+#define RF_MCSM1_RXOFF_MODE_TX				(2 << 2)
+#define RF_MCSM1_RXOFF_MODE_RX				(3 << 2)
+#define RF_MCSM1_TXOFF_MODE_IDLE			(0 << 0)
+#define RF_MCSM1_TXOFF_MODE_FSTXON			(1 << 0)
+#define RF_MCSM1_TXOFF_MODE_TX				(2 << 0)
+#define RF_MCSM1_TXOFF_MODE_RX				(3 << 0)
+
+__xdata __at (0xdf14) uint8_t RF_MCSM0;
+#define RF_MCSM0_OFF	0x14
+#define RF_MCSM0_FS_AUTOCAL_NEVER		(0 << 4)
+#define RF_MCSM0_FS_AUTOCAL_FROM_IDLE		(1 << 4)
+#define RF_MCSM0_FS_AUTOCAL_TO_IDLE		(2 << 4)
+#define RF_MCSM0_FS_AUTOCAL_TO_IDLE_EVERY_4	(3 << 4)
+#define RF_MCSM0_MAGIC_3			(1 << 3)
+#define RF_MCSM0_MAGIC_2			(1 << 2)
+#define RF_MCSM0_CLOSE_IN_RX_0DB		(0 << 0)
+#define RF_MCSM0_CLOSE_IN_RX_6DB		(1 << 0)
+#define RF_MCSM0_CLOSE_IN_RX_12DB		(2 << 0)
+#define RF_MCSM0_CLOSE_IN_RX_18DB		(3 << 0)
+
+__xdata __at (0xdf15) uint8_t RF_FOCCFG;
+#define RF_FOCCFG_OFF	0x15
+#define RF_FOCCFG_FOC_BS_CS_GATE		(1 << 5)
+#define RF_FOCCFG_FOC_PRE_K_1K			(0 << 3)
+#define RF_FOCCFG_FOC_PRE_K_2K			(1 << 3)
+#define RF_FOCCFG_FOC_PRE_K_3K			(2 << 3)
+#define RF_FOCCFG_FOC_PRE_K_4K			(3 << 3)
+#define RF_FOCCFG_FOC_POST_K_PRE_K		(0 << 2)
+#define RF_FOCCFG_FOC_POST_K_PRE_K_OVER_2	(1 << 2)
+#define RF_FOCCFG_FOC_LIMIT_0			(0 << 0)
+#define RF_FOCCFG_FOC_LIMIT_BW_OVER_8		(1 << 0)
+#define RF_FOCCFG_FOC_LIMIT_BW_OVER_4		(2 << 0)
+#define RF_FOCCFG_FOC_LIMIT_BW_OVER_2		(3 << 0)
+
+__xdata __at (0xdf16) uint8_t RF_BSCFG;
+#define RF_BSCFG_OFF	0x16
+#define RF_BSCFG_BS_PRE_K_1K			(0 << 6)
+#define RF_BSCFG_BS_PRE_K_2K			(1 << 6)
+#define RF_BSCFG_BS_PRE_K_3K			(2 << 6)
+#define RF_BSCFG_BS_PRE_K_4K			(3 << 6)
+#define RF_BSCFG_BS_PRE_KP_1KP			(0 << 4)
+#define RF_BSCFG_BS_PRE_KP_2KP			(1 << 4)
+#define RF_BSCFG_BS_PRE_KP_3KP			(2 << 4)
+#define RF_BSCFG_BS_PRE_KP_4KP			(3 << 4)
+#define RF_BSCFG_BS_POST_KI_PRE_KI		(0 << 3)
+#define RF_BSCFG_BS_POST_KI_PRE_KI_OVER_2	(1 << 3)
+#define RF_BSCFG_BS_POST_KP_PRE_KP		(0 << 2)
+#define RF_BSCFG_BS_POST_KP_PRE_KP_OVER_2	(1 << 2)
+#define RF_BSCFG_BS_LIMIT_0			(0 << 0)
+#define RF_BSCFG_BS_LIMIT_3_125			(1 << 0)
+#define RF_BSCFG_BS_LIMIT_6_25			(2 << 0)
+#define RF_BSCFG_BS_LIMIT_12_5			(3 << 0)
+
+__xdata __at (0xdf17) uint8_t RF_AGCCTRL2;
+#define RF_AGCCTRL2_OFF	0x17
+
+__xdata __at (0xdf18) uint8_t RF_AGCCTRL1;
+#define RF_AGCCTRL1_OFF	0x18
+
+__xdata __at (0xdf19) uint8_t RF_AGCCTRL0;
+#define RF_AGCCTRL0_OFF	0x19
+
+__xdata __at (0xdf1a) uint8_t RF_FREND1;
+#define RF_FREND1_OFF	0x1a
+
+#define RF_FREND1_LNA_CURRENT_SHIFT		6
+#define RF_FREND1_LNA2MIX_CURRENT_SHIFT		4
+#define RF_FREND1_LODIV_BUF_CURRENT_RX_SHIFT	2
+#define RF_FREND1_MIX_CURRENT_SHIFT		0
+
+__xdata __at (0xdf1b) uint8_t RF_FREND0;
+#define RF_FREND0_OFF	0x1b
+
+#define RF_FREND0_LODIV_BUF_CURRENT_TX_MASK	(0x3 << 4)
+#define RF_FREND0_LODIV_BUF_CURRENT_TX_SHIFT	4
+#define RF_FREND0_PA_POWER_MASK			(0x7)
+#define RF_FREND0_PA_POWER_SHIFT		0
+
+__xdata __at (0xdf1c) uint8_t RF_FSCAL3;
+#define RF_FSCAL3_OFF	0x1c
+
+__xdata __at (0xdf1d) uint8_t RF_FSCAL2;
+#define RF_FSCAL2_OFF	0x1d
+
+__xdata __at (0xdf1e) uint8_t RF_FSCAL1;
+#define RF_FSCAL1_OFF	0x1e
+
+__xdata __at (0xdf1f) uint8_t RF_FSCAL0;
+#define RF_FSCAL0_OFF	0x1f
+
+__xdata __at (0xdf23) uint8_t RF_TEST2;
+#define RF_TEST2_OFF	0x23
+
+#define RF_TEST2_NORMAL_MAGIC		0x88
+#define RF_TEST2_RX_LOW_DATA_RATE_MAGIC	0x81
+
+__xdata __at (0xdf24) uint8_t RF_TEST1;
+#define RF_TEST1_OFF	0x24
+
+#define RF_TEST1_TX_MAGIC		0x31
+#define RF_TEST1_RX_LOW_DATA_RATE_MAGIC	0x35
+
+__xdata __at (0xdf25) uint8_t RF_TEST0;
+#define RF_TEST0_OFF	0x25
+
+#define RF_TEST0_7_2_MASK		(0xfc)
+#define RF_TEST0_VCO_SEL_CAL_EN		(1 << 1)
+#define RF_TEST0_0_MASK			(1)
+
+/* These are undocumented, and must be computed
+ * using the provided tool.
+ */
+__xdata __at (0xdf27) uint8_t RF_PA_TABLE7;
+#define RF_PA_TABLE7_OFF	0x27
+
+__xdata __at (0xdf28) uint8_t RF_PA_TABLE6;
+#define RF_PA_TABLE6_OFF	0x28
+
+__xdata __at (0xdf29) uint8_t RF_PA_TABLE5;
+#define RF_PA_TABLE5_OFF	0x29
+
+__xdata __at (0xdf2a) uint8_t RF_PA_TABLE4;
+#define RF_PA_TABLE4_OFF	0x2a
+
+__xdata __at (0xdf2b) uint8_t RF_PA_TABLE3;
+#define RF_PA_TABLE3_OFF	0x2b
+
+__xdata __at (0xdf2c) uint8_t RF_PA_TABLE2;
+#define RF_PA_TABLE2_OFF	0x2c
+
+__xdata __at (0xdf2d) uint8_t RF_PA_TABLE1;
+#define RF_PA_TABLE1_OFF	0x2d
+
+__xdata __at (0xdf2e) uint8_t RF_PA_TABLE0;
+#define RF_PA_TABLE0_OFF	0x2e
+
+__xdata __at (0xdf36) uint8_t RF_PARTNUM;
+#define RF_PARTNUM_OFF	0x36
+
+__xdata __at (0xdf37) uint8_t RF_VERSION;
+#define RF_VERSION_OFF	0x37
+
+__xdata __at (0xdf38) uint8_t RF_FREQEST;
+#define RF_FREQEST_OFF	0x38
+
+__xdata __at (0xdf39) uint8_t RF_LQI;
+#define RF_LQI_OFF	0x39
+
+#define RF_LQI_CRC_OK			(1 << 7)
+#define RF_LQI_LQI_EST_MASK		(0x7f)
+
+__xdata __at (0xdf3a) uint8_t RF_RSSI;
+#define RF_RSSI_OFF	0x3a
+
+__xdata __at (0xdf3b) uint8_t RF_MARCSTATE;
+#define RF_MARCSTATE_OFF	0x3b
+
+#define RF_MARCSTATE_MASK		0x1f
+#define RF_MARCSTATE_SLEEP		0x00
+#define RF_MARCSTATE_IDLE		0x01
+#define RF_MARCSTATE_VCOON_MC		0x03
+#define RF_MARCSTATE_REGON_MC		0x04
+#define RF_MARCSTATE_MANCAL		0x05
+#define RF_MARCSTATE_VCOON		0x06
+#define RF_MARCSTATE_REGON		0x07
+#define RF_MARCSTATE_STARTCAL		0x08
+#define RF_MARCSTATE_BWBOOST		0x09
+#define RF_MARCSTATE_FS_LOCK		0x0a
+#define RF_MARCSTATE_IFADCON		0x0b
+#define RF_MARCSTATE_ENDCAL		0x0c
+#define RF_MARCSTATE_RX			0x0d
+#define RF_MARCSTATE_RX_END		0x0e
+#define RF_MARCSTATE_RX_RST		0x0f
+#define RF_MARCSTATE_TXRX_SWITCH	0x10
+#define RF_MARCSTATE_RX_OVERFLOW	0x11
+#define RF_MARCSTATE_FSTXON		0x12
+#define RF_MARCSTATE_TX			0x13
+#define RF_MARCSTATE_TX_END		0x14
+#define RF_MARCSTATE_RXTX_SWITCH	0x15
+#define RF_MARCSTATE_TX_UNDERFLOW	0x16
+
+
+__xdata __at (0xdf3c) uint8_t RF_PKTSTATUS;
+#define RF_PKTSTATUS_OFF	0x3c
+
+#define RF_PKTSTATUS_CRC_OK		(1 << 7)
+#define RF_PKTSTATUS_CS			(1 << 6)
+#define RF_PKTSTATUS_PQT_REACHED	(1 << 5)
+#define RF_PKTSTATUS_CCA		(1 << 4)
+#define RF_PKTSTATUS_SFD		(1 << 3)
+
+__xdata __at (0xdf3d) uint8_t RF_VCO_VC_DAC;
+#define RF_VCO_VC_DAC_OFF	0x3d
+
 #endif

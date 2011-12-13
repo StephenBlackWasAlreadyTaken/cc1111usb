@@ -1,29 +1,32 @@
+#include "cc1111.h"
 #include "cc1111rf.h"
 #include "global.h"
 
 #include <string.h>
 
 /* Rx buffers */
-volatile xdata u8 rfRxCurrentBuffer;
-volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
-volatile xdata u8 rfRxCounter[BUFFER_AMOUNT];
-volatile xdata u8 rfRxProcessed[BUFFER_AMOUNT];
+volatile xdata uint8_t rfRxCurrentBuffer;
+volatile xdata uint8_t rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
+volatile xdata uint8_t rfRxCounter[BUFFER_AMOUNT];
+volatile xdata uint8_t rfRxProcessed[BUFFER_AMOUNT];
 /* Tx buffers */
-volatile xdata u8 rftxbuf[BUFFER_SIZE];
-volatile xdata u8 rfTxCounter = 0;
+volatile xdata uint8_t rftxbuf[BUFFER_SIZE];
+volatile xdata uint8_t rfTxCounter = 0;
 
-u8 rfif;
-volatile xdata u8 rf_status;
-volatile xdata DMA_DESC rfDMA;
+uint8_t rfif;
+volatile xdata uint8_t rf_status;
+static xdata struct cc_dma_channel rfDMA;
 
 /*************************************************************************************************
  * RF init stuff                                                                                 *
  ************************************************************************************************/
-void init_RF(u8 bEuRadio, register_e rRegisterType)
+void init_RF(uint8_t bEuRadio, register_e rRegisterType)
 {
     /* Init DMA channel */
-    DMA0CFGH = ((u16)(&rfDMA))>>8;
-    DMA0CFGL = ((u16)(&rfDMA))&0xff;
+    DMAIRQ = 0;
+    DMAIF = 0;
+    DMA0CFGH = ((uint16_t)(&rfDMA))>>8;
+    DMA0CFGL = ((uint16_t)(&rfDMA))&0xff;
 
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
@@ -111,6 +114,7 @@ void init_RF(u8 bEuRadio, register_e rRegisterType)
 	RFIM = 0xff;
 	RFIF = 0;
 	rfif = 0;
+    IEN1 |= DMAIE;
 	IEN2 |= IEN2_RFIE;
 
 	/* Put radio into idle state */
@@ -120,16 +124,16 @@ void init_RF(u8 bEuRadio, register_e rRegisterType)
 void setRFIdle(void)
 {
 	RFST = RFST_SIDLE;
-	while(!(MARCSTATE & MARC_STATE_IDLE));
+	while(!(MARCSTATE & RF_MARCSTATE_IDLE));
 	rf_status = RF_STATE_IDLE;
 }
 
 int waitRSSI()
 {
-	u16 u16WaitTime = 0;
+	uint16_t u16WaitTime = 0;
 	while(u16WaitTime < RSSI_TIMEOUT_US)
 	{
-		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+		if(PKTSTATUS & (RF_PKTSTATUS_CCA | RF_PKTSTATUS_CS))
 		{
 			return 1;
 		}
@@ -143,7 +147,7 @@ int waitRSSI()
 }
 
 /* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
-u8 transmit(xdata u8* buf, u16 len, u8 bDma)
+uint8_t transmit(xdata uint8_t* buf, uint16_t len, uint8_t bDma)
 {
 	/* Put radio into idle state */
 	setRFIdle();
@@ -152,6 +156,7 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
 	if(len == 0)
 	{
 		len = buf[0];
+        len++;
 	}
 
     /* If DMA transfer, disable rxtx interrupt */
@@ -169,47 +174,52 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
     /* Configure DMA struct */
     if(bDma)
     {
-        DMAARM |= (0x80 | DMAARM0);
-        rfDMA.srcAddrH = ((u16)buf)>>8;
-        rfDMA.srcAddrL = ((u16)buf)&0xff;
-        rfDMA.destAddrH = ((u16)X_RFD)>>8;
-        rfDMA.destAddrL = ((u16)X_RFD)&0xff;
-        rfDMA.lenH = 0;
-        rfDMA.vlen = 0;
-        rfDMA.lenL = len;
-        
-        rfDMA.wordSize = 0;
-        rfDMA.tMode = 1;
-        rfDMA.trig = 19;
-        
-        rfDMA.srcInc = 1;
-        rfDMA.destInc = 0;
-        rfDMA.irqMask = 0;
-        rfDMA.m8 = 0;
-        rfDMA.priority = 1;
+        rfDMA.src_high = ((uint16_t)buf)>>8;
+        rfDMA.src_low = ((uint16_t)buf)&0xff;
+        rfDMA.dst_high = ((uint16_t)&RFDXADDR)>>8;
+        rfDMA.dst_low = ((uint16_t)&RFDXADDR)&0xff;
+        rfDMA.len_high = len >> 8;
+        rfDMA.len_low = len;
+        rfDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
+                    DMA_CFG0_TMODE_SINGLE |
+                    DMA_CFG0_TRIGGER_RADIO; 
+        rfDMA.cfg1 = DMA_CFG1_SRCINC_1 |
+                    DMA_CFG1_DESTINC_0 |
+                    DMA_CFG1_PRIORITY_HIGH;
+    
+        DMA0CFGH = ((uint16_t)(&rfDMA))>>8;
+        DMA0CFGL = ((uint16_t)(&rfDMA))&0xff;
     }
 
 	/* Strobe to rx */
-	RFST = RFST_SRX;
-	while(!(MARCSTATE & MARC_STATE_RX));
+//	RFST = RFST_SRX;
+//	while(!(MARCSTATE & MARC_STATE_RX));
 	/* wait for good RSSI, TODO change while loop this could hang forever */
-	while(1)
-	{
-		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-		{
-			break;
-		}
-	}
-
+//	while(1)
+//	{
+//		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
+//		{
+//			break;
+//		}
+//	}
+    #define nop() _asm nop _endasm;
+    
     /* Arm DMA channel */
     if(bDma)
     {
-        DMAARM |= DMAARM0;
+        DMAIRQ &= ~DMAARM_DMAARM0;
+        DMAARM |= (0x80 | DMAARM_DMAARM0);
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+        DMAARM = DMAARM_DMAARM0;
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+        nop();
     }
 
 	/* Put radio into tx state */
 	RFST = RFST_STX;
-	while(!(MARCSTATE & MARC_STATE_TX));
+	//while(!(MARCSTATE & RF_MARCSTATE_TX));
 
 //	if(waitRSSI)
 //	{
@@ -243,16 +253,16 @@ void startRX(void)
 	rfRxCurrentBuffer = 0;
 
 	S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
-	RFIF &= ~RFIF_IRQ_DONE;
+	RFIF &= ~RFIF_IM_DONE;
 
 	RFST = RFST_SRX;
 
-	RFIM |= RFIF_IRQ_DONE;
+	RFIM |= RFIF_IM_DONE;
 }
 
 void stopRX(void)
 {
-    RFIM &= ~RFIF_IRQ_DONE;
+    RFIM &= ~RFIF_IM_DONE;
     setRFIdle();
 
     DMAARM |= 0x81;                 // ABORT anything on DMA 0
@@ -260,7 +270,7 @@ void stopRX(void)
     DMAIRQ &= ~1;
 
     S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
-    RFIF &= ~RFIF_IRQ_DONE;
+    RFIF &= ~RFIF_IM_DONE;
 }
 
 void RxOn(void)
@@ -285,7 +295,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 {
     lastCode[1] = 17;
 
-    if(MARCSTATE == MARC_STATE_RX)
+    if(MARCSTATE == RF_MARCSTATE_RX)
     {
     	rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
     	if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
@@ -293,7 +303,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
         	rfRxCounter[rfRxCurrentBuffer] = 0;
         }
     }
-    else if(MARCSTATE == MARC_STATE_TX)
+    else if(MARCSTATE == RF_MARCSTATE_TX)
     {
     	if(rftxbuf[rfTxCounter] != 0)
     	{
@@ -310,18 +320,18 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
 
-    if(RFIF & RFIF_IRQ_RXOVF)
+    if(RFIF & RFIF_IM_RXOVF)
     {
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
     	startRX();
     }
-    else if(RFIF & RFIF_IRQ_TXUNF)
+    else if(RFIF & RFIF_IM_TXUNF)
     {
     	/* Put radio into idle state */
 		setRFIdle();
     }
-    else if(RFIF & RFIF_IRQ_DONE)
+    else if(RFIF & RFIF_IM_DONE)
     {
     	if(rf_status == RF_STATE_TX)
     	{
@@ -348,6 +358,6 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 			}
     	}
     }
-    //RFIF &= ~RFIF_IRQ_DONE;
+    //RFIF &= ~RFIF_IM_DONE;
     RFIF = 0;
 }

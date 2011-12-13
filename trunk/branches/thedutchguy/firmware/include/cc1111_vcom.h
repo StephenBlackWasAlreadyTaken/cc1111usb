@@ -36,7 +36,7 @@ void vcom(char* buff);
 void vcom_up();
 void vcom_down();
 
-void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr);
+void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr);
 
 // End external interface
 
@@ -73,11 +73,11 @@ void vcom_isr() __interrupt 6;
 #define USB_REQ_SET_INTERFACE     0x0B
 #define USB_REQ_SYNCH_FRAME       0x0C
 
-//#define USB_DESC_DEVICE           1
+#define USB_DESC_DEVICE           1
 #define USB_DESC_CONFIGURATION    2
-//#define USB_DESC_STRING           3
-//#define USB_DESC_INTERFACE        4
-//#define USB_DESC_ENDPOINT         5
+#define USB_DESC_STRING           3
+#define USB_DESC_INTERFACE        4
+#define USB_DESC_ENDPOINT         5
 #define USB_DESC_DEVICE_QUALIFIER 6
 #define USB_DESC_OTHER_SPEED      7
 #define USB_DESC_INTERFACE_POWER  8
@@ -103,7 +103,7 @@ void vcom_isr() __interrupt 6;
 #define USB_EP0_DATA_IN   1
 #define USB_EP0_DATA_OUT  2
 
-#define LE_WORD(x) ((x)&0xFF),((u8) (((u16) (x))>>8))
+#define LE_WORD(x) ((x)&0xFF),((uint8_t) (((uint16_t) (x))>>8))
 
 // CDC definitions
 #define CS_INTERFACE  0x24

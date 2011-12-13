@@ -8,7 +8,7 @@
 #define RADIO_EU 1
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-extern xdata u8 lastCode[2];
+extern xdata uint8_t lastCode[2];
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
@@ -50,5 +50,5 @@ extern xdata u8 lastCode[2];
 void sleepMillis(int ms);
 void sleepMicros(int us);
 //void blink(u16 on_cycles, u16 off_cycles);
-void blink_binary_baby_lsb(u16 num, char bits);
+void blink_binary_baby_lsb(uint16_t num, char bits);
 #endif
