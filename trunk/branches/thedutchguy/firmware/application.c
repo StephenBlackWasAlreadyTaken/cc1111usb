@@ -257,7 +257,7 @@ void main (void)
     appMainInit();
 
 #ifdef RECEIVE_TEST
-    startRX();
+    startRX(1);
 #endif
 
     while (1)

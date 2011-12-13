@@ -64,7 +64,7 @@ void RxOn(void);
 void RxIdle(void);
 uint8_t transmit(xdata uint8_t*, uint16_t len, uint8_t bDma);
 void stopRX(void);
-void startRX(void);
+void startRX(uint8_t bDma);
 void init_RF(uint8_t bEuRadio, register_e rRegisterType);
 
 #endif

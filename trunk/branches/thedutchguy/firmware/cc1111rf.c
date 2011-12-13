@@ -9,6 +9,7 @@ volatile xdata uint8_t rfRxCurrentBuffer;
 volatile xdata uint8_t rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
 volatile xdata uint8_t rfRxCounter[BUFFER_AMOUNT];
 volatile xdata uint8_t rfRxProcessed[BUFFER_AMOUNT];
+volatile xdata uint8_t bRxDMA;
 /* Tx buffers */
 volatile xdata uint8_t rftxbuf[BUFFER_SIZE];
 volatile xdata uint8_t rfTxCounter = 0;
@@ -234,8 +235,13 @@ uint8_t transmit(xdata uint8_t* buf, uint16_t len, uint8_t bDma)
 	return 0;
 }
 
-void startRX(void)
+void startRX(uint8_t bDma)
 {
+    /* If DMA transfer, disable rxtx interrupt */
+	RFTXRXIE = !bDma; 
+    bRxDMA = bDma;
+    
+    /* Clear rx buffer */
     memset(rfrxbuf,0,BUFFER_SIZE);
 
     /* Set both byte counters to zero */
@@ -255,6 +261,34 @@ void startRX(void)
 	S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
 	RFIF &= ~RFIF_IM_DONE;
 
+    if(bDma)
+    {
+
+        rfDMA.src_high = ((uint16_t)&RFDXADDR)>>8;
+        rfDMA.src_low = ((uint16_t)&RFDXADDR)&0xff;
+        rfDMA.dst_high = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])>>8;
+        rfDMA.dst_low = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])&0xff;
+        rfDMA.len_high = sizeof(rfrxbuf[rfRxCurrentBuffer]) >> 8;
+        rfDMA.len_low = sizeof(rfrxbuf[rfRxCurrentBuffer]); 
+        rfDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
+                    DMA_CFG0_TMODE_SINGLE |
+                    DMA_CFG0_TRIGGER_RADIO; 
+        rfDMA.cfg1 = DMA_CFG1_SRCINC_0 |
+                    DMA_CFG1_DESTINC_1 |
+                    DMA_CFG1_PRIORITY_HIGH;
+    
+        DMA0CFGH = ((uint16_t)(&rfDMA))>>8;
+        DMA0CFGL = ((uint16_t)(&rfDMA))&0xff;
+        
+        DMAIRQ &= ~DMAARM_DMAARM0;
+        DMAARM |= (0x80 | DMAARM_DMAARM0);
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+        DMAARM = DMAARM_DMAARM0;
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+    }
+    /* Strobe to RX mode */
 	RFST = RFST_SRX;
 
 	RFIM |= RFIF_IM_DONE;
@@ -278,7 +312,7 @@ void RxOn(void)
     if (rf_status != RF_STATE_RX)
     {
         rf_status = RF_STATE_RX;
-        startRX();
+        startRX(bRxDMA);
     }
 }
 
@@ -324,7 +358,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     {
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
-    	startRX();
+    	startRX(bRxDMA);
     }
     else if(RFIF & RFIF_IM_TXUNF)
     {
@@ -349,6 +383,16 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 				/* Set both buffers to unprocessed */
 				rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
 				rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
+                if(bRxDMA)
+                {
+                    /* Switch DMA buffer */
+                    rfDMA.dst_high = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])>>8;
+                    rfDMA.dst_low = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])&0xff;
+                    /* Arm DMA for next receive */
+                    DMAARM = DMAARM_DMAARM0;
+                    nop(); nop(); nop(); nop();
+                    nop(); nop(); nop(); nop();
+                }
 			}
 			else
 			{
