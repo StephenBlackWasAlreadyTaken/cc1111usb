@@ -268,8 +268,10 @@ void startRX(uint8_t bDma)
         rfDMA.src_low = ((uint16_t)&RFDXADDR)&0xff;
         rfDMA.dst_high = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])>>8;
         rfDMA.dst_low = ((uint16_t)&rfrxbuf[rfRxCurrentBuffer])&0xff;
-        rfDMA.len_high = sizeof(rfrxbuf[rfRxCurrentBuffer]) >> 8;
-        rfDMA.len_low = sizeof(rfrxbuf[rfRxCurrentBuffer]); 
+        //rfDMA.len_high = sizeof(rfrxbuf[rfRxCurrentBuffer]) >> 8;
+        //rfDMA.len_low = sizeof(rfrxbuf[rfRxCurrentBuffer]); 
+        rfDMA.len_high = 0;
+        rfDMA.len_low = 12; 
         rfDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
                     DMA_CFG0_TMODE_SINGLE |
                     DMA_CFG0_TRIGGER_RADIO; 
