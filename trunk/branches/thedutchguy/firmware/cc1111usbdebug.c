@@ -4,11 +4,11 @@
  * debug stuff.  slows executions.                                                               *
  ************************************************************************************************/
 /* blinks the EP0 SETUP packet in binary on the LED */
-void debugEP0Req(u8 *pReq)
+void debugEP0Req(uint8_t *pReq)
 {
     (void) pReq;
     /*
-    //u8  loop;
+    //uint8_t  loop;
 
     for (loop = sizeof(USB_Setup_Header);loop>0; loop--)
     {
@@ -20,28 +20,28 @@ void debugEP0Req(u8 *pReq)
 
 
 /* sends a debug message up to the python code to be spit out on stderr */
-void debug(code u8* text)
+void debug(code uint8_t* text)
 {
-    u16 len = 0;
-    code u8* ptr = text;
+    uint16_t len = 0;
+    code uint8_t* ptr = text;
     while (*ptr++ != 0)
         len ++;
-    txdata(0xfe, 0xf0, len, (xdata u8*)text);
+    txdata(0xfe, 0xf0, len, (xdata uint8_t*)text);
 }
 
-void debughex(u8 num)
+void debughex(uint8_t num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX, 1, (xdata u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX, 1, (xdata uint8_t*)&num);
 }
 
-void debughex16(u16 num)
+void debughex16(uint16_t num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX16, 2, (xdata u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX16, 2, (xdata uint8_t*)&num);
 }
 
-void debughex32(u32 num)
+void debughex32(uint32_t num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX32, 4, (xdata u8*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX32, 4, (xdata uint8_t*)&num);
 }
  
 
