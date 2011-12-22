@@ -50,19 +50,19 @@ immedongleapplication.hex: application.c $(libsusbi)
 
 chronosNIC.hex: appNIC.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
-	packihx <appNIC.ihx >bins/NIC.hex
+	packihx <appNIC.ihx >bins/chronosNIC.hex
 
 donsNIC.hex: appNIC.c $(libsusbd)
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
-	packihx <appNIC.ihx >bins/NIC.hex
+	packihx <appNIC.ihx >bins/donsNIC.hex
 
 chronosSniff.hex: appSniff.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) -DCHRONOSDONGLE
-	packihx <appSniff.ihx >bins/Sniff.hex
+	packihx <appSniff.ihx >bins/chronosSniff.hex
 
 donsSniff.hex: appSniff.c $(libsusbd)
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) -DCHRONOSDONGLE
-	packihx <appSniff.ihx >bins/Sniff.hex
+	packihx <appSniff.ihx >bins/donsSniff.hex
 
 immeSniff.hex: appSniff.c $(libsimme) 
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsi) -DIMME
@@ -101,24 +101,24 @@ installimmefw: immedongleapplication.hex
 	goodfet.cc flash bins/application.hex
 	goodfet.cc info
 
-installchronosnicfw: NIC.hex
+installchronosnicfw: chronosNIC.hex
 	goodfet.cc erase
-	goodfet.cc flash bins/NIC.hex
+	goodfet.cc flash bins/chronosNIC.hex
 	goodfet.cc info
 
-installdonsnicfw: NIC.hex
+installdonsnicfw: donsNIC.hex
 	goodfet.cc erase
-	goodfet.cc flash bins/NIC.hex
+	goodfet.cc flash bins/donsNIC.hex
 	goodfet.cc info
 
-installchronossnifffw: Sniff.hex
+installchronossnifffw: chronosSniff.hex
 	goodfet.cc erase
-	goodfet.cc flash bins/Sniff.hex
+	goodfet.cc flash bins/chronosSniff.hex
 	goodfet.cc info
 
-installdonssnifffw: Sniff.hex
+installdonssnifffw: donsSniff.hex
 	goodfet.cc erase
-	goodfet.cc flash bins/Sniff.hex
+	goodfet.cc flash bins/donsSniff.hex
 	goodfet.cc info
 
 installimmesnifffw: immeSniff.hex
