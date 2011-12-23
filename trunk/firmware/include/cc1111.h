@@ -10,11 +10,13 @@ uint8 addr;               // temporarily store the incoming address until *after
 #define  EP_STATE_TX        1
 #define  EP_STATE_RX        2
 #define  EP_STATE_STALL     3
-#define USB_STATE_IDLE      0
-#define USB_STATE_SUSPEND   1
-#define USB_STATE_RESUME    2
-#define USB_STATE_RESET     3
-#define USB_STATE_WAIT_ADDR 4
+
+#define USB_STATE_UNCONFIGURED 0
+#define USB_STATE_IDLE      1
+#define USB_STATE_SUSPEND   2
+#define USB_STATE_RESUME    3
+#define USB_STATE_RESET     4
+#define USB_STATE_WAIT_ADDR 5
 #define USB_STATE_BLINK     0xff
 
 
