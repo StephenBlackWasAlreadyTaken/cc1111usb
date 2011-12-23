@@ -56,7 +56,7 @@ void appMainLoop(void)
 
     if (rfif)
     {
-        lastCode[0] = 0xd;
+        lastCode[0] = LC_MAIN_RFIF;
         IEN2 &= ~IEN2_RFIE;
 
         if(rfif & RFIF_IRQ_DONE)
@@ -361,6 +361,7 @@ void main (void)
     usb_up();
 
 
+    // wait until the host identifies the usb device (the host timeouts are awfully fast)
     waitForUSBsetup();
 
     while (1)

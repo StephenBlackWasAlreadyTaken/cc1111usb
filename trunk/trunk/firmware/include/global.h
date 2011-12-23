@@ -14,8 +14,22 @@ extern xdata u8 lastCode[2];
 //#define TRANSMIT_TEST
 //#define RECEIVE_TEST
 //////////////////////////////////////
+#define LC_USB_INITUSB                  0x2
+#define LC_MAIN_RFIF                    0xd
+#define LC_USB_DATA_RESET_RESUME        0xa
+#define LC_USB_RESET                    0xb
+#define LC_USB_EP5OUT                   0xc
+#define LC_RF_VECTOR                    0x10
+#define LC_RFTXRX_VECTOR                0x11
 
-
+#define LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN      0x1
+#define LCE_USB_EP0_SENT_STALL                  0x4
+#define LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN    0x5
+#define LCE_USB_EP5_LEN_TOO_BIG                 0x6
+#define LCE_USB_EP5_GOT_CRAP                    0x7
+#define LCE_USB_EP5_STALL                       0x8
+#define LCE_USB_DATA_LEFTOVER_FLAGS             0x9
+#define LCE_RF_RXOVF                            0x10
 
 /* board-specific defines */
 #ifdef IMME

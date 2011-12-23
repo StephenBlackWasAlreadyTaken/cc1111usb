@@ -247,7 +247,7 @@ void IdleMode(void)
 
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {   // currently dormant, in favor of DMA transfers
-    lastCode[0] = 17;
+    lastCode[0] = LC_RFTXRX_VECTOR;
 
     if(MARCSTATE == MARC_STATE_RX)
     {   // Receive Byte
@@ -276,7 +276,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 
 void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
-    lastCode[0] = 16;
+    lastCode[0] = LC_RF_VECTOR;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
 
@@ -317,6 +317,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     if(RFIF & RFIF_IRQ_RXOVF)
     {
         REALLYFASTBLINK();
+        lastCode[1] = LCE_RF_RXOVF;
         /* RX overflow, only way to get out of this is to restart receiver */
         //resetRf();
         stopRX();
