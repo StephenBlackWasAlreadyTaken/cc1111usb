@@ -48,10 +48,12 @@ extern xdata u8 lastCode[2];
 
 #define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
 #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
+#define BLOCK()     { while (1) { REALLYFASTBLINK() ; usbProcessEvents(); }  }
 
 /* function declarations */
 void sleepMillis(int ms);
 void sleepMicros(int us);
 //void blink(u16 on_cycles, u16 off_cycles);
 void blink_binary_baby_lsb(u16 num, char bits);
+int strncmp(const char *s1, const char *s2, u16 n);
 #endif

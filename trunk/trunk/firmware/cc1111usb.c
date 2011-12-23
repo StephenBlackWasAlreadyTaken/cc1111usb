@@ -38,6 +38,10 @@ xdata u16  ep0value;
 xdata DMA_DESC usbdma;
 //xdata u8 usbdmar[8];
 
+// state tracking:
+// * appstatus
+// * usb_data.usbstatus  - usb state overall...  (IDLE, SUSPEND, RESUME, RESET)
+// * ep#iobuf.ep_status  - endpoint status
 /*************************************************************************************************
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
  * the universe to explode!                                                                      *
@@ -128,6 +132,8 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
             
         if (firsttime==1){                                             // first time through only please
             //blink(100,50);
+            // FIXME:  debugging
+            REALLYFASTBLINK();
 
             firsttime=0;
             USBF5 = 0x40;
@@ -175,12 +181,12 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
 //! waitForUSBsetup() is a helper function to allow the usb stuff to settle before real app processing happens.
 void waitForUSBsetup() 
 {
-    while (USBADDR==0 && (appstatus<1))
+    while ((usb_data.usbstatus & USB_STATE_UNCONFIGURED ))
     {
         usbProcessEvents();
 
     }
-    blink(200,200);
+    //blink(200,200);
 }
 
 
@@ -194,12 +200,12 @@ void usb_init(void)
 {
     USB_RESET();
 
+
     // usb dma
     DMA1CFGH = ((u16)(&usbdma))>>8;
     DMA1CFGL = ((u16)(&usbdma))&0xff;
     usbdma.vlen = 0;
     usbdma.wordSize = 0;
-    usbdma.lenH = 0;
     usbdma.tMode = 1;
     usbdma.trig = 0;
     usbdma.irqMask = 1;
@@ -217,9 +223,11 @@ void usb_init(void)
     //USBPOW |= USBPOW_SUSPEND_EN;          // ok, no.
     USBPOW &= ~USBPOW_SUSPEND_EN;           // i don't *wanna* go to sleep if the usb bus is idle for 3ms.  at least not yet.
 
+    // set us in the "unconfigured" state
+    USBADDR = 0;
     usb_data.config = 0;                    // start out unconfigured
     usb_data.event = 0;
-    usb_data.usbstatus  = USB_STATE_IDLE;   // this tracks the status of our USB Controller
+    usb_data.usbstatus  = USB_STATE_UNCONFIGURED;   // this tracks the status of our USB Controller
 
 
     // configure EP0
@@ -234,7 +242,7 @@ void usb_init(void)
     ep0iobuf.BUFmaxlen  =  EP0_MAX_PACKET_SIZE;
 
 
-    // configure EP5 (eventually will be our data endpoint)
+    // configure EP5 (data endpoint)
     USBINDEX = 5;
     USBMAXI  = (EP5IN_MAX_PACKET_SIZE+7)>>3;    // these registers live in incrememnts of 8 bytes.  
     USBMAXO  = (EP5OUT_MAX_PACKET_SIZE+7)>>3;   // these registers live in incrememnts of 8 bytes.  
@@ -260,11 +268,12 @@ void usb_init(void)
     P0IE    = 1;                            // enable the p0 interrupt flag  (IEN1 is bit-accessible)
     IEN2    |= IEN2_USBIE;                  // enable the USB interrupt flag (IEN2 is *not* bit-accessible)
 
+    // clear interrupt flags
     USB_RESUME_INT_CLEAR();                 // P0IFG= 0; P0IF= 0
     USB_INT_CLEAR();                        // P2IFG= 0; P2IF= 0;
 
-
-    USB_INT_ENABLE();     // Enables USB Interrupts to call an ISR
+    // Enable USB Interrupts to call an ISR
+    USB_INT_ENABLE();     
 
 }
 
@@ -495,6 +504,7 @@ void usbGetConfiguration()
 void usbSetConfiguration(USB_Setup_Header* pReq)
 {
     usb_data.config = pReq->wValue & 0xff;
+    usb_data.usbstatus = USB_STATE_IDLE;
 }
 
 
@@ -777,16 +787,15 @@ void handleCS0(void)
 void handleOUTEP5(void)
 {
     // client is sending commands... or looking for information...  status... whatever...
-    u16 loop, len;
-    u8 cmd, app;
+    u16 len;
     xdata u8* ptr; 
-    xdata u8* dptr;
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
+        REALLYFASTBLINK();
         lastCode[1] = 5;
         return;
     }
@@ -809,28 +818,31 @@ void handleOUTEP5(void)
     len = (usbdma.lenH<<8)+usbdma.lenL;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
+        lastCode[1] = 6;
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         USBCSOL &= ~USBCSOL_OUTPKT_RDY;
         blink(300,200);
+        blink(300,200);
         return;
     }
-    //REALLYFASTBLINK();
-    //blink(300,200);
-    //blink_binary_baby_lsb(len, 8);
-    //for (loop=len;loop>0;loop--)
-    //{
-    //    *ptr++ = USBF5;
-    //}
 
     //  DMA Trigger
     DMAARM |= DMAARM1;
     DMAREQ |= DMAARM1;
 
-    while (!(DMAIRQ & DMAARM1));
-    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
-
     ep5iobuf.OUTlen = len;
+}
+
+void processOUTEP5(void)
+{
+    u16 loop, len;
+    u8 cmd, app;
+    xdata u8* ptr; 
+    xdata u8* dptr;
+
+    while (!(DMAIRQ & DMAARM1));
+    DMAIRQ &= ~DMAARM1;
 
     if (ep5iobuf.OUTlen >= 8)
     {
@@ -910,6 +922,7 @@ void handleOUTEP5(void)
     } else {
         lastCode[1] = 7;                                            // got crap...
     }
+    USBINDEX = 5;
     USBCSOL &= ~USBCSOL_OUTPKT_RDY;
 }
 
@@ -930,6 +943,8 @@ void usbProcessEvents(void)
         PM1();                                               // sir, if you'll not be needing me i'll close down for a while.  sure go ahead.
     }
 
+
+    // FIXME: this needs to be gone through and sorted out.
     if (usb_data.event & (USBD_CIF_RESET | USBD_CIF_RESUME)) {
         lastCode[0] = 10;
         usb_data.usbstatus = USB_STATE_RESUME;
@@ -942,7 +957,7 @@ void usbProcessEvents(void)
         sleepMillis(8);
         USBPOW &= ~USBPOW_RESUME;
 
-        usb_data.usbstatus = USB_STATE_IDLE;
+        usb_data.usbstatus = USB_STATE_IDLE;        // does this want to be USB_STATE_UNCONFIGURED??
     }
 
 
@@ -955,28 +970,39 @@ void usbProcessEvents(void)
         usb_data.event &= ~USBD_CIF_RESET;
     } 
 
+    if (usb_data.event & (USBD_IIF_EP0IF))
+    {
+        // read the packet and interpret/handle
+        handleCS0();
+        usb_data.event &= 0xfe7;
+    } 
+    
     if (usb_data.event & (USBD_OIF_OUTEP5IF))
     {
         lastCode[0] = 12;
         if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
         {
             //blink(200,200);
+            REALLYFASTBLINK();
             lastCode[1] = 8;
             ep5iobuf.epstatus = EP_STATE_IDLE;
             USBINDEX=5;
             USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
         }
-        handleOUTEP5();
+        handleOUTEP5();                             // handles the immediate read into ep5iobuf
+        processOUTEP5();                            // process the data read into ep5iobuf
         usb_data.event &= ~USBD_OIF_OUTEP5IF;
         
     }
 
+    // we don't currently queue IN data, we just send it.  probably should move to a queuing system but it takes valuable RAM.
     //if (usb_data.event & (USBD_IIF_INEP5IF))
     //{ 
     //    handleINEP5();
     //    usb_data.event &= ~USBD_IIF_INEP5IF;
     //}
 
+    // debugging if any interesting events are still left over at this point...
     if (usb_data.event & ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|
                 USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF))
     {
@@ -986,12 +1012,7 @@ void usbProcessEvents(void)
                 USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF);
     }
 
-    if (usb_data.usbstatus == USB_STATE_BLINK)
-    {
-        REALLYFASTBLINK();
-        usb_data.usbstatus = USB_STATE_IDLE;
-
-    }
+    //debug("usbprocessevents");
 
 }
 
@@ -1005,25 +1026,43 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
     while (!IS_XOSC_STABLE());
     EA=0;
 
-    //usb_data.usbstatus = USB_STATE_BLINK;
- 
     // Set event flags for interpretation by main loop.  Since these registers are cleared upon read, we OR with the existing flags
     usb_data.event |= USBCIF;
     usb_data.event |= (USBIIF << 4);
     usb_data.event |= (USBOIF << 9);
  
     // process events that are fast and not part of the main loop
-    //REALLYFASTBLINK();
-    if (usb_data.event & (USBD_IIF_EP0IF))
+    /*  this is currently handled in the main loop.  worst thing would be for us to interrupt EP5 handlers  */
+    /*if (usb_data.event & (USBD_IIF_EP0IF))
     {
         // read the packet and interpret/handle
         handleCS0();
         usb_data.event &= 0xfe7;
     } 
     
+    if (usb_data.event & (USBD_OIF_OUTEP5IF))
+    {
+        lastCode[0] = 12;
+        if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
+        {
+            //blink(200,200);
+            REALLYFASTBLINK();
+            lastCode[1] = 8;
+            ep5iobuf.epstatus = EP_STATE_IDLE;
+            USBINDEX=5;
+            USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
+        }
+        handleOUTEP5();                             // handles the immediate read into ep5iobuf
+        //processOUTEP5();                            // process the data read into ep5iobuf
+        //usb_data.event &= ~USBD_OIF_OUTEP5IF;       // this will allow more stuff to be written to EP5OUT from host...  don't clear until done handling.
+        
+    }
+    */
+    
+    //REALLYFASTBLINK();
     if (usb_data.event & (USBD_IIF_INEP5IF))
     {
-        ep5iobuf.flags &= ~EP_INBUF_WRITTEN;
+        ep5iobuf.flags &= ~EP_INBUF_WRITTEN;        // host received our message, ok to write more
         usb_data.event &= ~USBD_IIF_INEP5IF;
     }
  
@@ -1037,7 +1076,7 @@ void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as t
 {
     while (!IS_XOSC_STABLE());
     EA=0;
-    //usb_data.usbstatus = USB_STATE_BLINK;           // tell me we have an interrupt
+
     if (P0IFG & P0IFG_USB_RESUME)
         usb_data.usbstatus = USB_STATE_RESUME;
 

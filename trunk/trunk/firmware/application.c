@@ -51,6 +51,7 @@ void appMainInit(void)
  * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
+    /*  this is part of the NIC code to handle received RF packets
     xdata u8 processbuffer;
 
     if (rfif)
@@ -65,14 +66,14 @@ void appMainLoop(void)
             {
                 txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 
-                /* Set receive buffer to processed so it can be used again */
+                // Set receive buffer to processed so it can be used again //
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
             }
         }
 
         rfif = 0;
         IEN2 |= IEN2_RFIE;
-    }
+    }*/
 }
 
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
@@ -112,6 +113,9 @@ int appHandleEP5()
     return 0;
 }
 
+
+
+///////////////////////////////  EndPoint 0 Handlers /////////////////////////////////////////////
 /* in case your application cares when an OUT packet has been completely received on EP0.       */
 void appHandleEP0OUTdone(void)
 {
@@ -132,7 +136,7 @@ void appHandleEP0OUT(void)
     // for our purposes, we only pay attention to single-packet transfers.  in more complex firmwares, this may not be sufficient.
     switch (ep0req)
     {
-        case 1:     // poke
+        case EP0_CMD_POKEX:     // poke
             
             src = (xdata u8*) &ep0iobuf.OUTbuf[0];
             dst = (xdata u8*) ep0value;
@@ -163,27 +167,37 @@ int appHandleEP0(USB_Setup_Header* pReq)
     {
         switch (pReq->bRequest)
         {
-            case 0:
+            case EP0_CMD_GET_DEBUG_CODES:
                 setup_send_ep0(&lastCode[0], 2);
                 break;
-            case 1:
+            case EP0_CMD_GET_ADDRESS:
                 setup_sendx_ep0((xdata u8*)USBADDR, 40);
                 break;
-            case 2:
+            case EP0_CMD_PEEKX:
                 setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
                 break;
-            case 3:     // ping
+            case EP0_CMD_PING0:
                 setup_send_ep0((u8*)pReq, pReq->wLength);
                 break;
-            case 4:     // ping
+            case EP0_CMD_PING1:
                 setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
+                break;
+            case EP0_CMD_RESET:
+                if (strncmp((char*)&(pReq->wValue), "RSTN", 4))           // therefore, ->wValue == "RS" and ->wIndex == "TN" or no reset
+                {
+                    blink(300,300);
+                    break;   //didn't match the signature.  must have been an accident.
+                }
+
+                // implement a RESET by trigging the watchdog timer
+                WDCTL = 0x83;   // Watchdog ENABLE, Watchdog mode, 2ms until reset
                 break;
         }
     }
 #endif
     return 0;
 }
-
+//////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 /*************************************************************************************************
@@ -341,10 +355,13 @@ void main (void)
     init_RF();
     appMainInit();
 
-    usb_up();
 
     /* Enable interrupts */
     EA = 1;
+    usb_up();
+
+
+    waitForUSBsetup();
 
     while (1)
     {  
