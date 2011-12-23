@@ -53,7 +53,7 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
     u16 loop;
     u8 firsttime=1;
     USBINDEX=5;
-    //EA=0; 
+
     while (len>0)
      {
         // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
@@ -61,18 +61,13 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
         loop = TXDATA_MAX_WAIT;
         while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                   // has last msg been recvd?
         {
-            //REALLYFASTBLINK();
-            //REALLYFASTBLINK();
-            //REALLYFASTBLINK();
-            //blink(100,50);
-            lastCode[1] = 1;
-            //loop--;
+            REALLYFASTBLINK();
+            lastCode[1] = LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN;
+            loop--;
         }
-        //blink(100,50);
             
-        if (firsttime==1){                                             // first time through only please
-            //blink(100,50);
-
+        if (firsttime==1)
+        {                                             // first time through only please
             firsttime=0;
             USBF5 = 0x40;
             USBF5 = app;
@@ -84,7 +79,8 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
             else
                 loop=len;
 
-        } else {
+        } else 
+        {
             if (len>EP5IN_MAX_PACKET_SIZE)
                 loop=EP5IN_MAX_PACKET_SIZE;
             else
@@ -103,7 +99,6 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
     }
-    //EA=1;
 }
 
 void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
@@ -113,28 +108,21 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
     u16 loop;
     u8 firsttime=1;
     USBINDEX=5;
-    //EA=0; 
+
     while (len>0)
      {
         // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
         // don't know why since this bit is cleared in the USB ISR.
         loop = TXDATA_MAX_WAIT;
-        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                   // has last msg been recvd?
+        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                 // has last msg been recvd?
         {
-            //REALLYFASTBLINK();
-            //REALLYFASTBLINK();
             REALLYFASTBLINK();
-            //blink(100,50);
-            lastCode[1] = 1;
+            lastCode[1] = LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN;
             loop--;
         }
-        //blink(100,50);
             
-        if (firsttime==1){                                             // first time through only please
-            //blink(100,50);
-            // FIXME:  debugging
-            REALLYFASTBLINK();
-
+        if (firsttime==1)
+        {                                                                   // first time through only please
             firsttime=0;
             USBF5 = 0x40;
             USBF5 = app;
@@ -169,10 +157,12 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         DMAREQ |= DMAARM1;
 
         while (!(DMAIRQ & DMAARM1));
-        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
+        DMAIRQ &= ~DMAARM1;
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
+        // FIXME:  debugging
+        //REALLYFASTBLINK();
     }
     //EA=1;
 }
@@ -181,12 +171,11 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
 //! waitForUSBsetup() is a helper function to allow the usb stuff to settle before real app processing happens.
 void waitForUSBsetup() 
 {
-    while ((usb_data.usbstatus & USB_STATE_UNCONFIGURED ))
+    while ((usb_data.usbstatus == USB_STATE_UNCONFIGURED ))
     {
         usbProcessEvents();
 
     }
-    //blink(200,200);
 }
 
 
@@ -285,7 +274,7 @@ void usb_init(void)
  *************************************************************************************************/
 void initUSB(void)
 {
-    lastCode[0] = 2;
+    lastCode[0] = LC_USB_INITUSB;
     USB_ENABLE();                       // enable our usb controller
     usb_init();                         // setup the usb controller settings
 
@@ -609,7 +598,7 @@ void handleCS0(void)
     if (csReg & USBCS0_SENT_STALL) 
     {
         USBCS0 = 0x00;
-        lastCode[1] = 4;
+        lastCode[1] = LCE_USB_EP0_SENT_STALL;
         ep0iobuf.epstatus = EP_STATE_IDLE;
         blink(200,200);
     }
@@ -796,7 +785,7 @@ void handleOUTEP5(void)
         USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
         REALLYFASTBLINK();
-        lastCode[1] = 5;
+        lastCode[1] = LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN;
         return;
     }
     ep5iobuf.flags |= EP_OUTBUF_WRITTEN;                        // track that we've read into the OUTbuf
@@ -818,7 +807,7 @@ void handleOUTEP5(void)
     len = (usbdma.lenH<<8)+usbdma.lenL;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
-        lastCode[1] = 6;
+        lastCode[1] = LCE_USB_EP5_LEN_TOO_BIG;
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         USBCSOL &= ~USBCSOL_OUTPKT_RDY;
@@ -920,7 +909,7 @@ void processOUTEP5(void)
         else
             appHandleEP5();                                         // must clear this flag:   ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN; 
     } else {
-        lastCode[1] = 7;                                            // got crap...
+        lastCode[1] = LCE_USB_EP5_GOT_CRAP;                                            // got crap...
     }
     USBINDEX = 5;
     USBCSOL &= ~USBCSOL_OUTPKT_RDY;
@@ -946,7 +935,7 @@ void usbProcessEvents(void)
 
     // FIXME: this needs to be gone through and sorted out.
     if (usb_data.event & (USBD_CIF_RESET | USBD_CIF_RESUME)) {
-        lastCode[0] = 10;
+        lastCode[0] = LC_USB_DATA_RESET_RESUME;
         usb_data.usbstatus = USB_STATE_RESUME;
         usb_data.event    &= ~(USBD_CIF_RESUME);
         //}
@@ -966,7 +955,7 @@ void usbProcessEvents(void)
     if (usb_data.event & USBD_CIF_RESET || usb_data.usbstatus == USB_STATE_RESET)                // handle RESET
     { //      catching either the CIF_RESET or the USB_STATE_RESET... should normalize.. probably catching the same stuff.
         usb_init();
-        lastCode[0] = 11;
+        lastCode[0] = LC_USB_RESET;
         usb_data.event &= ~USBD_CIF_RESET;
     } 
 
@@ -979,12 +968,12 @@ void usbProcessEvents(void)
     
     if (usb_data.event & (USBD_OIF_OUTEP5IF))
     {
-        lastCode[0] = 12;
+        lastCode[0] = LC_USB_EP5OUT;
         if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
         {
             //blink(200,200);
             REALLYFASTBLINK();
-            lastCode[1] = 8;
+            lastCode[1] = LCE_USB_EP5_STALL;
             ep5iobuf.epstatus = EP_STATE_IDLE;
             USBINDEX=5;
             USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
@@ -1006,7 +995,7 @@ void usbProcessEvents(void)
     if (usb_data.event & ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|
                 USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF))
     {
-        lastCode[1] = 9;
+        lastCode[1] = LCE_USB_DATA_LEFTOVER_FLAGS;
         blink_binary_baby_lsb(usb_data.event, 16);
         usb_data.event &= ~(USBD_IIF_INEP5IF|USBD_OIF_OUTEP5IF|USBD_IIF_EP0IF|USBD_CIF_RESET|
                 USBD_CIF_RESUME|USBD_CIF_SUSPEND|USBD_CIF_SOFIF);
@@ -1042,12 +1031,12 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
     
     if (usb_data.event & (USBD_OIF_OUTEP5IF))
     {
-        lastCode[0] = 12;
+        lastCode[0] = LC_USB_EP5OUT;
         if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
         {
             //blink(200,200);
             REALLYFASTBLINK();
-            lastCode[1] = 8;
+            lastCode[1] = LCE_USB_EP5_STALL;
             ep5iobuf.epstatus = EP_STATE_IDLE;
             USBINDEX=5;
             USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
