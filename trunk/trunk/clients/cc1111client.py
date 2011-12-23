@@ -41,6 +41,15 @@ SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
 SYS_CMD_RFMODE                  = 0x85
 
+EP0_CMD_GET_DEBUG_CODES         = 0x00
+EP0_CMD_GET_ADDRESS             = 0x01
+EP0_CMD_POKEX                   = 0x01
+EP0_CMD_PEEKX                   = 0x02
+EP0_CMD_PING0                   = 0x03
+EP0_CMD_PING1                   = 0x04
+EP0_CMD_RESET                   = 0xfe
+
+
 DEBUG_CMD_STRING                = 0xf0
 DEBUG_CMD_HEX                   = 0xf1
 DEBUG_CMD_HEX16                 = 0xf2
@@ -397,12 +406,16 @@ class USBDongle:
         else:
             return x
 
+    def ep0GetAddr(self):
+        addr = self._recvEP0(request=EP0_CMD_GET_ADDRESS)
+        return addr
+
     def ep0Peek(self, addr, length, timeout=100):
-        x = self._recvEP0(request=2, value=addr, length=length, timeout=timeout)
+        x = self._recvEP0(request=EP0_CMD_PEEKX, value=addr, length=length, timeout=timeout)
         return x
 
     def ep0Poke(self, addr, buf='\x00', timeout=100):
-        x = self._sendEP0(request=1, buf=buf, value=addr, timeout=timeout)
+        x = self._sendEP0(request=EP0_CMD_POKEX, buf=buf, value=addr, timeout=timeout)
         return x
 
     def ep0Ping(self, count=10):
