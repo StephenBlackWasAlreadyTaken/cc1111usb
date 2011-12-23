@@ -302,7 +302,8 @@ class USBDongle:
                 #### now we parse, sort, and deliver the mail.
                 idx = self.recv_queue.find('@')
                 if (idx==-1):
-                    sys.stderr.write('@')
+                    if self._debug:
+                        sys.stderr.write('@')
                 else:
                     if (idx>0):
                         self.trash.append(self.recv_queue[:idx])
