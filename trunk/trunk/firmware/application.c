@@ -139,7 +139,7 @@ void appHandleEP0OUT(void)
         case EP0_CMD_POKEX:     // poke
             
             src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-            dst = (xdata u8*) ep0value;
+            dst = (xdata u8*) ep0value + 3;         // FIXME:  why does this need to be 3 off?
 
             for (loop=ep0iobuf.OUTlen; loop>0; loop--)
             {

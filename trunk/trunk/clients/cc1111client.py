@@ -412,7 +412,7 @@ class USBDongle:
 
     def ep0Peek(self, addr, length, timeout=100):
         x = self._recvEP0(request=EP0_CMD_PEEKX, value=addr, length=length, timeout=timeout)
-        return x
+        return x[3:]
 
     def ep0Poke(self, addr, buf='\x00', timeout=100):
         x = self._sendEP0(request=EP0_CMD_POKEX, buf=buf, value=addr, timeout=timeout)
