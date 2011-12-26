@@ -213,7 +213,7 @@ void usb_init(void)
     USBPOW &= ~USBPOW_SUSPEND_EN;           // i don't *wanna* go to sleep if the usb bus is idle for 3ms.  at least not yet.
 
     // set us in the "unconfigured" state
-    USBADDR = 0;
+    //USBADDR = 0;
     usb_data.config = 0;                    // start out unconfigured
     usb_data.event = 0;
     usb_data.usbstatus  = USB_STATE_UNCONFIGURED;   // this tracks the status of our USB Controller
