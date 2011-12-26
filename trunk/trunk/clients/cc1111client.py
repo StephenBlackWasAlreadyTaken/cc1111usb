@@ -299,7 +299,7 @@ class USBDongle:
             #### receive stuff.
             try:
                 #### first we populate the queue
-                msg = self._recvEP5(timeout=40)
+                msg = self._recvEP5(timeout=10)
                 if len(msg) > 0:
                     self.recv_queue += msg
                     msgrecv = True
@@ -357,7 +357,7 @@ class USBDongle:
 
 
             if not (msgsent or msgrecv or len(msg)) :
-                time.sleep(.1)
+                pass #time.sleep(.1)
             else:
                 if self._debug > 5:  sys.stderr.write(" %s:%s:%d .-P."%(msgsent,msgrecv,len(msg)))
 
@@ -447,14 +447,18 @@ class USBDongle:
     def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
         good=0
         bad=0
+        start = time.time()
         for x in range(count):
+            istart = time.time()
             r = self.send(APP_SYSTEM, SYS_CMD_PING, buf)
-            print "PING: %d bytes transmitted, received: %s"%(len(buf), repr(r))
+            istop = time.time()
+            print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
                 bad+=1
             else:
                 good+=1
-        return (good,bad)
+        stop = time.time()
+        return (good,bad,stop-start)
 
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
