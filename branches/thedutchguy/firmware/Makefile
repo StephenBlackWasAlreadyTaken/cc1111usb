@@ -1,11 +1,11 @@
 CC=sdcc
-CFLAGS=-Iinclude -V
+CFLAGS=-Iinclude
 CFLAGSold=--no-pack-iram $(CF)
 LFLAGS=--xram-loc 0xF000 
 
 apps = cc1111rf.rel global.rel
 libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel
-libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel
+libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel 
 #srcs = $(libs,.rel=.c) 
 
 
