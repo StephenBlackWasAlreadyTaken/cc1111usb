@@ -103,13 +103,13 @@ void appMainLoop(void)
 int appHandleEP5()
 {
     uint8_t app, cmd;
-    u16 len;
+    uint16_t len;
     xdata uint8_t *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
-    len = (u16)*buf;
+    len = (uint16_t)*buf;
     buf += 2;                                               // point at the address in memory
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
@@ -212,7 +212,6 @@ static void io_init(void)
 #endif
 }
 
-#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_STB)
 void clock_init(void){
     //  SET UP CPU SPEED!  USE 26MHz
     // Set the system clock source to HS XOSC and max CPU speed,
