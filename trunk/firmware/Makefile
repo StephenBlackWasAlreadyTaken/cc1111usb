@@ -30,9 +30,11 @@ testrecv: testrecvapplication.hex
 testxmit: testxmitapplication.hex
 
 %.relc : %.c
-	$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c $<
+
 %.reld : %.c
 	$(CC) $(CFLAGS) -DDONSDONGLES -c $<
+
 %.reli : %.c
 	$(CC) $(CFLAGS) -DIMMEDONGLE -DIMME -c $<
 
@@ -148,6 +150,8 @@ installtestxmitfw: testxmitapplication.hex
 
 
 testall: chronosapplication.hex donsapplication.hex immedongleapplication.hex testrecvusb.hex testxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+
+# testing should see that each enumerates correctly in linux
 
 verify: chronosapplication.hex
 	goodfet.cc verify bins/application.hex
