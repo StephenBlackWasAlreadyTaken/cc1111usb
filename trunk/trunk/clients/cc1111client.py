@@ -2,6 +2,10 @@
 import sys, usb, threading, time, struct
 from chipcondefs import *
 
+EP_TIMEOUT_IDLE     = 400
+EP_TIMEOUT_ACTIVE   = 10
+
+
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
 USB_BM_REQTYPE_TGT_INTF         =0x01
@@ -174,6 +178,7 @@ class USBDongle:
         self._do = d.open()
         self._do.claimInterface(0)
         self._threadGo = True
+        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
         self._do=None
@@ -183,6 +188,7 @@ class USBDongle:
                 self.setup(console)
             except:
                 if console: sys.stderr.write('.')
+                time.sleep(.4)
 
 
 
@@ -299,7 +305,7 @@ class USBDongle:
             #### receive stuff.
             try:
                 #### first we populate the queue
-                msg = self._recvEP5(timeout=10)
+                msg = self._recvEP5(timeout=self.ep5timeout)
                 if len(msg) > 0:
                     self.recv_queue += msg
                     msgrecv = True
@@ -357,8 +363,10 @@ class USBDongle:
 
 
             if not (msgsent or msgrecv or len(msg)) :
-                pass #time.sleep(.1)
+                #time.sleep(.1)
+                self.ep5timeout = EP_TIMEOUT_IDLE
             else:
+                self.ep5timeout = EP_TIMEOUT_ACTIVE
                 if self._debug > 5:  sys.stderr.write(" %s:%s:%d .-P."%(msgsent,msgrecv,len(msg)))
 
 
