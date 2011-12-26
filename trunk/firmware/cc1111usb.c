@@ -949,6 +949,21 @@ void usbProcessEvents(void)
         usb_data.usbstatus = USB_STATE_IDLE;        // does this want to be USB_STATE_UNCONFIGURED??
     }
 
+    USBINDEX = 0;
+    if (USBCS0 & (USBCS0_SENT_STALL))
+    {
+        USBCS0 &= ~(USBCS0_SEND_STALL | USBCS0_SENT_STALL);
+    }
+    USBINDEX = 5;
+    if (USBCSIL & (USBCSIL_SENT_STALL))
+    {
+        USBCSIL &= ~(USBCSIL_SEND_STALL | USBCSIL_SENT_STALL);
+    }
+    if (USBCSOL & (USBCSOL_SENT_STALL))
+    {
+        USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
+    }
+
 
     // usb_data.event accumulates the event flags.  *as they are handled, make sure you clear them!*
 
