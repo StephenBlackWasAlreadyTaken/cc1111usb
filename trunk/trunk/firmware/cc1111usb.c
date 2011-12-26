@@ -953,15 +953,24 @@ void usbProcessEvents(void)
     if (USBCS0 & (USBCS0_SENT_STALL))
     {
         USBCS0 &= ~(USBCS0_SEND_STALL | USBCS0_SENT_STALL);
+        ep0iobuf.INbytesleft = 0;
+        ep0iobuf.OUTlen = 0;
+        ep0iobuf.epstatus = EP_STATE_IDLE;
     }
     USBINDEX = 5;
     if (USBCSIL & (USBCSIL_SENT_STALL))
     {
         USBCSIL &= ~(USBCSIL_SEND_STALL | USBCSIL_SENT_STALL);
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        ep5iobuf.epstatus = EP_STATE_IDLE;          // not sure about this.  perhaps check to see if state us RX or TX?
     }
     if (USBCSOL & (USBCSOL_SENT_STALL))
     {
         USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        ep5iobuf.epstatus = EP_STATE_IDLE;          // not sure about this.  perhaps check to see if state us RX or TX?
     }
 
 
