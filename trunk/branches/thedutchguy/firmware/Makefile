@@ -1,5 +1,5 @@
 CC=sdcc
-CFLAGS=-Iinclude
+CFLAGS=-Iinclude -V
 CFLAGSold=--no-pack-iram $(CF)
 LFLAGS=--xram-loc 0xF000 
 

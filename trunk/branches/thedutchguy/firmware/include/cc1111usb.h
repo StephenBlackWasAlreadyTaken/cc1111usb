@@ -10,6 +10,134 @@
 //   #define     EP5_MAX_PACKET_SIZE     255
         // note: descriptor needs to be adjusted to match EP5_MAX_PACKET_SIZE
 
+#define     CMD_PEEK        0x80
+#define     CMD_POKE        0x81
+#define     CMD_PING        0x82
+#define     CMD_STATUS      0x83
+#define     CMD_POKE_REG    0x84
+#define     CMD_RFMODE      0x85
+
+#define     EP0_CMD_GET_DEBUG_CODES         0x00
+#define     EP0_CMD_GET_ADDRESS             0x01
+#define     EP0_CMD_POKEX                   0x01    // only for OUT requests
+#define     EP0_CMD_PEEKX                   0x02
+#define     EP0_CMD_PING0                   0x03
+#define     EP0_CMD_PING1                   0x04
+#define     EP0_CMD_RESET                   0xfe
+
+#define     DEBUG_CMD_STRING    0xf0
+#define     DEBUG_CMD_HEX       0xf1
+#define     DEBUG_CMD_HEX16     0xf2
+#define     DEBUG_CMD_HEX32     0xf3
+#define     DEBUG_CMD_INT       0xf4
+
+#define EP_INBUF_WRITTEN        1
+#define EP_OUTBUF_WRITTEN       2
+
+
+// usb_data bits
+#define USBD_CIF_SUSPEND        (uint16_t)0x1
+#define USBD_CIF_RESUME         (uint16_t)0x2
+#define USBD_CIF_RESET          (uint16_t)0x4
+#define USBD_CIF_SOFIF          (uint16_t)0x8
+#define USBD_IIF_EP0IF          (uint16_t)0x10
+#define USBD_IIF_INEP1IF        (uint16_t)0x20
+#define USBD_IIF_INEP2IF        (uint16_t)0x40
+#define USBD_IIF_INEP3IF        (uint16_t)0x80
+#define USBD_IIF_INEP4IF        (uint16_t)0x100
+#define USBD_IIF_INEP5IF        (uint16_t)0x200
+#define USBD_OIF_OUTEP1IF       (uint16_t)0x400
+#define USBD_OIF_OUTEP2IF       (uint16_t)0x800
+#define USBD_OIF_OUTEP3IF       (uint16_t)0x1000
+#define USBD_OIF_OUTEP4IF       (uint16_t)0x2000
+#define USBD_OIF_OUTEP5IF       (uint16_t)0x4000
+
+#define TXDATA_MAX_WAIT         100
+
+//TODO, port following defines to new cc1111.h
+#define  EP_STATE_IDLE      0
+#define  EP_STATE_TX        1
+#define  EP_STATE_RX        2
+#define  EP_STATE_STALL     3
+
+#define USB_STATE_UNCONFIGURED 0
+#define USB_STATE_IDLE      1
+#define USB_STATE_SUSPEND   2
+#define USB_STATE_RESUME    3
+#define USB_STATE_RESET     4
+#define USB_STATE_WAIT_ADDR 5
+#define USB_STATE_BLINK     0xff
+
+// Request Types (bmRequestType)
+#define USB_BM_REQTYPE_TGTMASK          0x1f
+#define USB_BM_REQTYPE_TGT_DEV          0x00
+#define USB_BM_REQTYPE_TGT_INTF         0x01
+#define USB_BM_REQTYPE_TGT_EP           0x02
+#define USB_BM_REQTYPE_TYPEMASK         0x60
+#define USB_BM_REQTYPE_TYPE_STD         0x00
+#define USB_BM_REQTYPE_TYPE_CLASS       0x20
+#define USB_BM_REQTYPE_TYPE_VENDOR      0x40
+#define USB_BM_REQTYPE_TYPE_RESERVED    0x60
+#define USB_BM_REQTYPE_DIRMASK          0x80
+#define USB_BM_REQTYPE_DIR_OUT          0x00
+#define USB_BM_REQTYPE_DIR_IN           0x80
+// Standard Requests (bRequest)
+#define USB_GET_STATUS                  0x00
+#define USB_CLEAR_FEATURE               0x01
+#define USB_SET_FEATURE                 0x03
+#define USB_SET_ADDRESS                 0x05
+#define USB_GET_DESCRIPTOR              0x06
+#define USB_SET_DESCRIPTOR              0x07
+#define USB_GET_CONFIGURATION           0x08
+#define USB_SET_CONFIGURATION           0x09
+#define USB_GET_INTERFACE               0x0a
+#define USB_SET_INTERFACE               0x11
+#define USB_SYNCH_FRAME                 0x12
+
+// Descriptor Types
+#define USB_DESC_DEVICE                 0x01
+#define USB_DESC_CONFIG                 0x02
+#define USB_DESC_STRING                 0x03
+#define USB_DESC_INTERFACE              0x04
+
+// USB activities
+#define USB_ENABLE_PIN              P1_0
+//#define USB_ENABLE_PIN              P1_1
+#define NOP()                       __asm; nop; __endasm;
+#define USB_DISABLE()               SLEEP &= ~SLEEP_USB_EN;
+#define USB_ENABLE()                SLEEP |= SLEEP_USB_EN;
+#define USB_RESET()                 USB_DISABLE(); NOP(); USB_ENABLE();
+#define USB_INT_ENABLE()            IEN2|= 0x02;
+#define USB_INT_DISABLE()           IEN2&= ~0x02;
+#define USB_INT_CLEAR()             P2IFG= 0; P2IF= 0;
+
+#define USB_PULLUP_ENABLE()         USB_ENABLE_PIN = 1;
+#define USB_PULLUP_DISABLE()        USB_ENABLE_PIN = 0;
+
+#define USB_RESUME_INT_ENABLE()     P0IE= 1
+#define USB_RESUME_INT_DISABLE()    P0IE= 0
+#define USB_RESUME_INT_CLEAR()      P0IFG= 0; P0IF= 0
+#define PM1()                       SLEEP |= 1
+
+#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_STB)
+
+SFRX(USBF0,     0xDE20);        // Endpoint 0 FIFO
+SFRX(USBF1,     0xDE22);        // Endpoint 1 FIFO
+SFRX(USBF2,     0xDE24);        // Endpoint 2 FIFO
+SFRX(USBF3,     0xDE26);        // Endpoint 3 FIFO
+SFRX(USBF4,     0xDE28);        // Endpoint 4 FIFO
+SFRX(USBF5,     0xDE2A);        // Endpoint 5 FIFO
+
+// Power/Control Register
+#define USBPOW_SUSPEND_EN       0x01    //rw
+#define USBPOW_SUSPEND          0x02    //r
+#define USBPOW_RESUME           0x04    //rw
+#define USBPOW_RST              0x08    //r
+#define USBPOW_ISO_WAIT_SOF     0x80    //rw
+
+#define PICTL_P0ICON                      0x01
+#define PICTL_P0IENH                      0x10
+
 typedef struct {
     uint8_t   usbstatus;
     uint16_t  event;
@@ -132,31 +260,10 @@ void waitForUSBsetup();
 // export as this *must* be in main loop.
 void usbProcessEvents(void);
 
-
-
-#define EP_INBUF_WRITTEN        1
-#define EP_OUTBUF_WRITTEN       2
-
-
-// usb_data bits
-#define USBD_CIF_SUSPEND        (uint16_t)0x1
-#define USBD_CIF_RESUME         (uint16_t)0x2
-#define USBD_CIF_RESET          (uint16_t)0x4
-#define USBD_CIF_SOFIF          (uint16_t)0x8
-#define USBD_IIF_EP0IF          (uint16_t)0x10
-#define USBD_IIF_INEP1IF        (uint16_t)0x20
-#define USBD_IIF_INEP2IF        (uint16_t)0x40
-#define USBD_IIF_INEP3IF        (uint16_t)0x80
-#define USBD_IIF_INEP4IF        (uint16_t)0x100
-#define USBD_IIF_INEP5IF        (uint16_t)0x200
-#define USBD_OIF_OUTEP1IF       (uint16_t)0x400
-#define USBD_OIF_OUTEP2IF       (uint16_t)0x800
-#define USBD_OIF_OUTEP3IF       (uint16_t)0x1000
-#define USBD_OIF_OUTEP4IF       (uint16_t)0x2000
-#define USBD_OIF_OUTEP5IF       (uint16_t)0x4000
-
-#define TXDATA_MAX_WAIT         100
-
+// provided by user application
+void appHandleEP0OUTdone(void);
+int appHandleEP0(USB_Setup_Header* pReq);
+int appHandleEP5();
 
 // setup Config Descriptor  (see cc1111.h for defaults and fields to change)
 // all numbers are lsb.  modify this for your own use.
@@ -271,31 +378,5 @@ __asm
                .DB  0xff
 __endasm;
 }
-
-// provided by user application
-void appHandleEP0OUTdone(void);
-int appHandleEP0(USB_Setup_Header* pReq);
-int appHandleEP5();
-
-#define     CMD_PEEK        0x80
-#define     CMD_POKE        0x81
-#define     CMD_PING        0x82
-#define     CMD_STATUS      0x83
-#define     CMD_POKE_REG    0x84
-#define     CMD_RFMODE      0x85
-
-#define     EP0_CMD_GET_DEBUG_CODES         0x00
-#define     EP0_CMD_GET_ADDRESS             0x01
-#define     EP0_CMD_POKEX                   0x01    // only for OUT requests
-#define     EP0_CMD_PEEKX                   0x02
-#define     EP0_CMD_PING0                   0x03
-#define     EP0_CMD_PING1                   0x04
-#define     EP0_CMD_RESET                   0xfe
-
-#define     DEBUG_CMD_STRING    0xf0
-#define     DEBUG_CMD_HEX       0xf1
-#define     DEBUG_CMD_HEX16     0xf2
-#define     DEBUG_CMD_HEX32     0xf3
-#define     DEBUG_CMD_INT       0xf4
 
 #endif

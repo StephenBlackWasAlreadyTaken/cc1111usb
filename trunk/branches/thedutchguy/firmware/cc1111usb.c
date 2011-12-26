@@ -30,9 +30,7 @@ xdata USB_EP_IO_BUF     ep0iobuf;
 xdata USB_EP_IO_BUF     ep5iobuf;
 xdata uint8_t appstatus;
 
-//xdata dmacfg_t usbdma;
-xdata DMA_DESC usbdma;
-//xdata uint8_t usbdmar[8];
+static xdata struct cc_dma_channel usbDMA;
 
 /*************************************************************************************************
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
@@ -146,7 +144,7 @@ void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr)     
 
         len -= loop;
 
-        DMAARM |= 0x80 + DMAARM1;
+        /*DMAARM |= 0x80 + DMAARM1;
         usbdma.srcAddrH = ((uint16_t)dataptr)>>8;
         usbdma.srcAddrL = ((uint16_t)dataptr)&0xff;
         usbdma.destAddrH = 0xde;     //USBF5 == 0xde2a
@@ -159,7 +157,32 @@ void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr)     
         DMAREQ |= DMAARM1;
 
         while (!(DMAIRQ & DMAARM1));
-        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
+        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?*/
+
+    	while ((DMAIRQ & DMAARM_DMAARM1));
+    	DMAARM |= 0x80 + DMAARM_DMAARM1;
+		usbDMA.src_high = ((uint16_t)dataptr)>>8;
+		usbDMA.src_low = ((uint16_t)dataptr)&0xff;
+		usbDMA.dst_high = 0xde;
+		usbDMA.dst_low = 0x2a;
+		usbDMA.len_high = 0;
+		usbDMA.len_low = loop;
+		usbDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
+					DMA_CFG0_TMODE_BLOCK |
+					DMA_CFG0_TRIGGER_NONE; 
+		usbDMA.cfg1 = DMA_CFG1_SRCINC_1 |
+					DMA_CFG1_DESTINC_0 |
+					DMA_CFG1_IRQMASK |
+					DMA_CFG1_PRIORITY_HIGH;
+    	DMA1CFGH = ((uint16_t)(&usbDMA))>>8;
+    	DMA1CFGL = ((uint16_t)(&usbDMA))&0xff;
+        
+		DMAARM |= DMAARM_DMAARM1;
+        DMAREQ |= DMAARM_DMAARM1;
+
+        while (!(DMAIRQ & DMAARM_DMAARM1));
+        DMAIRQ &= ~DMAARM_DMAARM1;             
+
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
@@ -191,16 +214,16 @@ void usb_init(void)
     USB_RESET();
 
     // usb dma
-    DMA1CFGH = ((uint16_t)(&usbdma))>>8;
-    DMA1CFGL = ((uint16_t)(&usbdma))&0xff;
-    usbdma.vlen = 0;
-    usbdma.wordSize = 0;
-    usbdma.lenH = 0;
-    usbdma.tMode = 1;
-    usbdma.trig = 0;
-    usbdma.irqMask = 1;
-    usbdma.m8 = 0;
-    usbdma.priority = 1;
+    //DMA1CFGH = ((uint16_t)(&usbdma))>>8;
+    //DMA1CFGL = ((uint16_t)(&usbdma))&0xff;
+    //usbdma.vlen = 0;
+    //usbdma.wordSize = 0;
+    //usbdma.lenH = 0;
+    //usbdma.tMode = 1;
+    //usbdma.trig = 0;
+    //usbdma.irqMask = 1;
+    //usbdma.m8 = 0;
+    //usbdma.priority = 1;
     // when used, the following must be set before triggering:
     // usbdma.srcaddr
     // usbdma.dstaddr
@@ -771,19 +794,35 @@ void handleOUTEP5(void)
 
     // setup DMA
     ptr = &ep5iobuf.OUTbuf[0];
-    while ((DMAIRQ & DMAARM1))
+    while ((DMAIRQ & DMAARM_DMAARM1))
         blink(20,20);
-    DMAARM |= 0x80 + DMAARM1;
-    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    DMAARM |= 0x80 + DMAARM_DMAARM1;
+    /*usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
     usbdma.srcAddrL = 0x2a;
     usbdma.destAddrH = ((uint16_t)ptr)>>8;
     usbdma.destAddrL = ((uint16_t)ptr)&0xff;
     usbdma.srcInc = 0;
     usbdma.destInc = 1;
     usbdma.lenL = USBCNTL;
-    usbdma.lenH = USBCNTH;
+    usbdma.lenH = USBCNTH;*/
 
-    len = (usbdma.lenH<<8)+usbdma.lenL;
+	usbDMA.src_high = 0xde;
+	usbDMA.src_low = 0x2a;
+	usbDMA.dst_high = ((uint16_t)ptr)>>8;
+	usbDMA.dst_low = ((uint16_t)ptr)&0xff;
+	usbDMA.len_high = USBCNTH;
+	usbDMA.len_low = USBCNTL;
+	usbDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
+				DMA_CFG0_TMODE_BLOCK |
+				DMA_CFG0_TRIGGER_NONE; 
+	usbDMA.cfg1 = DMA_CFG1_SRCINC_0 |
+				DMA_CFG1_DESTINC_1 |
+				DMA_CFG1_IRQMASK |
+				DMA_CFG1_PRIORITY_HIGH;
+    DMA1CFGH = ((uint16_t)(&usbDMA))>>8;
+    DMA1CFGL= ((uint16_t)(&usbDMA))&0xff;
+    
+	len = (usbDMA.len_high<<8)+usbDMA.len_low;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         ep5iobuf.epstatus = EP_STATE_STALL;
@@ -801,11 +840,11 @@ void handleOUTEP5(void)
     //}
 
     //  DMA Trigger
-    DMAARM |= DMAARM1;
-    DMAREQ |= DMAARM1;
+    DMAARM |= DMAARM_DMAARM1;
+    DMAREQ |= DMAARM_DMAARM1;
 
-    while (!(DMAIRQ & DMAARM1));
-    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
+    while (!(DMAIRQ & DMAARM_DMAARM1));
+    DMAIRQ &= ~DMAARM_DMAARM1;             // FIXME: superfuous?
 
     ep5iobuf.OUTlen = len;
 
@@ -875,7 +914,7 @@ void handleOUTEP5(void)
                             setRFIdle();  
                             break;
                         case RF_STATE_TX:
-                            transmit(ptr, len);  
+                            transmit(ptr, len, 1);  
                             break;
                     }
                 default:
