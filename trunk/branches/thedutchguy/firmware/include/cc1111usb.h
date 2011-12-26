@@ -99,6 +99,7 @@
 #define USB_DESC_CONFIG                 0x02
 #define USB_DESC_STRING                 0x03
 #define USB_DESC_INTERFACE              0x04
+#define USB_DESC_ENDPOINT               0x05
 
 // USB activities
 #define USB_ENABLE_PIN              P1_0
@@ -118,8 +119,6 @@
 #define USB_RESUME_INT_DISABLE()    P0IE= 0
 #define USB_RESUME_INT_CLEAR()      P0IFG= 0; P0IF= 0
 #define PM1()                       SLEEP |= 1
-
-#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_STB)
 
 SFRX(USBF0,     0xDE20);        // Endpoint 0 FIFO
 SFRX(USBF1,     0xDE22);        // Endpoint 1 FIFO
@@ -152,7 +151,7 @@ typedef struct {
     uint16_t  BUFmaxlen;
     volatile uint8_t   flags;
     uint8_t   epstatus;
-    //xdata uint8_t*  reg;
+    //__xdata uint8_t*  reg;
     //void*   OUTDONE_handle;                                     // this is a function pointer which is called when the OUT transfer is done.  i may destroy this.
 } USB_EP_IO_BUF;
 
@@ -236,20 +235,20 @@ typedef struct USB_Request_Type {
 
 // extern global variables
 extern USB_STATE usb_data;
-extern xdata uint8_t  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
-extern xdata uint8_t  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
-extern xdata USB_EP_IO_BUF     ep0iobuf;
-extern xdata USB_EP_IO_BUF     ep5iobuf;
-extern xdata uint8_t appstatus;
+extern __xdata uint8_t  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
+extern __xdata uint8_t  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
+extern __xdata USB_EP_IO_BUF     ep0iobuf;
+extern __xdata USB_EP_IO_BUF     ep5iobuf;
+extern __xdata uint8_t appstatus;
 
 // provided by cc1111usb.c
-void usbIntHandler(void) interrupt P2INT_VECTOR;
-void p0IntHandler(void) interrupt P0INT_VECTOR;
+void usbIntHandler(void) __interrupt P2INT_VECTOR;
+void p0IntHandler(void) __interrupt P0INT_VECTOR;
 void clock_init(void);
 void txdataold(uint8_t app, uint8_t cmd, uint16_t len, uint8_t* dataptr);
-void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr);
+void txdata(uint8_t app, uint8_t cmd, uint16_t len, __xdata uint8_t* dataptr);
 int setup_send_ep0(uint8_t* payload, uint16_t length);
-int setup_sendx_ep0(xdata uint8_t* payload, uint16_t length);
+int setup_sendx_ep0(__xdata uint8_t* payload, uint16_t length);
 uint16_t usb_recv_ep0OUT();
 
 uint16_t usb_recv_epOUT(uint8_t epnum, USB_EP_IO_BUF* epiobuf);
@@ -265,118 +264,5 @@ void appHandleEP0OUTdone(void);
 int appHandleEP0(USB_Setup_Header* pReq);
 int appHandleEP5();
 
-// setup Config Descriptor  (see cc1111.h for defaults and fields to change)
-// all numbers are lsb.  modify this for your own use.
-void USBDESCBEGIN(void){
-__asm
-0001$:    ; Device descriptor
-               .DB 0002$ - 0001$     ; bLength 
-               .DB USB_DESC_DEVICE   ; bDescriptorType
-               .DB 0x00, 0x02        ; bcdUSB
-               .DB 0x02              ; bDeviceClass i
-               .DB 0x00              ; bDeviceSubClass
-               .DB 0x00              ; bDeviceProtocol
-               .DB EP0_MAX_PACKET_SIZE ;   EP0_PACKET_SIZE
-               .DB 0x51, 0x04        ; idVendor Texas Instruments
-               .DB 0x15, 0x47        ; idProduct CC1111
-               .DB 0x01, 0x00        ; bcdDevice             (change to hardware version)
-               .DB 0x01              ; iManufacturer
-               .DB 0x02              ; iProduct
-               .DB 0x03              ; iSerialNumber
-               .DB 0x01              ; bNumConfigurations
-0002$:     ; Configuration descriptor
-               .DB 0003$ - 0002$     ; bLength
-               .DB USB_DESC_CONFIG   ; bDescriptorType
-               .DB 0006$ - 0002$     ; 
-               .DB 00
-               .DB 0x01              ; NumInterfaces
-               .DB 0x01              ; bConfigurationValue  - should be nonzero
-               .DB 0x00              ; iConfiguration
-               .DB 0x80              ; bmAttributes
-               .DB 0xfa              ; MaxPower
-0003$: ; Interface descriptor
-               .DB 0004$ - 0003$           ; bLength
-               .DB USB_DESC_INTERFACE      ; bDescriptorType
-               .DB 0x00                    ; bInterfaceNumber
-               .DB 0x00                    ; bAlternateSetting
-               .DB 0x02                    ; bNumEndpoints
-               .DB 0xff                    ; bInterfaceClass
-               .DB 0xff                    ; bInterfaceSubClass
-               .DB 0x01                    ; bInterfaceProcotol
-               .DB 0x00                    ; iInterface
-0004$:  ; Endpoint descriptor (EP5 IN)
-               .DB 0005$ - 0004$           ; bLength
-               .DB USB_DESC_ENDPOINT       ; bDescriptorType
-               .DB 0x85                    ; bEndpointAddress
-               .DB 0x02                    ; bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
-               ;//.DB 0xf4, 0x01              ; wMaxPacketSize
-               ;//.DB 0x00, 0x02              ; wMaxPacketSize
-               .DB 0xff, 0x00              ; wMaxPacketSize
-               .DB 0x01                    ; bInterval
-0005$:  ; Endpoint descriptor (EP5 OUT)
-               .DB 0006$ - 0005$           ; bLength
-               .DB USB_DESC_ENDPOINT       ; bDescriptorType
-               .DB 0x05                    ; bEndpointAddress
-               .DB 0x02                    ; bmAttributes
-               .DB 0xff, 0x00              ; wMaxPacketSize
-               ;//.DB 0x00, 0x02              ; wMaxPacketSize
-               .DB 0x01                    ; bInterval
-0006$:    ; Language ID
-               .DB 0007$ - 0006$           ; bLength
-               .DB USB_DESC_STRING         ; bDescriptorType
-               .DB 0x09                    ; US-EN
-               .DB 0x04
-0007$:    ; Manufacturer
-               .DB 0008$ - 0007$           ; bLength
-               .DB USB_DESC_STRING         ; bDescriptorType
-               .DB "a", 0
-               .DB "t", 0
-               .DB "l", 0
-               .DB "a", 0
-               .DB "s", 0
-               .DB " ", 0
-               .DB "i", 0
-               .DB "n", 0
-               .DB "s", 0
-               .DB "t", 0
-               .DB "r", 0
-               .DB "u", 0
-               .DB "m", 0
-               .DB "e", 0
-               .DB "n", 0
-               .DB "t", 0
-               .DB "s", 0
-0008$:    ; Product
-               .DB 0009$ - 0008$             ; bLength
-               .DB USB_DESC_STRING           ; bDescriptorType
-               .DB "C", 0
-               .DB "C", 0
-               .DB "1", 0
-               .DB "1", 0
-               .DB "1", 0
-               .DB "1", 0
-               .DB " ", 0
-               .DB "U", 0
-               .DB "S", 0
-               .DB "B", 0
-               .DB " ", 0
-               .DB "K", 0
-               .DB "i", 0
-               .DB "c", 0
-               .DB "k", 0
-               .DB "a", 0
-               .DB "s", 0
-               .DB "s", 0
-0009$:   ;; Serial number
-               .DB 0010$ - 0009$            ;; bLength
-               .DB USB_DESC_STRING          ;; bDescriptorType
-               .DB "0", 0
-               .DB "0", 0
-               .DB "1", 0
-0010$:
-               .DB  0
-               .DB  0xff
-__endasm;
-}
-
+void USBDESCBEGIN(void);
 #endif

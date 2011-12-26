@@ -42,10 +42,10 @@ void appMainInit(void)
  * please do not block if you want USB to work.                                                 */
 void appMainLoop(void)
 {
-	xdata uint8_t processbuffer;
+	__xdata uint8_t processbuffer;
 
 #ifdef TRANSMIT_TEST
-	xdata uint8_t u8Packet[13];
+	__xdata uint8_t u8Packet[13];
 
 	 /* Send a packet */
 	u8Packet[0] = 0x0B;
@@ -95,7 +95,7 @@ void appMainLoop(void)
  *  * your data is in ep5iobuf.OUTbuf, the length is ep5iobuf.OUTlen, and the first two bytes are
  *      going to be \x40\xe0.  just craft your application to ignore those bytes, as i have ni
  *      puta idea what they do.  
- *  * transmit data back to the client-side app through txdatai().  this function immediately 
+ *  * transmit data back to the client-side app through t__xdatai().  this function immediately 
  *      xmits as soon as any previously transmitted data is out of the buffer (ie. it blocks 
  *      while (ep5iobuf.flags & EP_INBUF_WRITTEN) and then transmits.  this flag is then set, and 
  *      cleared by an interrupt when the data has been received on the host side.                */
@@ -104,7 +104,7 @@ int appHandleEP5()
 {
     uint8_t app, cmd;
     uint16_t len;
-    xdata uint8_t *buf;
+    __xdata uint8_t *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
@@ -143,10 +143,10 @@ int appHandleEP0(USB_Setup_Header* pReq)
                 setup_send_ep0(&lastCode[0], 2);
                 break;
             case 1:
-                setup_sendx_ep0((xdata uint8_t*)USBADDR, 40);
+                setup_sendx_ep0((__xdata uint8_t*)USBADDR, 40);
                 break;
             case 2:
-                setup_sendx_ep0((xdata uint8_t*)pReq->wValue, pReq->wLength);
+                setup_sendx_ep0((__xdata uint8_t*)pReq->wValue, pReq->wLength);
                 break;
 
         }

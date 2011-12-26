@@ -36,7 +36,7 @@ void vcom(char* buff);
 void vcom_up();
 void vcom_down();
 
-void txdata(uint8_t app, uint8_t cmd, uint16_t len, xdata uint8_t* dataptr);
+void txdata(uint8_t app, uint8_t cmd, uint16_t len, __xdata uint8_t* dataptr);
 
 // End external interface
 

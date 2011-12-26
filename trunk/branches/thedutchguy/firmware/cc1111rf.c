@@ -5,18 +5,18 @@
 #include <string.h>
 
 /* Rx buffers */
-volatile xdata uint8_t rfRxCurrentBuffer;
-volatile xdata uint8_t rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
-volatile xdata uint8_t rfRxCounter[BUFFER_AMOUNT];
-volatile xdata uint8_t rfRxProcessed[BUFFER_AMOUNT];
-volatile xdata uint8_t bRxDMA;
+volatile __xdata uint8_t rfRxCurrentBuffer;
+volatile __xdata uint8_t rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
+volatile __xdata uint8_t rfRxCounter[BUFFER_AMOUNT];
+volatile __xdata uint8_t rfRxProcessed[BUFFER_AMOUNT];
+volatile __xdata uint8_t bRxDMA;
 /* Tx buffers */
-volatile xdata uint8_t rftxbuf[BUFFER_SIZE];
-volatile xdata uint8_t rfTxCounter = 0;
+volatile __xdata uint8_t rftxbuf[BUFFER_SIZE];
+volatile __xdata uint8_t rfTxCounter = 0;
 
 uint8_t rfif;
-volatile xdata uint8_t rf_status;
-static xdata struct cc_dma_channel rfDMA;
+volatile __xdata uint8_t rf_status;
+static __xdata struct cc_dma_channel rfDMA;
 
 /*************************************************************************************************
  * RF init stuff                                                                                 *
@@ -148,7 +148,7 @@ int waitRSSI()
 }
 
 /* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
-uint8_t transmit(xdata uint8_t* buf, uint16_t len, uint8_t bDma)
+uint8_t transmit(__xdata uint8_t* buf, uint16_t len, uint8_t bDma)
 {
 	/* Put radio into idle state */
 	setRFIdle();
@@ -203,7 +203,7 @@ uint8_t transmit(xdata uint8_t* buf, uint16_t len, uint8_t bDma)
 //			break;
 //		}
 //	}
-    #define nop() _asm nop _endasm;
+    #define nop() __asm nop __endasm;
     
     /* Arm DMA channel */
     if(bDma)
@@ -327,7 +327,7 @@ void RxIdle(void)
     }
 }
 
-void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
+void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {
     lastCode[1] = 17;
 
@@ -350,7 +350,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 }
 
 
-void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
+void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
     lastCode[1] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
