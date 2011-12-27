@@ -1,4 +1,5 @@
 #include "cc1111usbdebug.h"
+#include "cc1111usb.h"
 
 /*************************************************************************************************
  * debug stuff.  slows executions.                                                               *
@@ -26,22 +27,22 @@ void debug(__code uint8_t* text)
     __code uint8_t* ptr = text;
     while (*ptr++ != 0)
         len ++;
-    //txdata(0xfe, 0xf0, len, (__xdata uint8_t*)text);
+    txdata(0xfe, 0xf0, len, (__xdata uint8_t*)text);
 }
 
-void debughex(uint8_t num)
+void debughex(__xdata uint8_t num)
 {
-    //txdata(0xfe, DEBUG_CMD_HEX, 1, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX, 1, (__xdata uint8_t*)&num);
 }
 
-void debughex16(uint16_t num)
+void debughex16(__xdata uint16_t num)
 {
-    //txdata(0xfe, DEBUG_CMD_HEX16, 2, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX16, 2, (__xdata uint8_t*)&num);
 }
 
-void debughex32(uint32_t num)
+void debughex32(__xdata uint32_t num)
 {
-    //txdata(0xfe, DEBUG_CMD_HEX32, 4, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX32, 4, (__xdata uint8_t*)&num);
 }
  
 
