@@ -43,7 +43,7 @@ void appMainInit(void)
     loopCnt = 0;
     xmitCnt = 1;
 
-    RxMode();
+    //RxMode();
     //startRX();
 }
 
@@ -350,15 +350,15 @@ void main (void)
 {
     initBoard();
     initUSB();
-    blink(300,300);
+    //blink(300,300);
 
-    init_RF();
+    //init_RF();
     appMainInit();
 
 
     /* Enable interrupts */
-    EA = 1;
     usb_up();
+    EA = 1;
 
 
     // wait until the host identifies the usb device (the host timeouts are awfully fast)
