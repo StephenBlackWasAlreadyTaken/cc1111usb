@@ -35,7 +35,8 @@ xdata u16  ep0len;
 xdata u16  ep0value;
 
 //xdata dmacfg_t usbdma;
-xdata DMA_DESC usbdma;
+xdata DMA_DESC usbdma0;
+xdata DMA_DESC usbdma5;
 //xdata u8 usbdmar[8];
 
 // state tracking:
@@ -109,6 +110,7 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
     u8 firsttime=1;
     USBINDEX=5;
 
+    // FIXME: txdata with AUTOSET could be implemented in one long copy?
     while (len>0)
      {
         // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
@@ -145,14 +147,14 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         len -= loop;
 
         DMAARM |= 0x80 + DMAARM1;
-        usbdma.srcAddrH = ((u16)dataptr)>>8;
-        usbdma.srcAddrL = ((u16)dataptr)&0xff;
-        usbdma.destAddrH = 0xde;     //USBF5 == 0xde2a
-        usbdma.destAddrL = 0x2a;
-        usbdma.lenL = loop;
-        usbdma.lenH = 0;
-        usbdma.srcInc = 1;
-        usbdma.destInc = 0;
+        usbdma5.srcAddrH = ((u16)dataptr)>>8;
+        usbdma5.srcAddrL = ((u16)dataptr)&0xff;
+        usbdma5.destAddrH = 0xde;     //USBF5 == 0xde2a
+        usbdma5.destAddrL = 0x2a;
+        usbdma5.lenL = loop;
+        usbdma5.lenH = 0;
+        usbdma5.srcInc = 1;
+        usbdma5.destInc = 0;
         DMAARM |= DMAARM1;
         DMAREQ |= DMAARM1;
 
@@ -174,8 +176,9 @@ void waitForUSBsetup()
     while ((usb_data.usbstatus == USB_STATE_UNCONFIGURED ))
     {
         usbProcessEvents();
-
     }
+    //blink(200,200);
+    REALLYFASTBLINK();
 }
 
 
@@ -191,15 +194,31 @@ void usb_init(void)
 
 
     // usb dma
-    DMA1CFGH = ((u16)(&usbdma))>>8;
-    DMA1CFGL = ((u16)(&usbdma))&0xff;
-    usbdma.vlen = 0;
-    usbdma.wordSize = 0;
-    usbdma.tMode = 1;
-    usbdma.trig = 0;
-    usbdma.irqMask = 1;
-    usbdma.m8 = 0;
-    usbdma.priority = 1;
+    DMA0CFGH = ((u16)(&usbdma0))>>8;
+    DMA0CFGL = ((u16)(&usbdma0))&0xff;
+    usbdma0.vlen = 0;
+    usbdma0.wordSize = 0;
+    usbdma0.tMode = 1;
+    usbdma0.trig = 0;
+    usbdma0.irqMask = 1;
+    usbdma0.m8 = 0;
+    usbdma0.priority = 1;
+    // when used, the following must be set before triggering:
+    // usbdma.srcaddr
+    // usbdma.dstaddr
+    // usbdma.len    // we're using fixed length transfers
+    // usbdma.srcinc
+    // usbdma.dstinc
+    //  then trigger using DMAREQ
+    DMA1CFGH = ((u16)(&usbdma5))>>8;
+    DMA1CFGL = ((u16)(&usbdma5))&0xff;
+    usbdma5.vlen = 0;
+    usbdma5.wordSize = 0;
+    usbdma5.tMode = 1;
+    usbdma5.trig = 0;
+    usbdma5.irqMask = 1;
+    usbdma5.m8 = 0;
+    usbdma5.priority = 1;
     // when used, the following must be set before triggering:
     // usbdma.srcaddr
     // usbdma.dstaddr
@@ -213,7 +232,6 @@ void usb_init(void)
     USBPOW &= ~USBPOW_SUSPEND_EN;           // i don't *wanna* go to sleep if the usb bus is idle for 3ms.  at least not yet.
 
     // set us in the "unconfigured" state
-    USBADDR = 0;
     usb_data.config = 0;                    // start out unconfigured
     usb_data.event = 0;
     usb_data.usbstatus  = USB_STATE_UNCONFIGURED;   // this tracks the status of our USB Controller
@@ -235,7 +253,8 @@ void usb_init(void)
     USBINDEX = 5;
     USBMAXI  = (EP5IN_MAX_PACKET_SIZE+7)>>3;    // these registers live in incrememnts of 8 bytes.  
     USBMAXO  = (EP5OUT_MAX_PACKET_SIZE+7)>>3;   // these registers live in incrememnts of 8 bytes.  
-    USBCSOH |= USBCSOH_AUTOCLEAR;               // when we drain the FIFO, automagically tell host
+    //USBCSOH |= USBCSOH_AUTOCLEAR;               // when we drain the FIFO, automagically tell host
+    //--- decided against AUTOCLEAR as we *want* to make sure we get all data out of the buffer and handled, and control when USBCSOL_OUTPKT_RDY is cleared.
     USBCSIH |= USBCSIH_AUTOSET;                 // when the buffer is full, automagically tell host
     ep5iobuf.epstatus   =  EP_STATE_IDLE;       // this tracks the status of our endpoint 5
     ep5iobuf.flags      =  0;
@@ -351,27 +370,55 @@ void usb_arm_ep0IN(){
      * should queue up and send one packet this run.... and recalculate bytesleft so we hit the next packet next run.
      */
     u8  tlen;
-    u8  csReg = USBCS0_INPKT_RDY;
+    u8  csReg;
 
     USBINDEX = 0;
-    
-    if (ep0iobuf.INbytesleft > EP0_MAX_PACKET_SIZE)
-        tlen = EP0_MAX_PACKET_SIZE;
-    else
+    csReg = USBCS0_INPKT_RDY;
+    while (ep0iobuf.INbytesleft)
     {
-        tlen = ep0iobuf.INbytesleft;
-        csReg |= USBCS0_DATA_END;
+        if (ep0iobuf.INbytesleft > EP0_MAX_PACKET_SIZE)
+        {
+            tlen = EP0_MAX_PACKET_SIZE;
+        }
+        else if (ep0iobuf.INbytesleft == EP0_MAX_PACKET_SIZE)
+        {
+            tlen = ep0iobuf.INbytesleft;
+        } 
+        else
+        {
+            tlen = ep0iobuf.INbytesleft;
+            csReg |= USBCS0_DATA_END;
+            ep0iobuf.epstatus = EP_STATE_IDLE;
+        }
+
+        ep0iobuf.INbytesleft -= tlen;
+        // FIXME:   IMPLEMENT DMA FOR THESE TRANSFERS
+        for (; tlen>0; tlen--) {               // FIXME: Use DMA
+            USBF0 = *(ep0iobuf.INbuf++);
+        }
+        /*
+         *
+        DMAARM |= 0x80 + DMAARM0;
+        usbdma0.srcAddrH = ((u16)ep0iobuf.INbuf)>>8;
+        usbdma0.srcAddrL = ((u16)ep0iobuf.INbuf)&0xff;
+        usbdma0.destAddrH = 0xde;     //USBF0 == 0xde20
+        usbdma0.destAddrL = 0x20;
+        usbdma0.lenL = tlen;
+        usbdma0.lenH = 0;
+        usbdma0.srcInc = 1;
+        usbdma0.destInc = 0;
+        DMAARM |= DMAARM0;
+        DMAREQ |= DMAARM0;
+
+        while (!(DMAIRQ & DMAARM1));
+        DMAIRQ &= ~DMAARM1;
+         */
+
+        USBCS0  |= csReg;
+
     }
 
-    // FIXME:   IMPLEMENT DMA FOR THESE TRANSFERS
-    ep0iobuf.INbytesleft -= tlen;
-    for (; tlen>0; tlen--) {               // FIXME: Use DMA
-        USBF0 = *ep0iobuf.INbuf;
-        ep0iobuf.INbuf++;
-    }
-    USBCS0  |= csReg;
-    if (ep0iobuf.INbytesleft == 0)
-        ep0iobuf.epstatus = EP_STATE_IDLE;
+    // FIXME:  make the remainder of the IN data be sent when the Interrupt is triggered for CLR_INPKT_RDY
 }
 
 
@@ -398,6 +445,7 @@ u16 usb_recv_ep0OUT(){
     if (ep0iobuf.flags & EP_OUTBUF_WRITTEN)
     {
         ep0iobuf.epstatus = EP_STATE_STALL;            // FIXME: don't currently handle stall->idle...
+        USBCS0 |= USBCS0_SEND_STALL;
         return -1;
     }
     ep0iobuf.flags |= EP_OUTBUF_WRITTEN;            // hey, we've written here, don't write again until this is cleared by a application handler
@@ -409,10 +457,27 @@ u16 usb_recv_ep0OUT(){
     ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
     //blink_binary_baby_lsb(ep0iobuf.OUTlen, 8);
     for (loop=ep0iobuf.OUTlen; loop>0; loop--){
-    //for (loop=16; loop>0; loop--){
         *payload++ = USBF0;
     }
     //////////////////////////////////////////////////////////////////////////////////////////
+    // FIXME: make this handle multiple OUT data packets
+    /*
+     *
+    DMAARM |= 0x80 + DMAARM0;
+    usbdma0.destAddrH = ((u16)ep0iobuf.OUTbuf)>>8;
+    usbdma0.destAddrL = ((u16)ep0iobuf.OUTbuf)&0xff;
+    usbdma0.srcAddrH = 0xde;     //USBF0 == 0xde20
+    usbdma0.srcAddrL = 0x20;
+    usbdma0.lenL = tlen;
+    usbdma0.lenH = 0;
+    usbdma0.srcInc = 0;
+    usbdma0.destInc = 1;
+    DMAARM |= DMAARM0;
+    DMAREQ |= DMAARM0;
+
+    while (!(DMAIRQ & DMAARM1));
+    DMAIRQ &= ~DMAARM1;
+     */
    
     // handle each packet
     appHandleEP0OUT();
@@ -493,7 +558,7 @@ void usbGetConfiguration()
 void usbSetConfiguration(USB_Setup_Header* pReq)
 {
     usb_data.config = pReq->wValue & 0xff;
-    usb_data.usbstatus = USB_STATE_IDLE;
+    //usb_data.usbstatus = USB_STATE_IDLE;
 }
 
 
@@ -504,6 +569,8 @@ u8* usbGetDescriptorPrimitive(u8 wantedType, u8 index){
 
     descType = *(descPtr+1);
 
+ 
+    blink_binary_baby_lsb(wantedType, 8);
 
     while (descType != 0xff ){
 
@@ -521,6 +588,7 @@ u8* usbGetDescriptorPrimitive(u8 wantedType, u8 index){
             descType = *(descPtr+1);
         }
     }
+    blink_binary_baby_lsb((u8)*descPtr, 8);
     return descPtr;
 }
 
@@ -557,6 +625,7 @@ void usbGetDescriptor(USB_Setup_Header* pReq)
     if ((pReq->wValue>>8) == USB_DESC_CONFIG){
         REALLYFASTBLINK();
         appstatus |= 1;                                         //  hack to trigger "waitForUSBsetup()"
+        usb_data.usbstatus = USB_STATE_IDLE;
     }
     
 }
@@ -600,13 +669,17 @@ void handleCS0(void)
         USBCS0 = 0x00;
         lastCode[1] = LCE_USB_EP0_SENT_STALL;
         ep0iobuf.epstatus = EP_STATE_IDLE;
+        ep0iobuf.INbytesleft = 0;
         blink(200,200);
+        USBCS0 &= USBCS0_SENT_STALL;
     }
     
     if (ep0iobuf.epstatus == EP_STATE_STALL)
     {
         blink(500,500);
         ep0iobuf.epstatus = EP_STATE_IDLE;
+        ep0iobuf.INbytesleft = 0;
+        USBCS0 &= USBCS0_SEND_STALL;
     }
 
 
@@ -698,6 +771,7 @@ void handleCS0(void)
                             switch (req.bRequest){
                                 case USB_SET_ADDRESS:
                                     USBADDR = req.wValue;
+                                    usb_data.usbstatus = USB_STATE_IDLE;
                                     break;
                                 case USB_SET_CONFIGURATION:
                                     usbSetConfiguration(&req);
@@ -776,12 +850,15 @@ void handleCS0(void)
 void handleOUTEP5(void)
 {
     // client is sending commands... or looking for information...  status... whatever...
+    // FIXME: we currently have no real way to deal with long packets.
     u16 len;
     xdata u8* ptr; 
+
+    REALLYFASTBLINK();
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
-        ep5iobuf.epstatus = EP_STATE_STALL;
+        //ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
         REALLYFASTBLINK();
@@ -795,20 +872,20 @@ void handleOUTEP5(void)
     while ((DMAIRQ & DMAARM1))
         blink(20,20);
     DMAARM |= 0x80 + DMAARM1;
-    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
-    usbdma.srcAddrL = 0x2a;
-    usbdma.destAddrH = ((u16)ptr)>>8;
-    usbdma.destAddrL = ((u16)ptr)&0xff;
-    usbdma.srcInc = 0;
-    usbdma.destInc = 1;
-    usbdma.lenL = USBCNTL;
-    usbdma.lenH = USBCNTH;
+    usbdma5.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    usbdma5.srcAddrL = 0x2a;
+    usbdma5.destAddrH = ((u16)ptr)>>8;
+    usbdma5.destAddrL = ((u16)ptr)&0xff;
+    usbdma5.srcInc = 0;
+    usbdma5.destInc = 1;
+    usbdma5.lenL = USBCNTL;
+    usbdma5.lenH = USBCNTH;
 
-    len = (usbdma.lenH<<8)+usbdma.lenL;
+    len = (usbdma5.lenH<<8)+usbdma5.lenL;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         lastCode[1] = LCE_USB_EP5_LEN_TOO_BIG;
-        ep5iobuf.epstatus = EP_STATE_STALL;
+        //ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         USBCSOL &= ~USBCSOL_OUTPKT_RDY;
         blink(300,200);
@@ -820,6 +897,7 @@ void handleOUTEP5(void)
     DMAARM |= DMAARM1;
     DMAREQ |= DMAARM1;
 
+    USBCSOL &= ~USBCSOL_OUTPKT_RDY;
     ep5iobuf.OUTlen = len;
 }
 
@@ -971,8 +1049,8 @@ void usbProcessEvents(void)
         lastCode[0] = LC_USB_EP5OUT;
         if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
         {
-            //blink(200,200);
-            REALLYFASTBLINK();
+            blink(200,200);
+            //REALLYFASTBLINK();
             lastCode[1] = LCE_USB_EP5_STALL;
             ep5iobuf.epstatus = EP_STATE_IDLE;
             USBINDEX=5;
@@ -982,6 +1060,98 @@ void usbProcessEvents(void)
         processOUTEP5();                            // process the data read into ep5iobuf
         usb_data.event &= ~USBD_OIF_OUTEP5IF;
         
+    }
+
+    USBINDEX = 0;
+    if (USBCS0 & USBCS0_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCS0 &= ~USBCS0_SEND_STALL;
+        // FIXME: make ep0reset() and ep5reset() to handle the cleanup when we get a STALL condition
+        ep0iobuf.INbytesleft = 0;
+        ep0iobuf.OUTlen = 0;
+        // FIXME: debugging
+        //while (1)
+        //{
+            blink(200,500);
+            blink(500,1500);
+        //}
+    }
+    if (USBCS0 & USBCS0_SENT_STALL)
+    {
+        // we received a STALL packet and didn't deal with it already...  
+        USBCS0 &= ~USBCS0_SENT_STALL;
+        ep0iobuf.INbytesleft = 0;
+        ep0iobuf.OUTlen = 0;
+        // FIXME: debugging
+        //while (1)
+        //{
+            blink(500,500);
+            blink(500,1500);
+        //}
+    }
+
+
+    USBINDEX = 5;
+    if (USBCSIL & USBCSIL_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSIL &= ~USBCSIL_SEND_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(500,500);
+            blink(200,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSIL & USBCSIL_SENT_STALL)
+    {
+        // we received a STALL packet and didn't deal with it already...  
+        USBCSIL |= USBCSIL_FLUSH_PACKET;
+        USBCSIL &= ~USBCSIL_SENT_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(500,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSOL & USBCSOL_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSOL |= USBCSOL_FLUSH_PACKET;
+        USBCSOL &= ~USBCSOL_SEND_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(500,500);
+            blink(200,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSIL & USBCSIL_SENT_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSIL &= ~USBCSIL_SENT_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(200,500);
+            blink(500,500);
+            blink(500,1500);
+        }
     }
 
     // we don't currently queue IN data, we just send it.  probably should move to a queuing system but it takes valuable RAM.
@@ -1048,6 +1218,97 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
     }
     */
     
+    USBINDEX = 0;
+    if (USBCS0 & USBCS0_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCS0 &= ~USBCS0_SEND_STALL;
+        // FIXME: make ep0reset() and ep5reset() to handle the cleanup when we get a STALL condition
+        ep0iobuf.INbytesleft = 0;
+        ep0iobuf.OUTlen = 0;
+        // FIXME: debugging
+        //while (1)
+        //{
+            blink(200,500);
+            blink(500,1500);
+        //}
+    }
+    if (USBCS0 & USBCS0_SENT_STALL)
+    {
+        // we received a STALL packet and didn't deal with it already...  
+        USBCS0 &= ~USBCS0_SENT_STALL;
+        ep0iobuf.INbytesleft = 0;
+        ep0iobuf.OUTlen = 0;
+        // FIXME: debugging
+        //while (1)
+        //{
+            blink(500,500);
+            blink(500,1500);
+        //}
+    }
+
+
+    USBINDEX = 5;
+    if (USBCSIL & USBCSIL_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSIL &= ~USBCSIL_SEND_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(500,500);
+            blink(200,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSIL & USBCSIL_SENT_STALL)
+    {
+        // we received a STALL packet and didn't deal with it already...  
+        USBCSIL |= USBCSIL_FLUSH_PACKET;
+        USBCSIL &= ~USBCSIL_SENT_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(500,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSOL & USBCSOL_SEND_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSOL |= USBCSOL_FLUSH_PACKET;
+        USBCSOL &= ~USBCSOL_SEND_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(500,500);
+            blink(200,500);
+            blink(500,1500);
+        }
+    }
+    if (USBCSIL & USBCSIL_SENT_STALL)
+    {
+        // we sent a STALL packet and didn't deal with it already...  
+        USBCSIL &= ~USBCSIL_SENT_STALL;
+        ep5iobuf.INbytesleft = 0;
+        ep5iobuf.OUTlen = 0;
+        // FIXME: debugging
+        while (1)
+        {
+            blink(200,500);
+            blink(200,500);
+            blink(500,500);
+            blink(500,1500);
+        }
+    }
     //REALLYFASTBLINK();
     if (usb_data.event & (USBD_IIF_INEP5IF))
     {

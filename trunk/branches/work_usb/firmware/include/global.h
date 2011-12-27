@@ -50,7 +50,7 @@ extern xdata u8 lastCode[2];
     #define SLEEPTIMER  1200
     #define CC1111EM_BUTTON P1_2
 
-#else
+#elif defined CHRONOSDONGLE
     // CC1111 USB Chronos watch dongle - 24mhz
     #define LED_RED   P1_0
     #define LED_GREEN P1_0
