@@ -410,7 +410,10 @@ uint16_t usb_recv_ep0OUT(){
     uint16_t loop;
 
     uint8_t* payload = &ep0iobuf.OUTbuf[0];
-    ep0iobuf.OUTlen = (uint16_t)USBCNT0;
+	while (! USBCS0 & USBCS0_OUTPKT_RDY);           // wait for it...
+    USBINDEX = 0;
+    loop = USBCNT0;
+    ep0iobuf.OUTlen = loop;
 
     if (ep0iobuf.flags & EP_OUTBUF_WRITTEN)
     {
