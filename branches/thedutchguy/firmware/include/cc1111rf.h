@@ -44,27 +44,27 @@
 typedef enum{NORMAL,RECV,XMIT} register_e;
 
 /* Rx buffers */
-extern volatile xdata u8 rfRxCurrentBuffer;
-extern volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
-extern volatile xdata u8 rfRxCounter[BUFFER_AMOUNT];
-extern volatile xdata u8 rfRxProcessed[BUFFER_AMOUNT];
+extern volatile __xdata u8 rfRxCurrentBuffer;
+extern volatile __xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
+extern volatile __xdata u8 rfRxCounter[BUFFER_AMOUNT];
+extern volatile __xdata u8 rfRxProcessed[BUFFER_AMOUNT];
 /* Tx buffers */
-extern volatile xdata u8 rftxbuf[BUFFER_SIZE];
-extern volatile xdata u8 rfTxCounter;
+extern volatile __xdata u8 rftxbuf[BUFFER_SIZE];
+extern volatile __xdata u8 rfTxCounter;
 
 extern u8 rfif;
-extern xdata u8 lastCode[2];
+extern __xdata u8 lastCode[2];
 
-void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR; // interrupt handler should transmit or receive the next byte
-void rfIntHandler(void) interrupt RF_VECTOR; // interrupt handler should trigger on rf events
+void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR; // interrupt handler should transmit or receive the next byte
+void rfIntHandler(void) __interrupt RF_VECTOR; // interrupt handler should trigger on rf events
 
 void setRFIdle(void);
 int waitRSSI(void);
 void RxOn(void);
 void RxIdle(void);
-u8 transmit(xdata u8*, u16 len, u8 bDma);
+u8 transmit(__xdata u8*, u16 len, u8 bDma);
 void stopRX(void);
-void startRX(void);
+void startRX(u8 bDma);
 void init_RF(u8 bEuRadio, register_e rRegisterType);
 
 #endif

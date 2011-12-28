@@ -6,9 +6,11 @@
 
 #define SLEEPTIMER  1200
 #define RADIO_EU 1
+    
+#define nop() __asm nop __endasm;
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-extern xdata u8 lastCode[2];
+extern __xdata u8 lastCode[2];
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM

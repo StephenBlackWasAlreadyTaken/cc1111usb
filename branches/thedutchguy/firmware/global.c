@@ -1,7 +1,7 @@
 #include "global.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-xdata u8 lastCode[2];
+__xdata u8 lastCode[2];
 
 
 void sleepMillis(int ms) 
@@ -93,7 +93,7 @@ void blink_binary_baby_msb(u16 num, char bits)
 }*/
 
 /* FIXME: not convinced libc hurts us that much
-int memcpy(volatile xdata void* dst, volatile xdata void* src, u16 len)
+int memcpy(volatile __xdata void* dst, volatile __xdata void* src, u16 len)
 {
     u16 loop;
     for (loop^=loop;loop<len; loop++)
@@ -103,7 +103,7 @@ int memcpy(volatile xdata void* dst, volatile xdata void* src, u16 len)
     return loop+1;
 }
 
-int memset(volatile xdata void* dst, const char ch, u16 len)
+int memset(volatile __xdata void* dst, const char ch, u16 len)
 {
     u16 loop;
     for (loop^=loop;loop<len; loop++)
