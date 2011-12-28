@@ -24,24 +24,26 @@
 
 
 USB_STATE usb_data;
-__xdata uint8_t  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
-__xdata uint8_t  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
-__xdata USB_EP_IO_BUF     ep0iobuf;
-__xdata USB_EP_IO_BUF     ep5iobuf;
-__xdata uint8_t appstatus;
+xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
+xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
+xdata USB_EP_IO_BUF     ep0iobuf;
+xdata USB_EP_IO_BUF     ep5iobuf;
+xdata u8 appstatus;
 
-static __xdata struct cc_dma_channel usbDMA;
+//xdata dmacfg_t usbdma;
+xdata DMA_DESC usbdma;
+//xdata u8 usbdmar[8];
 
 /*************************************************************************************************
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
  * the universe to explode!                                                                      *
  ************************************************************************************************/
-void txdataold(uint8_t app, uint8_t cmd, uint16_t len, uint8_t* dataptr)      // assumed EP5 for application use
+void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
     // wish me luck!  this could horribly crash and burn.
 {
-    uint16_t loop;
-    uint8_t firsttime=1;
+    u16 loop;
+    u8 firsttime=1;
     USBINDEX=5;
     //EA=0; 
     while (len>0)
@@ -96,12 +98,12 @@ void txdataold(uint8_t app, uint8_t cmd, uint16_t len, uint8_t* dataptr)      //
     //EA=1;
 }
 
-void txdata(uint8_t app, uint8_t cmd, uint16_t len, __xdata uint8_t* dataptr)      // assumed EP5 for application use
+void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
     // wish me luck!  this could horribly crash and burn.
 {
-    uint16_t loop;
-    uint8_t firsttime=1;
+    u16 loop;
+    u8 firsttime=1;
     USBINDEX=5;
     //EA=0; 
     while (len>0)
@@ -144,9 +146,9 @@ void txdata(uint8_t app, uint8_t cmd, uint16_t len, __xdata uint8_t* dataptr)   
 
         len -= loop;
 
-        /*DMAARM |= 0x80 + DMAARM1;
-        usbdma.srcAddrH = ((uint16_t)dataptr)>>8;
-        usbdma.srcAddrL = ((uint16_t)dataptr)&0xff;
+        DMAARM |= 0x80 + DMAARM1;
+        usbdma.srcAddrH = ((u16)dataptr)>>8;
+        usbdma.srcAddrL = ((u16)dataptr)&0xff;
         usbdma.destAddrH = 0xde;     //USBF5 == 0xde2a
         usbdma.destAddrL = 0x2a;
         usbdma.lenL = loop;
@@ -157,32 +159,7 @@ void txdata(uint8_t app, uint8_t cmd, uint16_t len, __xdata uint8_t* dataptr)   
         DMAREQ |= DMAARM1;
 
         while (!(DMAIRQ & DMAARM1));
-        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?*/
-
-    	while ((DMAIRQ & DMAARM_DMAARM1));
-    	DMAARM |= 0x80 + DMAARM_DMAARM1;
-		usbDMA.src_high = ((uint16_t)dataptr)>>8;
-		usbDMA.src_low = ((uint16_t)dataptr)&0xff;
-		usbDMA.dst_high = 0xde;
-		usbDMA.dst_low = 0x2a;
-		usbDMA.len_high = 0;
-		usbDMA.len_low = loop;
-		usbDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
-					DMA_CFG0_TMODE_BLOCK |
-					DMA_CFG0_TRIGGER_NONE; 
-		usbDMA.cfg1 = DMA_CFG1_SRCINC_1 |
-					DMA_CFG1_DESTINC_0 |
-					DMA_CFG1_IRQMASK |
-					DMA_CFG1_PRIORITY_HIGH;
-    	DMA1CFGH = ((uint16_t)(&usbDMA))>>8;
-    	DMA1CFGL = ((uint16_t)(&usbDMA))&0xff;
-        
-		DMAARM |= DMAARM_DMAARM1;
-        DMAREQ |= DMAARM_DMAARM1;
-
-        while (!(DMAIRQ & DMAARM_DMAARM1));
-        DMAIRQ &= ~DMAARM_DMAARM1;             
-
+        DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
@@ -214,16 +191,16 @@ void usb_init(void)
     USB_RESET();
 
     // usb dma
-    //DMA1CFGH = ((uint16_t)(&usbdma))>>8;
-    //DMA1CFGL = ((uint16_t)(&usbdma))&0xff;
-    //usbdma.vlen = 0;
-    //usbdma.wordSize = 0;
-    //usbdma.lenH = 0;
-    //usbdma.tMode = 1;
-    //usbdma.trig = 0;
-    //usbdma.irqMask = 1;
-    //usbdma.m8 = 0;
-    //usbdma.priority = 1;
+    DMA1CFGH = ((u16)(&usbdma))>>8;
+    DMA1CFGL = ((u16)(&usbdma))&0xff;
+    usbdma.vlen = 0;
+    usbdma.wordSize = 0;
+    usbdma.lenH = 0;
+    usbdma.tMode = 1;
+    usbdma.trig = 0;
+    usbdma.irqMask = 1;
+    usbdma.m8 = 0;
+    usbdma.priority = 1;
     // when used, the following must be set before triggering:
     // usbdma.srcaddr
     // usbdma.dstaddr
@@ -316,7 +293,7 @@ void usb_down(void)
 /*************************************************************************************************
  * main USB handler/enabler code.                                                                *
  *************************************************************************************************/
-int setup_send_ep0(uint8_t* payload, uint16_t length)
+int setup_send_ep0(u8* payload, u16 length)
 {
     if (ep0iobuf.epstatus != EP_STATE_IDLE)
     {
@@ -335,7 +312,7 @@ int setup_send_ep0(uint8_t* payload, uint16_t length)
 }
 
 /* send from XDATA */
-int setup_sendx_ep0(__xdata uint8_t* payload, uint16_t length)
+int setup_sendx_ep0(xdata u8* payload, u16 length)
 {
     if (ep0iobuf.epstatus != EP_STATE_IDLE)
     {
@@ -354,7 +331,7 @@ int setup_sendx_ep0(__xdata uint8_t* payload, uint16_t length)
 }
 
 /*  unused????
-int setup_send_ep5(uint8_t* payload, uint16_t length)
+int setup_send_ep5(u8* payload, u16 length)
 {
     if (ep5iobuf.epstatus != EP_STATE_IDLE)
         return -1;
@@ -371,8 +348,8 @@ void usb_arm_ep0IN(){
     /***********************
      * should queue up and send one packet this run.... and recalculate bytesleft so we hit the next packet next run.
      */
-    uint8_t  tlen;
-    uint8_t  csReg = USBCS0_INPKT_RDY;
+    u8  tlen;
+    u8  csReg = USBCS0_INPKT_RDY;
 
     USBINDEX = 0;
     
@@ -396,24 +373,21 @@ void usb_arm_ep0IN(){
 }
 
 
-uint8_t setup_recv_ep0(){
+u8 setup_recv_ep0(){
     ep0iobuf.epstatus = EP_STATE_RX;
     return 0;
 }
 
-uint16_t usb_recv_ep0OUT(){
+u16 usb_recv_ep0OUT(){
     /*********************************************************************************************
      * handle receipt of one packet and set flags
      * if another packet has yet to be handled by the application (ie. received through this 
      * function but not acted upon or cleared), return -1
      ********************************************************************************************/
-    uint16_t loop;
+    u16 loop;
 
-    uint8_t* payload = &ep0iobuf.OUTbuf[0];
-	while (! USBCS0 & USBCS0_OUTPKT_RDY);           // wait for it...
-    USBINDEX = 0;
-    loop = USBCNT0;
-    ep0iobuf.OUTlen = loop;
+    u8* payload = &ep0iobuf.OUTbuf[0];
+    ep0iobuf.OUTlen = (u16)USBCNT0;
 
     if (ep0iobuf.flags & EP_OUTBUF_WRITTEN)
     {
@@ -439,12 +413,12 @@ uint16_t usb_recv_ep0OUT(){
 }
 
     /**********************************         NEVER USED..... deprecating.
-uint16_t usb_recv_ep5OUT(){
+u16 usb_recv_ep5OUT(){
      * handle receipt of one packet and set flags
      * if another packet has yet to be handled by the application (ie. received through this function but not acted upon or cleared), return -1
-    //uint16_t loop;
+    //u16 loop;
 
-    uint8_t* payload = &ep5iobuf.OUTbuf[0];
+    u8* payload = &ep5iobuf.OUTbuf[0];
 
     USBINDEX = 5;
     ep5iobuf.OUTlen = (USBCNTH<<8) + USBCNTL;
@@ -471,8 +445,8 @@ uint16_t usb_recv_ep5OUT(){
     DMAARM |= 0x80 + DMAARM1;
     usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
     usbdma.srcAddrL = 0x2a;
-    usbdma.destAddrH = ((uint16_t)payload)>>8;
-    usbdma.destAddrL = ((uint16_t)payload)&0xff;
+    usbdma.destAddrH = ((u16)payload)>>8;
+    usbdma.destAddrL = ((u16)payload)&0xff;
     usbdma.lenL = ep5iobuf.OUTlen;
     usbdma.lenH = 0;
     usbdma.srcInc = 0;
@@ -506,10 +480,10 @@ void usbSetConfiguration(USB_Setup_Header* pReq)
 }
 
 
-uint8_t* usbGetDescriptorPrimitive(uint8_t wantedType, uint8_t index){
+u8* usbGetDescriptorPrimitive(u8 wantedType, u8 index){
 
-    uint8_t descType;
-    uint8_t* descPtr = (uint8_t*)&USBDESCBEGIN;                 // start of data... sorta
+    u8 descType;
+    u8* descPtr = (u8*)&USBDESCBEGIN;                 // start of data... sorta
 
     descType = *(descPtr+1);
 
@@ -521,12 +495,12 @@ uint8_t* usbGetDescriptorPrimitive(uint8_t wantedType, uint8_t index){
                 descType = 0xff;                            // WARNING: destructive.  go directly to ret, do not pass go, do not collect $200
             } else {
                 index--;
-                descPtr = descPtr + (uint8_t)*descPtr;
+                descPtr = descPtr + (u8)*descPtr;
                 descType = *(descPtr+1);
             }
         } else 
         {
-            descPtr = descPtr + (uint8_t)*descPtr;
+            descPtr = descPtr + (u8)*descPtr;
             descType = *(descPtr+1);
         }
     }
@@ -535,28 +509,28 @@ uint8_t* usbGetDescriptorPrimitive(uint8_t wantedType, uint8_t index){
 
 void usbGetDescriptor(USB_Setup_Header* pReq)
 {
-    uint8_t* buffer;                                  // this will point to the start of the descriptor (in code) when we're done
-    uint16_t length;
+    u8* buffer;                                  // this will point to the start of the descriptor (in code) when we're done
+    u16 length;
 
     switch ((pReq->wValue)>>8){
         case USB_DESC_DEVICE:
             buffer = usbGetDescriptorPrimitive((pReq->wValue)>>8, 0);
-            length = (uint8_t)*(buffer);
+            length = (u8)*(buffer);
             break;
         case USB_DESC_CONFIG:
             buffer = usbGetDescriptorPrimitive((pReq->wValue)>>8, (pReq->wValue)&0xff);
-            length = (uint16_t)*(buffer+2);
+            length = (u16)*(buffer+2);
             if ((pReq->wValue>>8) != *(buffer+1))
                 while (1)   //blink(100,100);                               ///////// DEBUGGING!  WILL STOP EXECUTION!
                     blink_binary_baby_lsb((pReq->wValue), 16); 
             break;
         case USB_DESC_STRING:
             buffer = usbGetDescriptorPrimitive((pReq->wValue)>>8, (pReq->wValue)&0xff);
-            length = (uint8_t)*(buffer);
+            length = (u8)*(buffer);
             break;
         default:
             buffer = usbGetDescriptorPrimitive((pReq->wValue)>>8, (pReq->wValue)&0xff);
-            length = (uint8_t)*(buffer);
+            length = (u8)*(buffer);
             break;
     }
     if (length > pReq->wLength)
@@ -586,10 +560,10 @@ void usbGetDescriptor(USB_Setup_Header* pReq)
 void handleCS0(void)
 {
     USB_Setup_Header req;
-    uint8_t* pReq = (uint8_t*)(&req);
-    uint8_t  csReg;
-    uint8_t  loop;
-    uint16_t val;
+    u8* pReq = (u8*)(&req);
+    u8  csReg;
+    u8  loop;
+    u16 val;
     USBINDEX = 0;
     //REALLYFASTBLINK();
 
@@ -655,10 +629,10 @@ void handleCS0(void)
                                 // send back 0x0000 for GET_STATUS (not self-powered and not remote-wake-up capable.
                                 case USB_GET_STATUS:
                                     val = 0;
-                                    setup_send_ep0((uint8_t*)&val, 2);
+                                    setup_send_ep0((u8*)&val, 2);
                                     break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         }
                         // Interface Requests
@@ -668,7 +642,7 @@ void handleCS0(void)
                                 case USB_GET_STATUS:        break;
                                 case USB_GET_INTERFACE:     break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         }
                         // EndPoint Requests
@@ -681,10 +655,10 @@ void handleCS0(void)
                                 case USB_SYNCH_FRAME:
                                     break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         } else {
-                            debugEP0Req((uint8_t*)&req);
+                            debugEP0Req((u8*)&req);
                             USBCS0 |= USBCS0_SEND_STALL;
                         }
                         break;
@@ -695,7 +669,7 @@ void handleCS0(void)
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED
                         USBCS0 |= USBCS0_SEND_STALL;
-                        debugEP0Req((uint8_t*)&req);
+                        debugEP0Req((u8*)&req);
                 }
             } else {                                            // should be *receiving* data, if any
                 switch(req.bmRequestType & USB_BM_REQTYPE_TYPEMASK)
@@ -719,7 +693,7 @@ void handleCS0(void)
                                 case USB_SET_DESCRIPTOR:
                                     break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         }
                         // Interface Requests
@@ -730,7 +704,7 @@ void handleCS0(void)
                                 case USB_SET_FEATURE:       break;
                                 case USB_SET_INTERFACE:     break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         }
                         // EndPoint Requests
@@ -740,11 +714,11 @@ void handleCS0(void)
                                 case USB_CLEAR_FEATURE:     break;
                                 case USB_SET_FEATURE:       break;
                                 default:
-                                    debugEP0Req((uint8_t*)&req);
+                                    debugEP0Req((u8*)&req);
                             }
                         } else {
                             USBCS0 |= USBCS0_SEND_STALL;
-                            debugEP0Req((uint8_t*)&req);
+                            debugEP0Req((u8*)&req);
                         }
                         break;
                     case USB_BM_REQTYPE_TYPE_CLASS:             // CLASS type
@@ -753,7 +727,7 @@ void handleCS0(void)
                         appHandleEP0(&req);
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED type
-                        debugEP0Req((uint8_t*)&req);
+                        debugEP0Req((u8*)&req);
                         USBCS0 |= USBCS0_SEND_STALL;
                 }
 
@@ -780,10 +754,10 @@ void handleCS0(void)
 void handleOUTEP5(void)
 {
     // client is sending commands... or looking for information...  status... whatever...
-    uint16_t loop, len;
-    uint8_t cmd, app;
-    __xdata uint8_t* ptr; 
-    __xdata uint8_t* dptr;
+    u16 loop, len;
+    u8 cmd, app;
+    xdata u8* ptr; 
+    xdata u8* dptr;
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
@@ -797,35 +771,19 @@ void handleOUTEP5(void)
 
     // setup DMA
     ptr = &ep5iobuf.OUTbuf[0];
-    while ((DMAIRQ & DMAARM_DMAARM1))
+    while ((DMAIRQ & DMAARM1))
         blink(20,20);
-    DMAARM |= 0x80 + DMAARM_DMAARM1;
-    /*usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
+    DMAARM |= 0x80 + DMAARM1;
+    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
     usbdma.srcAddrL = 0x2a;
-    usbdma.destAddrH = ((uint16_t)ptr)>>8;
-    usbdma.destAddrL = ((uint16_t)ptr)&0xff;
+    usbdma.destAddrH = ((u16)ptr)>>8;
+    usbdma.destAddrL = ((u16)ptr)&0xff;
     usbdma.srcInc = 0;
     usbdma.destInc = 1;
     usbdma.lenL = USBCNTL;
-    usbdma.lenH = USBCNTH;*/
+    usbdma.lenH = USBCNTH;
 
-	usbDMA.src_high = 0xde;
-	usbDMA.src_low = 0x2a;
-	usbDMA.dst_high = ((uint16_t)ptr)>>8;
-	usbDMA.dst_low = ((uint16_t)ptr)&0xff;
-	usbDMA.len_high = USBCNTH;
-	usbDMA.len_low = USBCNTL;
-	usbDMA.cfg0 = DMA_CFG0_WORDSIZE_8 |
-				DMA_CFG0_TMODE_BLOCK |
-				DMA_CFG0_TRIGGER_NONE; 
-	usbDMA.cfg1 = DMA_CFG1_SRCINC_0 |
-				DMA_CFG1_DESTINC_1 |
-				DMA_CFG1_IRQMASK |
-				DMA_CFG1_PRIORITY_HIGH;
-    DMA1CFGH = ((uint16_t)(&usbDMA))>>8;
-    DMA1CFGL= ((uint16_t)(&usbDMA))&0xff;
-    
-	len = (usbDMA.len_high<<8)+usbDMA.len_low;
+    len = (usbdma.lenH<<8)+usbdma.lenL;
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         ep5iobuf.epstatus = EP_STATE_STALL;
@@ -843,11 +801,11 @@ void handleOUTEP5(void)
     //}
 
     //  DMA Trigger
-    DMAARM |= DMAARM_DMAARM1;
-    DMAREQ |= DMAARM_DMAARM1;
+    DMAARM |= DMAARM1;
+    DMAREQ |= DMAARM1;
 
-    while (!(DMAIRQ & DMAARM_DMAARM1));
-    DMAIRQ &= ~DMAARM_DMAARM1;             // FIXME: superfuous?
+    while (!(DMAIRQ & DMAARM1));
+    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
 
     ep5iobuf.OUTlen = len;
 
@@ -856,8 +814,8 @@ void handleOUTEP5(void)
         app = ep5iobuf.OUTbuf[4];
         cmd = ep5iobuf.OUTbuf[5];
         ptr = &ep5iobuf.OUTbuf[6];
-        len =  (uint16_t)*ptr++;
-        len += (uint16_t)*ptr++ << 8;
+        len =  (u16)*ptr++;
+        len += (u16)*ptr++ << 8;
         //ptr += 2;                                               // point at the address in memory
         
         if (app == 0xff)                                        // system application
@@ -868,9 +826,9 @@ void handleOUTEP5(void)
                 case CMD_PEEK:
                     len =  *ptr++;
                     len += *ptr++ << 8;
-                    loop =  (uint16_t)*ptr++;                                    // just using loop for our immediate purpose.  sorry.
-                    loop += (uint16_t)*ptr++ << 8;                               // hack, but it works
-                    dptr = (__xdata uint8_t*) loop;
+                    loop =  (u16)*ptr++;                                    // just using loop for our immediate purpose.  sorry.
+                    loop += (u16)*ptr++ << 8;                               // hack, but it works
+                    dptr = (xdata u8*) loop;
                     txdata(app, cmd, len, dptr);
                     //REALLYFASTBLINK();
 
@@ -878,24 +836,24 @@ void handleOUTEP5(void)
                 case CMD_POKE:
                     loop =  *ptr++;
                     loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
-                    dptr = (__xdata uint8_t*) loop;                                // hack, but it works
+                    dptr = (xdata u8*) loop;                                // hack, but it works
                     // FIXME: do we want to DMA here?
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr++ = *ptr++;
                     }
-                    txdata(app, cmd, 1, (__xdata uint8_t*)"0");
+                    txdata(app, cmd, 1, (xdata u8*)"0");
 
                     break;
                 case CMD_POKE_REG:
                     loop =  *ptr++;
                     loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
-                    dptr = (__xdata uint8_t*) loop;                                // hack, but it works
+                    dptr = (xdata u8*) loop;                                // hack, but it works
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr = *ptr++;
                     }
-                    txdata(app, cmd, 1, (__xdata uint8_t*)"");
+                    txdata(app, cmd, 1, (xdata u8*)"");
 
                     break;
                 case CMD_PING:
@@ -903,7 +861,7 @@ void handleOUTEP5(void)
                     //REALLYFASTBLINK();
                     break;
                 case CMD_STATUS:
-                    txdata(app, cmd, 13, (__xdata uint8_t*)"UNIMPLEMENTED");
+                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
                     // unimplemented
                     break;
                 case CMD_RFMODE:
@@ -917,7 +875,7 @@ void handleOUTEP5(void)
                             setRFIdle();  
                             break;
                         case RF_STATE_TX:
-                            transmit(ptr, len, 1);  
+                            transmit(ptr, len);  
                             break;
                     }
                 default:
@@ -1028,7 +986,7 @@ void usbProcessEvents(void)
 /*************************************************************************************************
  * Interrupt Service Routines                                                                    *
  ************************************************************************************************/
-void usbIntHandler(void) __interrupt P2INT_VECTOR
+void usbIntHandler(void) interrupt P2INT_VECTOR
 {
 
     while (!IS_XOSC_STABLE());
@@ -1055,7 +1013,7 @@ void usbIntHandler(void) __interrupt P2INT_VECTOR
 
 }
 
-void p0IntHandler(void) __interrupt P0INT_VECTOR  // P0_7's interrupt is used as the USB RESUME interrupt
+void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as the USB RESUME interrupt
 {
     while (!IS_XOSC_STABLE());
     EA=0;
@@ -1131,7 +1089,7 @@ __asm
                .DB 0x09                    ; US-EN
                .DB 0x04
 0007$:    ; Manufacturer
-               .DB 0010$ - 0007$           ; bLength
+               .DB 0008$ - 0007$           ; bLength
                .DB USB_DESC_STRING         ; bDescriptorType
                .DB "a", 0
                .DB "t", 0
@@ -1150,8 +1108,8 @@ __asm
                .DB "n", 0
                .DB "t", 0
                .DB "s", 0
-0010$:    ; Product
-               .DB 0011$ - 0010$             ; bLength
+0008$:    ; Product
+               .DB 0009$ - 0008$             ; bLength
                .DB USB_DESC_STRING           ; bDescriptorType
                .DB "C", 0
                .DB "C", 0
@@ -1171,13 +1129,13 @@ __asm
                .DB "a", 0
                .DB "s", 0
                .DB "s", 0
-0011$:   ;; Serial number
-               .DB 0012$ - 0011$            ;; bLength
+0009$:   ;; Serial number
+               .DB 0010$ - 0009$            ;; bLength
                .DB USB_DESC_STRING          ;; bDescriptorType
                .DB "0", 0
                .DB "0", 0
                .DB "1", 0
-0012$:
+0010$:
                .DB  0
                .DB  0xff
 __endasm;

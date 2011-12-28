@@ -42,10 +42,10 @@ void appMainInit(void)
  * please do not block if you want USB to work.                                                 */
 void appMainLoop(void)
 {
-	__xdata uint8_t processbuffer;
+	xdata u8 processbuffer;
 
 #ifdef TRANSMIT_TEST
-	__xdata uint8_t u8Packet[13];
+	xdata u8 u8Packet[13];
 
 	 /* Send a packet */
 	u8Packet[0] = 0x0B;
@@ -61,7 +61,7 @@ void appMainLoop(void)
 	u8Packet[10] = 0x31;
 	u8Packet[11] = 0x31;
 	u8Packet[12] = 0x00;
-    transmit(u8Packet,0,1);
+    transmit(u8Packet,0,0);
     sleepMillis(800);
 #endif
 
@@ -70,12 +70,12 @@ void appMainLoop(void)
         lastCode[0] = 0xd;
         IEN2 &= ~IEN2_RFIE;
 
-        if(rfif & RFIF_IM_DONE)
+        if(rfif & RFIF_IRQ_DONE)
         {
         	processbuffer = !rfRxCurrentBuffer;
 			if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
 			{
-				txdata(0xfe, 0xf0, (uint8_t)rfrxbuf[processbuffer][0], (uint8_t*)&rfrxbuf[processbuffer]);
+				txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 				/* Set receive buffer to processed so it can be used again */
 				rfRxProcessed[processbuffer] = RX_PROCESSED;
 			}
@@ -95,21 +95,21 @@ void appMainLoop(void)
  *  * your data is in ep5iobuf.OUTbuf, the length is ep5iobuf.OUTlen, and the first two bytes are
  *      going to be \x40\xe0.  just craft your application to ignore those bytes, as i have ni
  *      puta idea what they do.  
- *  * transmit data back to the client-side app through t__xdatai().  this function immediately 
+ *  * transmit data back to the client-side app through txdatai().  this function immediately 
  *      xmits as soon as any previously transmitted data is out of the buffer (ie. it blocks 
  *      while (ep5iobuf.flags & EP_INBUF_WRITTEN) and then transmits.  this flag is then set, and 
  *      cleared by an interrupt when the data has been received on the host side.                */
-#ifndef VIRTUAL_COM
 int appHandleEP5()
 {
-    uint8_t app, cmd;
-    uint16_t len;
-    __xdata uint8_t *buf;
+#ifndef VIRTUAL_COM
+    u8 app, cmd;
+    u16 len;
+    xdata u8 *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
-    len = (uint16_t)*buf;
+    len = (u16)*buf;
     buf += 2;                                               // point at the address in memory
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
@@ -121,20 +121,25 @@ int appHandleEP5()
             break;
     }
     ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
+#endif
     return 0;
 }
 
 /* in case your application cares when an OUT packet has been completely received.               */
 void appHandleEP0OUTdone(void)
 {
+#ifndef VIRTUAL_COM
 //code here
+#endif
 }
 
 /* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
  * messages.  currently it implements a simple ping-like application.                           */
 int appHandleEP0(USB_Setup_Header* pReq)
 {
+#ifdef VIRTUAL_COM
 	pReq = 0;
+#else
     if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
     {
         switch (pReq->bRequest)
@@ -143,10 +148,10 @@ int appHandleEP0(USB_Setup_Header* pReq)
                 setup_send_ep0(&lastCode[0], 2);
                 break;
             case 1:
-                setup_sendx_ep0((__xdata uint8_t*)USBADDR, 40);
+                setup_sendx_ep0((xdata u8*)USBADDR, 40);
                 break;
             case 2:
-                setup_sendx_ep0((__xdata uint8_t*)pReq->wValue, pReq->wLength);
+                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
                 break;
 
         }
@@ -158,9 +163,10 @@ int appHandleEP0(USB_Setup_Header* pReq)
             ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
         }
     }
+#endif
     return 0;
 }
-#endif
+
 
 
 /*************************************************************************************************
@@ -217,9 +223,9 @@ void clock_init(void){
     // Set the system clock source to HS XOSC and max CPU speed,
     // ref. [clk]=>[clk_xosc.c]
     SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_STB) );
-    CLKCON = (CLKCON & ~(CLKCON_TICKSPD_1 | CLKCON_OSC_RC)) | CLKCON_CLKSPD_1;
-    while (CLKCON & CLKCON_OSC_RC);
+    while( !(SLEEP & SLEEP_XOSC_S) );
+    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
+    while (CLKCON & CLKCON_OSC);
     SLEEP |= SLEEP_OSC_PD;
     while (!IS_XOSC_STABLE());
 }
@@ -235,7 +241,7 @@ void initBoard(void)
 
 void main (void)
 {
-	uint8_t uiRadioEu = 0;
+	u8 uiRadioEu = 0;
 
     initBoard();
     initUSB();
@@ -256,7 +262,7 @@ void main (void)
     appMainInit();
 
 #ifdef RECEIVE_TEST
-    startRX(1);
+    startRX();
 #endif
 
     while (1)

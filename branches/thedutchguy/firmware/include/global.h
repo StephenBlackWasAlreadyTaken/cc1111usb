@@ -8,7 +8,7 @@
 #define RADIO_EU 1
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-extern __xdata uint8_t lastCode[2];
+extern xdata u8 lastCode[2];
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
@@ -42,7 +42,6 @@ extern __xdata uint8_t lastCode[2];
 
 #define LED     LED_GREEN
 
-#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_STB)
 
 #define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
 #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
@@ -51,5 +50,5 @@ extern __xdata uint8_t lastCode[2];
 void sleepMillis(int ms);
 void sleepMicros(int us);
 //void blink(u16 on_cycles, u16 off_cycles);
-void blink_binary_baby_lsb(uint16_t num, char bits);
+void blink_binary_baby_lsb(u16 num, char bits);
 #endif
