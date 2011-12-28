@@ -42,10 +42,10 @@ void appMainInit(void)
  * please do not block if you want USB to work.                                                 */
 void appMainLoop(void)
 {
-	xdata u8 processbuffer;
+	__xdata u8 processbuffer;
 
 #ifdef TRANSMIT_TEST
-	xdata u8 u8Packet[13];
+	__xdata u8 u8Packet[13];
 
 	 /* Send a packet */
 	u8Packet[0] = 0x0B;
@@ -61,7 +61,7 @@ void appMainLoop(void)
 	u8Packet[10] = 0x31;
 	u8Packet[11] = 0x31;
 	u8Packet[12] = 0x00;
-    transmit(u8Packet,0,0);
+    transmit(u8Packet,0,1);
     sleepMillis(800);
 #endif
 
@@ -104,7 +104,7 @@ int appHandleEP5()
 #ifndef VIRTUAL_COM
     u8 app, cmd;
     u16 len;
-    xdata u8 *buf;
+    __xdata u8 *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
@@ -148,10 +148,10 @@ int appHandleEP0(USB_Setup_Header* pReq)
                 setup_send_ep0(&lastCode[0], 2);
                 break;
             case 1:
-                setup_sendx_ep0((xdata u8*)USBADDR, 40);
+                setup_sendx_ep0((__xdata u8*)USBADDR, 40);
                 break;
             case 2:
-                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
+                setup_sendx_ep0((__xdata u8*)pReq->wValue, pReq->wLength);
                 break;
 
         }
@@ -262,7 +262,7 @@ void main (void)
     appMainInit();
 
 #ifdef RECEIVE_TEST
-    startRX();
+    startRX(1);
 #endif
 
     while (1)

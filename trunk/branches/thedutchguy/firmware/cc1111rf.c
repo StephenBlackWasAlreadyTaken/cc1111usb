@@ -4,17 +4,18 @@
 #include <string.h>
 
 /* Rx buffers */
-volatile xdata u8 rfRxCurrentBuffer;
-volatile xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
-volatile xdata u8 rfRxCounter[BUFFER_AMOUNT];
-volatile xdata u8 rfRxProcessed[BUFFER_AMOUNT];
+volatile __xdata u8 rfRxCurrentBuffer;
+volatile __xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
+volatile __xdata u8 rfRxCounter[BUFFER_AMOUNT];
+volatile __xdata u8 rfRxProcessed[BUFFER_AMOUNT];
+volatile __xdata u8 bRxDMA;
 /* Tx buffers */
-volatile xdata u8 rftxbuf[BUFFER_SIZE];
-volatile xdata u8 rfTxCounter = 0;
+volatile __xdata u8 rftxbuf[BUFFER_SIZE];
+volatile __xdata u8 rfTxCounter = 0;
 
 u8 rfif;
-volatile xdata u8 rf_status;
-volatile xdata DMA_DESC rfDMA;
+volatile __xdata u8 rf_status;
+volatile __xdata DMA_DESC rfDMA;
 
 /*************************************************************************************************
  * RF init stuff                                                                                 *
@@ -143,7 +144,7 @@ int waitRSSI()
 }
 
 /* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
-u8 transmit(xdata u8* buf, u16 len, u8 bDma)
+u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
 {
 	/* Put radio into idle state */
 	setRFIdle();
@@ -152,6 +153,7 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
 	if(len == 0)
 	{
 		len = buf[0];
+        len++;
 	}
 
     /* If DMA transfer, disable rxtx interrupt */
@@ -169,40 +171,48 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
     /* Configure DMA struct */
     if(bDma)
     {
-        DMAARM |= (0x80 | DMAARM0);
         rfDMA.srcAddrH = ((u16)buf)>>8;
         rfDMA.srcAddrL = ((u16)buf)&0xff;
-        rfDMA.destAddrH = ((u16)X_RFD)>>8;
-        rfDMA.destAddrL = ((u16)X_RFD)&0xff;
-        rfDMA.lenH = 0;
+        rfDMA.destAddrH = ((u16)&X_RFD)>>8;
+        rfDMA.destAddrL = ((u16)&X_RFD)&0xff;
+        rfDMA.lenH = len >> 8;
         rfDMA.vlen = 0;
         rfDMA.lenL = len;
         rfDMA.trig = 19;
-        rfDMA.tMode = 1;
+        rfDMA.tMode = 0;
         rfDMA.wordSize = 0;
         rfDMA.priority = 1;
         rfDMA.m8 = 0;
         rfDMA.irqMask = 0;
         rfDMA.srcInc = 1;
         rfDMA.destInc = 0;
+        
+        DMA0CFGH = ((u16)(&rfDMA))>>8;
+        DMA0CFGL = ((u16)(&rfDMA))&0xff;
     }
 
 	/* Strobe to rx */
-	RFST = RFST_SRX;
-	while(!(MARCSTATE & MARC_STATE_RX));
+	/*RFST = RFST_SRX;
+	while(!(MARCSTATE & MARC_STATE_RX));*/
 	/* wait for good RSSI, TODO change while loop this could hang forever */
-	while(1)
+	/*while(1)
 	{
 		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
 		{
 			break;
 		}
-	}
+	}*/
 
     /* Arm DMA channel */
     if(bDma)
     {
-        DMAARM |= DMAARM0;
+        DMAIRQ &= ~DMAARM0;
+        DMAARM |= (0x80 | DMAARM0);
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+        DMAARM = DMAARM0;
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
     }
 
 	/* Put radio into tx state */
@@ -222,8 +232,13 @@ u8 transmit(xdata u8* buf, u16 len, u8 bDma)
 	return 0;
 }
 
-void startRX(void)
+void startRX(u8 bDma)
 {
+    /* If DMA transfer, disable rxtx interrupt */
+    RFTXRXIE = !bDma;
+    bRxDMA = bDma;
+
+    /* Clear rx buffer */
     memset(rfrxbuf,0,BUFFER_SIZE);
 
     /* Set both byte counters to zero */
@@ -242,6 +257,36 @@ void startRX(void)
 
 	S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
 	RFIF &= ~RFIF_IRQ_DONE;
+
+    if(bDma)
+    {
+        rfDMA.srcAddrH = ((u16)&X_RFD)>>8;
+        rfDMA.srcAddrL = ((u16)&X_RFD)&0xff;
+        rfDMA.destAddrH = ((u16)&rfrxbuf[rfRxCurrentBuffer])>>8;
+        rfDMA.destAddrL = ((u16)&rfrxbuf[rfRxCurrentBuffer])&0xff;
+        rfDMA.lenH = 0;
+        rfDMA.vlen = 0;
+        rfDMA.lenL = 12;
+        rfDMA.trig = 19;
+        rfDMA.tMode = 0;
+        rfDMA.wordSize = 0;
+        rfDMA.priority = 1;
+        rfDMA.m8 = 0;
+        rfDMA.irqMask = 0;
+        rfDMA.srcInc = 0;
+        rfDMA.destInc = 1;
+        
+        DMA0CFGH = ((u16)(&rfDMA))>>8;
+        DMA0CFGL = ((u16)(&rfDMA))&0xff;
+        
+        DMAIRQ &= ~DMAARM0;
+        DMAARM |= (0x80 | DMAARM0);
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+        DMAARM = DMAARM0;
+        nop(); nop(); nop(); nop();
+        nop(); nop(); nop(); nop();
+    }
 
 	RFST = RFST_SRX;
 
@@ -266,7 +311,7 @@ void RxOn(void)
     if (rf_status != RF_STATE_RX)
     {
         rf_status = RF_STATE_RX;
-        startRX();
+        startRX(bRxDMA);
     }
 }
 
@@ -279,7 +324,7 @@ void RxIdle(void)
     }
 }
 
-void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
+void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {
     lastCode[1] = 17;
 
@@ -302,7 +347,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 }
 
 
-void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
+void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
     lastCode[1] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
@@ -312,7 +357,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     {
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
-    	startRX();
+    	startRX(bRxDMA);
     }
     else if(RFIF & RFIF_IRQ_TXUNF)
     {
@@ -337,6 +382,16 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 				/* Set both buffers to unprocessed */
 				rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
 				rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
+                if(bRxDMA)
+                {
+                    /* Switch DMA buffer */
+                    rfDMA.destAddrH = ((u16)&rfrxbuf[rfRxCurrentBuffer])>>8;
+                    rfDMA.destAddrL = ((u16)&rfrxbuf[rfRxCurrentBuffer])&0xff;
+                    /* Arm DMA for next receive */
+                    DMAARM = DMAARM0;
+                    nop(); nop(); nop(); nop();
+                    nop(); nop(); nop(); nop();
+                }
 			}
 			else
 			{

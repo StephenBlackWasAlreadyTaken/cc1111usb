@@ -24,15 +24,15 @@
 
 
 USB_STATE usb_data;
-xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
-xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
-xdata USB_EP_IO_BUF     ep0iobuf;
-xdata USB_EP_IO_BUF     ep5iobuf;
-xdata u8 appstatus;
+__xdata u8  usb_ep0_OUTbuf[EP0_MAX_PACKET_SIZE];                  // these get pointed to by the above structure
+__xdata u8  usb_ep5_OUTbuf[EP5OUT_MAX_PACKET_SIZE];               // these get pointed to by the above structure
+__xdata USB_EP_IO_BUF     ep0iobuf;
+__xdata USB_EP_IO_BUF     ep5iobuf;
+__xdata u8 appstatus;
 
-//xdata dmacfg_t usbdma;
-xdata DMA_DESC usbdma;
-//xdata u8 usbdmar[8];
+//__xdata dmacfg_t usbdma;
+__xdata DMA_DESC usbdma;
+//__xdata u8 usbdmar[8];
 
 /*************************************************************************************************
  * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
@@ -98,7 +98,7 @@ void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for app
     //EA=1;
 }
 
-void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
+void txdata(u8 app, u8 cmd, u16 len, __xdata u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
     // wish me luck!  this could horribly crash and burn.
 {
@@ -312,7 +312,7 @@ int setup_send_ep0(u8* payload, u16 length)
 }
 
 /* send from XDATA */
-int setup_sendx_ep0(xdata u8* payload, u16 length)
+int setup_sendx_ep0(__xdata u8* payload, u16 length)
 {
     if (ep0iobuf.epstatus != EP_STATE_IDLE)
     {
@@ -756,8 +756,8 @@ void handleOUTEP5(void)
     // client is sending commands... or looking for information...  status... whatever...
     u16 loop, len;
     u8 cmd, app;
-    xdata u8* ptr; 
-    xdata u8* dptr;
+    __xdata u8* ptr; 
+    __xdata u8* dptr;
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
@@ -828,7 +828,7 @@ void handleOUTEP5(void)
                     len += *ptr++ << 8;
                     loop =  (u16)*ptr++;                                    // just using loop for our immediate purpose.  sorry.
                     loop += (u16)*ptr++ << 8;                               // hack, but it works
-                    dptr = (xdata u8*) loop;
+                    dptr = (__xdata u8*) loop;
                     txdata(app, cmd, len, dptr);
                     //REALLYFASTBLINK();
 
@@ -836,24 +836,24 @@ void handleOUTEP5(void)
                 case CMD_POKE:
                     loop =  *ptr++;
                     loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
-                    dptr = (xdata u8*) loop;                                // hack, but it works
+                    dptr = (__xdata u8*) loop;                                // hack, but it works
                     // FIXME: do we want to DMA here?
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr++ = *ptr++;
                     }
-                    txdata(app, cmd, 1, (xdata u8*)"0");
+                    txdata(app, cmd, 1, (__xdata u8*)"0");
 
                     break;
                 case CMD_POKE_REG:
                     loop =  *ptr++;
                     loop += *ptr++ << 8;                                    // just using loop for our immediate purpose.  sorry.
-                    dptr = (xdata u8*) loop;                                // hack, but it works
+                    dptr = (__xdata u8*) loop;                                // hack, but it works
                     for (loop=2;loop<len;loop++)
                     {
                         *dptr = *ptr++;
                     }
-                    txdata(app, cmd, 1, (xdata u8*)"");
+                    txdata(app, cmd, 1, (__xdata u8*)"");
 
                     break;
                 case CMD_PING:
@@ -861,7 +861,7 @@ void handleOUTEP5(void)
                     //REALLYFASTBLINK();
                     break;
                 case CMD_STATUS:
-                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
+                    txdata(app, cmd, 13, (__xdata u8*)"UNIMPLEMENTED");
                     // unimplemented
                     break;
                 case CMD_RFMODE:
@@ -875,7 +875,7 @@ void handleOUTEP5(void)
                             setRFIdle();  
                             break;
                         case RF_STATE_TX:
-                            transmit(ptr, len);  
+                            transmit(ptr, len, 0);  
                             break;
                     }
                 default:
@@ -986,7 +986,7 @@ void usbProcessEvents(void)
 /*************************************************************************************************
  * Interrupt Service Routines                                                                    *
  ************************************************************************************************/
-void usbIntHandler(void) interrupt P2INT_VECTOR
+void usbIntHandler(void) __interrupt P2INT_VECTOR
 {
 
     while (!IS_XOSC_STABLE());
@@ -1013,7 +1013,7 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
 
 }
 
-void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as the USB RESUME interrupt
+void p0IntHandler(void) __interrupt P0INT_VECTOR  // P0_7's interrupt is used as the USB RESUME interrupt
 {
     while (!IS_XOSC_STABLE());
     EA=0;
@@ -1071,17 +1071,14 @@ __asm
                .DB USB_DESC_ENDPOINT       ; bDescriptorType
                .DB 0x85                    ; bEndpointAddress
                .DB 0x02                    ; bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
-               ;//.DB 0xf4, 0x01              ; wMaxPacketSize
-               ;//.DB 0x00, 0x02              ; wMaxPacketSize
-               .DB 0xff, 0x00              ; wMaxPacketSize
+               .DB 0xf4, 0x01              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0005$:  ; Endpoint descriptor (EP5 OUT)
                .DB 0006$ - 0005$           ; bLength
                .DB USB_DESC_ENDPOINT       ; bDescriptorType
                .DB 0x05                    ; bEndpointAddress
                .DB 0x02                    ; bmAttributes
-               .DB 0xff, 0x00              ; wMaxPacketSize
-               ;//.DB 0x00, 0x02              ; wMaxPacketSize
+               .DB 0x40, 0x00              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0006$:    ; Language ID
                .DB 0007$ - 0006$           ; bLength
@@ -1140,3 +1137,6 @@ __asm
                .DB  0xff
 __endasm;
 }
+
+
+

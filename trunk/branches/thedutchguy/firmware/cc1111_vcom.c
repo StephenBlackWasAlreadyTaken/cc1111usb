@@ -80,7 +80,7 @@ static void vcom_ep0_flush()
   USBCS0 = cs0;
 }
 
-xdata static struct usb_line_coding usb_line_codings = {115200, 0, 0, 8};
+__xdata static struct usb_line_coding usb_line_codings = {115200, 0, 0, 8};
 
 // Walk through the list of descriptors and find a match
 static void vcom_get_descriptor(u16 value)
@@ -454,7 +454,7 @@ void vcom_down() {
   P1DIR &= ~0x02;
 }
 
-void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)
+void txdata(u8 app, u8 cmd, u16 len, __xdata u8* dataptr)
 {
 	u16 test = 0;
 
