@@ -22,7 +22,7 @@
 #include "cc1111_vcom.h"
 
 // USB descriptors in one giant block of bytes
-__code __at(0x00aa) uint8_t usb_descriptors [] =
+__code __at(0x00aa) u8 usb_descriptors [] =
 {
   // Device descriptor
   0x12,

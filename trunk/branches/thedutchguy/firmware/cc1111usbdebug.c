@@ -1,15 +1,14 @@
-#include "cc1111usbdebug.h"
 #include "cc1111usb.h"
 
 /*************************************************************************************************
  * debug stuff.  slows executions.                                                               *
  ************************************************************************************************/
 /* blinks the EP0 SETUP packet in binary on the LED */
-void debugEP0Req(uint8_t *pReq)
+void debugEP0Req(u8 *pReq)
 {
     (void) pReq;
     /*
-    //uint8_t  loop;
+    //u8  loop;
 
     for (loop = sizeof(USB_Setup_Header);loop>0; loop--)
     {
@@ -20,29 +19,29 @@ void debugEP0Req(uint8_t *pReq)
 }
 
 
-/* sends a debug message up to the python __code to be spit out on stderr */
-void debug(__code uint8_t* text)
+/* sends a debug message up to the python code to be spit out on stderr */
+void debug(code u8* text)
 {
-    uint16_t len = 0;
-    __code uint8_t* ptr = text;
+    u16 len = 0;
+    code u8* ptr = text;
     while (*ptr++ != 0)
         len ++;
-    txdata(0xfe, 0xf0, len, (__xdata uint8_t*)text);
+    txdata(0xfe, 0xf0, len, (xdata u8*)text);
 }
 
-void debughex(__xdata uint8_t num)
+void debughex(u8 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX, 1, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX, 1, (xdata u8*)&num);
 }
 
-void debughex16(__xdata uint16_t num)
+void debughex16(u16 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX16, 2, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX16, 2, (xdata u8*)&num);
 }
 
-void debughex32(__xdata uint32_t num)
+void debughex32(u32 num)
 {
-    txdata(0xfe, DEBUG_CMD_HEX32, 4, (__xdata uint8_t*)&num);
+    txdata(0xfe, DEBUG_CMD_HEX32, 4, (xdata u8*)&num);
 }
  
 
