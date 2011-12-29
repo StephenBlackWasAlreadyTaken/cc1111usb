@@ -14,7 +14,9 @@
 /*************************************************************************************************
  * */
 
-#define DEBUG_HOPPING 1
+
+////  turn this on to enable TX of CARRIER at each hop instead of normal RX/TX
+//#define DEBUG_HOPPING 1
 
 #define APP_NIC 0x42
 #define NIC_RECV 0x1
@@ -40,6 +42,9 @@ xdata u16 g_curChanIdx;                 // indicates current channel index of th
 xdata u8 g_Channels[MAX_CHANNELS];
 xdata u16 g_tLastStateChange;
 xdata u16 g_tLastHop;
+xdata u16 g_desperatelySeeking;
+
+xdata u16 g_NIC_ID;
 
 
 xdata u8 g_txMsgQueue[MAX_TX_MSGS][MAX_TX_MSGLEN];
@@ -104,18 +109,59 @@ void MAC_stop_hopping(void)
 
 void MAC_sync(u16 CellID)
 {
-    appstatus = FHSS_STATE_SYNCHING;
     // this should be implemented for a specific MAC/PHY.  too many details are left out here.
     // what are we synching to?  need to determine if we have a network id to sync with?
     // wait on a channel until MAX_SYNC_TIMEOUT
+    //
+    // do we want to check current state?  this should probably only be allowed from
+    // UNSYNCHED or DISCOVERY...
+    if (appstatus != FHSS_STATE_UNSYNCHED && appstatus != FHSS_STATE_DISCOVERY)
+    {
+        debug("FHSS state entering SYNCHING from wrong state");
+        debughex(appstatus);
+    }
+    //
+    // first disable hopping 
+    MAC_stop_hopping();
+
+    // FIXME: what happens if the first channel is jammed?  make this random or make it try several
     g_curChanIdx = 0;
     MAC_set_chanidx(g_curChanIdx);
 
     // set state =  SYNC
+    appstatus = FHSS_STATE_SYNCHING;
 
-    
+    // store the main timer value for beginning of this phase.
+    g_tLastStateChange = clock;
+
+    // store the cell we're seeking.  since this search will use other parts of the code...
+    g_desperatelySeeking = CellID;
+
     // at MAX_SYNC_TIMEOUT,start activesync, where i become the cell master/time master, and periodically transmit beacons.
 }
+
+void MAC_stop_sync()
+{
+    // this only stops the hunt.  hopping is not re-enabled.  if you want that, use a different mode
+    appstatus = FHSS_STATE_UNSYNCHED;
+    g_tLastStateChange = clock;
+
+}
+
+void MAC_become_master()
+{
+    // this will force our nic to become the master
+    appstatus = FHSS_STATE_SYNC_MASTER;
+    g_tLastStateChange = clock;
+
+}
+
+void MAC_do_Master_scanny_thingy()
+{
+    appstatus = FHSS_STATE_SYNCHINGMASTER;
+    g_tLastStateChange = clock;
+}
+
 
 void MAC_set_chanidx(u16 chanidx)
 {
@@ -136,6 +182,13 @@ void MAC_tx(u8 len, u8* message)
     memcpy(&g_txMsgQueue[g_txMsgIdx][1], message, len);
 }
 
+
+void MAC_set_NIC_ID(u16 NIC_ID)
+{
+    // this function is a placeholder for more functionality, if it makes sense... perhaps cut it.
+    g_NIC_ID = NIC_ID;
+}
+
 void MAC_rx_handle(u8 len, u8* message)
 {
     // does this even exist?  we should just handle received packets same as always.
@@ -153,6 +206,10 @@ u8 MAC_getNextChannel()
     return g_Channels[g_curChanIdx];
 }
 
+
+
+
+/************************** Timer Interrupt Vectors **************************/
 void t1IntHandler(void) interrupt T1_VECTOR  // interrupt handler should trigger on T2 overflow
 {   
     clock ++;
@@ -332,50 +389,54 @@ int appHandleEP5()
         switch (cmd)
         {
             case NIC_XMIT:
+                // FIXME:  this needs to place buf data into the FHSS txMsgQueue
                 transmit(buf, len);
                 { LED=1; sleepMillis(2); LED=0; sleepMillis(1); }
                 txdata(app, cmd, 1, (xdata u8*)"0");
                 break;
+
             case NIC_SET_CHANNELS:
                 g_NumChannels = (xdata u16)*buf;
                 if (g_NumChannels <= MAX_CHANNELS)
                 {
                     buf += 2;
                     memcpy(&g_Channels[0], buf, g_NumChannels);
-
-                    //ptr = &g_Channels[0];
-                    //while (1)
-                    //    blink_binary_baby_lsb(g_NumChannels, 16);
-
-                    //for (loop=g_NumChannels; loop>0; loop--)
-                    //{
-                    //    REALLYFASTBLINK();
-                    //    //*ptr++ = *buf++;
-                    //}
-
                     txdata(app, cmd, 2, (u8*)&g_NumChannels);
+                } else {
+                    txdata(app, cmd, 8, "NO DEAL");
                 }
                 break;
+
             case NIC_NEXT_CHANNEL:
                 MAC_set_chanidx(MAC_getNextChannel());
                 txdata(app, cmd, 1, &g_Channels[g_curChanIdx]);
                 break;
+
             case NIC_CHANGE_CHANNEL:
                 PHY_set_channel(*buf);
                 txdata(app, cmd, 1, buf);
                 break;
+
             case NIC_START_HOPPING:
                 MAC_begin_hopping(0);
                 txdata(app, cmd, 1, buf);
                 break;
+
             case NIC_STOP_HOPPING:
                 MAC_stop_hopping();
                 txdata(app, cmd, 1, buf);
                 break;
+
             case NIC_SET_MAC_THRESHOLD:
                 MAC_stop_hopping();
                 txdata(app, cmd, 1, buf);
                 break;
+
+            case NIC_SET_ID:
+                MAC_set_NIC_ID(buf);
+                txdata(app, cmd, 1, buf);
+                break;
+
             default:
                 break;
         }
