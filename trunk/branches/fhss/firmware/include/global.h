@@ -48,6 +48,7 @@ extern xdata u8 lastCode[2];
 
 #define REALLYFASTBLINK()        { LED=1; sleepMillis(2); LED=0; sleepMillis(10); }
 #define blink( on_cycles, off_cycles)  {LED=1; sleepMillis(on_cycles); LED=0; sleepMillis(off_cycles);}
+#define LE_WORD(x) ((x)&0xFF),((u8) (((u16) (x))>>8))
 
 /* function declarations */
 void sleepMillis(int ms);

@@ -14,9 +14,9 @@ libsvcomd = $(appsd) cc1111_vcom.reld cc1111_vcomdesc.reld cc1111usbdebug.reld #
 libsvcomi = $(appsi) cc1111_vcom.reli cc1111_vcomdesc.reli cc1111usbdebug.reli #cc1111usb.rel
 
 libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel
-libsusbc  = $(appsc) cc1111usb.relc cc1111usbdebug.relc
-libsusbd  = $(appsd) cc1111usb.reld cc1111usbdebug.reld
-libsusbi  = $(appsi) cc1111usb.reli cc1111usbdebug.reli
+libsusbc  = $(appsc) cc1111usb.rc cc1111usbdebug.relc
+libsusbd  = $(appsd) cc1111usb.rd cc1111usbdebug.reld
+libsusbi  = $(appsi) immeusb.reli immeusbdebug.reli
 
 libsimme  = $(appsi) immeio.reli immekeys.reli immefont.reli   #  immedisplay.rel immeterm.rel
 libsi  = $(apps) immeio.rel immekeys.rel immefont.rel   #  immedisplay.rel immeterm.rel
@@ -29,6 +29,15 @@ immefw: immeapplication.hex
 testrecv: testrecvapplication.hex
 testxmit: testxmitapplication.hex
 
+
+cc1111usb.rc : cc1111usb.c
+	./new_serial.py
+	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c cc1111usb.c
+
+cc1111usb.rd : cc1111usb.c
+	./new_serial.py
+	$(CC) $(CFLAGS) -DDONSDONGLES -c cc1111usb.c
+
 %.relc : %.c
 	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c $<
 
@@ -39,12 +48,10 @@ testxmit: testxmitapplication.hex
 	$(CC) $(CFLAGS) -DIMMEDONGLE -DIMME  -c $<
 
 chronosapplication.hex: application.c $(libsusbc)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE
 	packihx <application.ihx >bins/application.hex
 
 donsapplication.hex: application.c $(libsusbd)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DDONSDONGLES
 	packihx <application.ihx >bins/application.hex
 
@@ -53,32 +60,26 @@ immedongleapplication.hex: application.c $(libsusbi)
 	packihx <application.ihx >bins/application.hex
 
 chronosNIC.hex: appNIC.c $(libsusbc)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appNIC.ihx >bins/chronosNIC.hex
 
 chronosFHSS.hex: appFHSSNIC.c $(libsusbc)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appFHSSNIC.ihx >bins/chronosFHSS.hex
 
 donsNIC.hex: appNIC.c $(libsusbd)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appNIC.ihx >bins/donsNIC.hex
 
 donsFHSS.hex: appFHSSNIC.c $(libsusbd)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appFHSSNIC.ihx >bins/donsFHSS.hex
 
 chronosSniff.hex: appSniff.c $(libsusbc)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appSniff.ihx >bins/chronosSniff.hex
 
 donsSniff.hex: appSniff.c $(libsusbd)
-	./new_serial.py
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appSniff.ihx >bins/donsSniff.hex
 

@@ -9,7 +9,6 @@ sn_header = """// Serial number
 
 try:
     ser = int(file(".serial", 'rb').read()) + 1
-    print("[--- new serial number: %.4d ---]" % ser)
 except IOError:
     ser = 0
 
