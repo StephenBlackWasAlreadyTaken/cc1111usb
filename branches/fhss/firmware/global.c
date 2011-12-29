@@ -127,3 +127,8 @@ int strncmp(const char *s1, const char *s2, u16 n)
     }
     return 0;
 }
+
+__code u8 sernum[] = {
+    'S','D','C','C','v',
+    LE_WORD(SDCC)
+};
