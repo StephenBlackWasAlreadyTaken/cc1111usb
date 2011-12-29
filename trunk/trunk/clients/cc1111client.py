@@ -935,6 +935,58 @@ class USBDongle:
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
 
+    def setup_rfstudio_902PktTx(self):
+        self.getRadioConfig()
+        rc = self.radiocfg
+        rc.iocfg2     = 0x00
+        rc.iocfg1     = 0x00
+        rc.iocfg0     = 0x06
+        rc.sync1      = 0x0b
+        rc.sync0      = 0x0b
+        rc.pktlen     = 0xff
+        rc.pktctrl1   = 0x04
+        rc.pktctrl0   = 0x05
+        rc.addr       = 0x00
+        rc.channr     = 0x00
+        rc.fsctrl1    = 0x0c
+        rc.fsctrl0    = 0x00
+        rc.freq2      = 0x25
+        rc.freq1      = 0x95
+        rc.freq0      = 0x55
+        rc.mdmcfg4    = 0x1d
+        rc.mdmcfg3    = 0x55
+        rc.mdmcfg2    = 0x13
+        rc.mdmcfg1    = 0x23
+        rc.mdmcfg0    = 0x11
+        rc.mcsm2      = 0x07
+        rc.mcsm1      = 0x30
+        rc.mcsm0      = 0x18
+        rc.deviatn    = 0x63
+        rc.foccfg     = 0x1d
+        rc.bscfg      = 0x1c
+        rc.agcctrl2   = 0xc7
+        rc.agcctrl1   = 0x00
+        rc.agcctrl0   = 0xb0
+        rc.frend1     = 0xb6
+        rc.frend0     = 0x10
+        rc.fscal3     = 0xEA
+        rc.fscal2     = 0x2A
+        rc.fscal1     = 0x00
+        rc.fscal0     = 0x1F
+        rc.test2      = 0x88
+        rc.test1      = 0x31
+        rc.test0      = 0x09
+        rc.pa_table7  = 0x00
+        rc.pa_table6  = 0x00
+        rc.pa_table5  = 0x00
+        rc.pa_table4  = 0x00
+        rc.pa_table3  = 0x00
+        rc.pa_table2  = 0x00
+        rc.pa_table1  = 0x00
+        rc.pa_table0  = 0x8e
+        self.setRadioConfig()
+
+
 def mkFreq(freq=902000000, mhz=24):
     freqmult = (0x10000 / 1000000.0) / mhz
     num = int(freq * freqmult)
