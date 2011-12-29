@@ -33,6 +33,10 @@ void init_RF(void)
     //
     // free running mode
     // time freq:
+    //
+    // TICKSPD = Fref (24mhz for cc1111, 26mhz for cc1110)
+    CLKCON &= 0xc7;
+
     T2PR = 0;
     T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
     T2CTL |= T2CTL_TIG;
