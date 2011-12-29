@@ -175,12 +175,11 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
 //! waitForUSBsetup() is a helper function to allow the usb stuff to settle before real app processing happens.
 void waitForUSBsetup() 
 {
-    while (USBADDR==0 && (appstatus<1))
+    while ((usb_data.usbstatus == USB_STATE_UNCONFIGURED ))
     {
         usbProcessEvents();
 
     }
-    blink(200,200);
 }
 
 
@@ -1067,3 +1066,214 @@ void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as t
     
     EA=1;
 }
+
+
+
+/*************************************************************************************************
+ * setup Config Descriptor  (see cc1111.h for defaults and fields to change)                     *
+ ************************************************************************************************/
+
+// all numbers are lsb.  modify this for your own use.
+/*
+void USBDESCBEGIN(void)
+{
+__asm
+0001$:    ; Device descriptor
+               .DB 0002$ - 0001$     ; bLength 
+               .DB USB_DESC_DEVICE   ; bDescriptorType
+               .DB 0x00, 0x02        ; bcdUSB
+               .DB 0x02              ; bDeviceClass i
+               .DB 0x00              ; bDeviceSubClass
+               .DB 0x00              ; bDeviceProtocol
+               .DB EP0_MAX_PACKET_SIZE ;   EP0_PACKET_SIZE
+               .DB 0x51, 0x04        ; idVendor Texas Instruments
+               .DB 0x15, 0x47        ; idProduct CC1111
+               .DB 0x01, 0x00        ; bcdDevice             (change to hardware version)
+               .DB 0x01              ; iManufacturer
+               .DB 0x02              ; iProduct
+               .DB 0x03              ; iSerialNumber
+               .DB 0x01              ; bNumConfigurations
+0002$:     ; Configuration descriptor
+               .DB 0003$ - 0002$     ; bLength
+               .DB USB_DESC_CONFIG   ; bDescriptorType
+               .DB 0006$ - 0002$     ; 
+               .DB 00
+               .DB 0x01              ; NumInterfaces
+               .DB 0x01              ; bConfigurationValue  - should be nonzero
+               .DB 0x00              ; iConfiguration
+               .DB 0x80              ; bmAttributes
+               .DB 0xfa              ; MaxPower
+0003$: ; Interface descriptor
+               .DB 0004$ - 0003$           ; bLength
+               .DB USB_DESC_INTERFACE      ; bDescriptorType
+               .DB 0x00                    ; bInterfaceNumber
+               .DB 0x00                    ; bAlternateSetting
+               .DB 0x02                    ; bNumEndpoints
+               .DB 0xff                    ; bInterfaceClass
+               .DB 0xff                    ; bInterfaceSubClass
+               .DB 0x01                    ; bInterfaceProcotol
+               .DB 0x00                    ; iInterface
+0004$:  ; Endpoint descriptor (EP5 IN)
+               .DB 0005$ - 0004$           ; bLength
+               .DB USB_DESC_ENDPOINT       ; bDescriptorType
+               .DB 0x85                    ; bEndpointAddress
+               .DB 0x02                    ; bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
+               ;//.DB LE_WORD(EP5IN_MAX_PACKET_SIZE) ; wMaxPacketSize    - can't use LE_WORD within inline asm
+               .DB 0x00, 0x01               ; wMaxPacketSize
+               .DB 0x01                    ; bInterval
+0005$:  ; Endpoint descriptor (EP5 OUT)
+               .DB 0006$ - 0005$           ; bLength
+               .DB USB_DESC_ENDPOINT       ; bDescriptorType
+               .DB 0x05                    ; bEndpointAddress
+               .DB 0x02                    ; bmAttributes
+               ;//.DB LE_WORD(EP5OUT_MAX_PACKET_SIZE) ; wMaxPacketSize    - can't use LE_WORD within inline asm
+               .DB 0x00, 0x01               ; wMaxPacketSize
+               .DB 0x01                    ; bInterval
+0006$:    ; Language ID
+               .DB 0007$ - 0006$           ; bLength
+               .DB USB_DESC_STRING         ; bDescriptorType
+               .DB 0x09                    ; US-EN
+               .DB 0x04
+0007$:    ; Manufacturer
+               .DB 0008$ - 0007$           ; bLength
+               .DB USB_DESC_STRING         ; bDescriptorType
+               .DB "a",0,"t",0,"l",0,"a",0,"s",0," ",0,"i", 0 ,"n", 0 ,"s", 0 ,"t", 0 ,"r", 0 ,"u", 0 ,"m", 0 ,"e", 0 ,"n", 0 ,"t", 0 ,"s", 0
+               .DB 0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0,0x41,0
+0008$:    ; Product
+               .DB 0009$ - 0008$             ; bLength
+               .DB USB_DESC_STRING           ; bDescriptorType
+               .DB "C", 0
+               .DB "C", 0
+               .DB "1", 0
+               .DB "1", 0
+               .DB "1", 0
+               .DB "1", 0
+               .DB " ", 0
+               .DB "U", 0
+               .DB "S", 0
+               .DB "B", 0
+               .DB " ", 0
+               .DB "n", 0
+               .DB "i", 0
+               .DB "c", 0
+               ;//.DB "k", 0
+               ;//.DB "a", 0
+               ;//.DB "s", 0
+               ;//.DB "s", 0
+0009$:   ;; Serial number
+               .DB 0010$ - 0009$            ;; bLength
+               .DB USB_DESC_STRING          ;; bDescriptorType
+               .DB "0", 0, "0", 0, "1", 0
+0010$:
+               .DB  0
+               .DB  0xff
+__endasm;
+}
+               */
+
+__code u8 USBDESCBEGIN [] = {
+// Device descriptor
+               18,                      // bLength 
+               USB_DESC_DEVICE,         // bDescriptorType
+               0x00, 0x02,              // bcdUSB
+               0x02,                    // bDeviceClass i
+               0x00,                    // bDeviceSubClass
+               0x00,                    // bDeviceProtocol
+               EP0_MAX_PACKET_SIZE,     //   EP0_PACKET_SIZE
+               0x51, 0x04,              // idVendor Texas Instruments
+               0x15, 0x47,              // idProduct CC1111
+               0x01, 0x00,              // bcdDevice             (change to hardware version)
+               0x01,                    // iManufacturer
+               0x02,                    // iProduct
+               0x03,                    // iSerialNumber
+               0x01,                    // bNumConfigurations
+// Configuration descriptor
+               9,                       // bLength
+               USB_DESC_CONFIG,         // bDescriptorType
+               LE_WORD(32),             //   overall configuration length, including Config, Interface, Endpoints
+               0x01,                    // NumInterfaces
+               0x01,                    // bConfigurationValue  - should be nonzero
+               0x00,                    // iConfiguration
+               0x80,                    // bmAttributes
+               0xfa,                    // MaxPower
+// Interface descriptor
+               9,                       // bLength
+               USB_DESC_INTERFACE,      // bDescriptorType
+               0x00,                    // bInterfaceNumber
+               0x00,                    // bAlternateSetting
+               0x02,                    // bNumEndpoints
+               0xff,                    // bInterfaceClass
+               0xff,                    // bInterfaceSubClass
+               0x01,                    // bInterfaceProcotol
+               0x00,                    // iInterface
+// Endpoint descriptor (EP5 IN)
+               7,                       // bLength
+               USB_DESC_ENDPOINT,       // bDescriptorType
+               0x85,                    // bEndpointAddress
+               0x02,                    // bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
+               LE_WORD(EP5IN_MAX_PACKET_SIZE),// wMaxPacketSize
+               0x01,                    // bInterval
+// Endpoint descriptor (EP5 OUT)
+               7,                       // bLength
+               USB_DESC_ENDPOINT,       // bDescriptorType
+               0x05,                    // bEndpointAddress
+               0x02,                    // bmAttributes
+               LE_WORD(EP5OUT_MAX_PACKET_SIZE),// wMaxPacketSize
+               0x01,                    // bInterval
+// Language ID
+               4,                       // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               0x09,                    // US-EN
+               0x04,
+// Manufacturer
+               36,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               'a',0,
+               't',0,
+               'l',0,
+               'a',0,
+               's',0,
+               ' ',0,
+               'i', 0 ,
+               'n', 0 ,
+               's', 0 ,
+               't', 0 ,
+               'r', 0 ,
+               'u', 0 ,
+               'm', 0 ,
+               'e', 0 ,
+               'n', 0 ,
+               't', 0 ,
+               's', 0 ,
+// Product
+               30,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               'C', 0,
+               'C', 0,
+               '1', 0,
+               '1', 0,
+               '1', 0,
+               '1', 0,
+               ' ', 0,
+               'U', 0,
+               'S', 0,
+               'B', 0,
+               ' ', 0,
+               'n', 0,
+               'i', 0,
+               'c', 0,
+               //.DB 'k', 0
+               //.DB 'a', 0
+               //.DB 's', 0
+               //.DB 's', 0
+// Serial number
+               10,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+              '0', 0,
+              '0', 0,
+              '0', 0,
+              '0', 0,
+                                
+// END OF STRINGS (len 0, type ff)
+               0, 0xff
+};
