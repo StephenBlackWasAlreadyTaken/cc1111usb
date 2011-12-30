@@ -1,11 +1,37 @@
 #!/usr/bin/env ipython
 import sys, usb, threading, time, struct
-from chipcondefs import *
+#from chipcondefs import *
+from cc1111client import *
 
 APP_NIC = 0x42
 NIC_RECV = 0x1
 NIC_XMIT = 0x2
 
+NIC_SET_CHANNELS =          0x10
+NIC_NEXT_CHANNEL =          0x11
+NIC_CHANGE_CHANNEL =        0x12
+NIC_START_HOPPING =         0x15
+NIC_STOP_HOPPING =          0x16
+NIC_SET_MAC_THRESHOLD =     0x17
+
+NIC_SET_ID =                0x20
+NIC_START_SYNC =            0x21
+
+T2SETTINGS = {}
+T2SETTINGS_24MHz = {
+    100: (4, 147, 3),
+    150: (5, 110, 3),
+    200: (5, 146, 3),
+    250: (5, 183, 3),
+    }
+T2SETTINGS_26MHz = {
+    100: (4, 158, 3),
+    150: (5, 119, 3),
+    200: (5, 158, 3),
+    250: (5, 198, 3),
+    }
+
+"""
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
 USB_BM_REQTYPE_TGT_INTF         =0x01
@@ -76,11 +102,11 @@ for lcl in lcls.keys():
         MODES[lcls[lcl]] = lcl
 
 
-"""  MODULATIONS
+'''  MODULATIONS
 Note that MSK is only supported for data rates above 26 kBaud and GFSK,
 ASK , and OOK is only supported for data rate up until 250 kBaud. MSK
 cannot be used if Manchester encoding/decding is enabled.
-"""
+'''
 MOD_2FSK                        = 0x00
 MOD_GFSK                        = 0x10
 MOD_ASK_OOK                     = 0x30
@@ -736,44 +762,44 @@ class USBDongle:
         output.append("Length Config:       %s" % LENGTH_CONFIGS[length_config])
 
         return "\n".join(output)
-    """
-    SYNC1       = 0xb1;
-    SYNC0       = 0x27;
-    PKTLEN      = 0xff;
-    PKTCTRL1    = 0x04;             // APPEND_STATUS
-    PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
-    ADDR        = 0x00;
-    CHANNR      = 0x00;
-    FSCTRL1     = 0x0c;             // IF
-    FSCTRL0     = 0x00;
-    FREQ2       = 0x25;
-    FREQ1       = 0x95;
-    FREQ0       = 0x55;
-    MDMCFG4     = 0x1d;             // chan_bw and drate_e
-    MDMCFG3     = 0x55;             // drate_m
-    MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
-    MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
-    MDMCFG0     = 0x11;             // chanspc_m
-    DEVIATN     = 0x63;
-    MCSM2       = 0x07;             // RX_TIMEOUT
-    MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt
-    MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
-    FOCCFG      = 0x1d;             
-    BSCFG       = 0x1c;             // bit sync config
-    AGCCTRL2    = 0xc7;
-    AGCCTRL1    = 0x00;
-    AGCCTRL0    = 0xb0;
-    FREND1      = 0xb6;
-    FREND0      = 0x10;
-    FSCAL3      = 0xea;
-    FSCAL2      = 0x2a;
-    FSCAL1      = 0x00;
-    FSCAL0      = 0x1f;
-    TEST2       = 0x88;
-    TEST1       = 0x31;
-    TEST0       = 0x09;
-    PA_TABLE0   = 0x83;
-"""
+        '''
+        SYNC1       = 0xb1;
+        SYNC0       = 0x27;
+        PKTLEN      = 0xff;
+        PKTCTRL1    = 0x04;             // APPEND_STATUS
+        PKTCTRL0    = 0x01;             // VARIABLE LENGTH, no crc, no whitening
+        ADDR        = 0x00;
+        CHANNR      = 0x00;
+        FSCTRL1     = 0x0c;             // IF
+        FSCTRL0     = 0x00;
+        FREQ2       = 0x25;
+        FREQ1       = 0x95;
+        FREQ0       = 0x55;
+        MDMCFG4     = 0x1d;             // chan_bw and drate_e
+        MDMCFG3     = 0x55;             // drate_m
+        MDMCFG2     = 0x13;             // gfsk, 30/32+carrier sense sync 
+        MDMCFG1     = 0x23;             // 4-preamble-bytes, chanspc_e
+        MDMCFG0     = 0x11;             // chanspc_m
+        DEVIATN     = 0x63;
+        MCSM2       = 0x07;             // RX_TIMEOUT
+        MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt
+        MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
+        FOCCFG      = 0x1d;             
+        BSCFG       = 0x1c;             // bit sync config
+        AGCCTRL2    = 0xc7;
+        AGCCTRL1    = 0x00;
+        AGCCTRL0    = 0xb0;
+        FREND1      = 0xb6;
+        FREND0      = 0x10;
+        FSCAL3      = 0xea;
+        FSCAL2      = 0x2a;
+        FSCAL1      = 0x00;
+        FSCAL0      = 0x1f;
+        TEST2       = 0x88;
+        TEST1       = 0x31;
+        TEST0       = 0x09;
+        PA_TABLE0   = 0x83;
+    '''
     ######## APPLICATION METHODS ########
     def setup900MHz(self):
         self.getRadioConfig()
@@ -895,20 +921,109 @@ class USBDongle:
         rc.pa_table0  = 0xc0
         self.setRadioConfig()
 
+    def setup_rfstudio_902PktTx(self):
+        self.getRadioConfig()
+        rc = self.radiocfg
+        rc.iocfg2     = 0x00
+        rc.iocfg1     = 0x00
+        rc.iocfg0     = 0x06
+        rc.sync1      = 0x0b
+        rc.sync0      = 0x0b
+        rc.pktlen     = 0xff
+        rc.pktctrl1   = 0x04
+        rc.pktctrl0   = 0x05
+        rc.addr       = 0x00
+        rc.channr     = 0x00
+        rc.fsctrl1    = 0x0c
+        rc.fsctrl0    = 0x00
+        rc.freq2      = 0x25
+        rc.freq1      = 0x95
+        rc.freq0      = 0x55
+        rc.mdmcfg4    = 0x1d
+        rc.mdmcfg3    = 0x55
+        rc.mdmcfg2    = 0x13
+        rc.mdmcfg1    = 0x23
+        rc.mdmcfg0    = 0x11
+        rc.mcsm2      = 0x07
+        rc.mcsm1      = 0x30
+        rc.mcsm0      = 0x18
+        rc.deviatn    = 0x63
+        rc.foccfg     = 0x1d
+        rc.bscfg      = 0x1c
+        rc.agcctrl2   = 0xc7
+        rc.agcctrl1   = 0x00
+        rc.agcctrl0   = 0xb0
+        rc.frend1     = 0xb6
+        rc.frend0     = 0x10
+        rc.fscal3     = 0xEA
+        rc.fscal2     = 0x2A
+        rc.fscal1     = 0x00
+        rc.fscal0     = 0x1F
+        rc.test2      = 0x88
+        rc.test1      = 0x31
+        rc.test0      = 0x09
+        rc.pa_table7  = 0x00
+        rc.pa_table6  = 0x00
+        rc.pa_table5  = 0x00
+        rc.pa_table4  = 0x00
+        rc.pa_table3  = 0x00
+        rc.pa_table2  = 0x00
+        rc.pa_table1  = 0x00
+        #rc.pa_table0  = 0x8e
+        rc.pa_table0  = 0xc0
+        self.setRadioConfig()
+
+"""
+class FHSSNIC(USBDongle):
+    def __init__(self, idx=0, debug=False):
+        USBDongle.__init__(self, idx, debug)
+
     def RFxmit(self, data):
         self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
 
     def RFrecv(self, timeout=100):
         return self.recv(APP_NIC, timeout)
 
+    def changeChannel(self, chan):
+        return self.send(APP_NIC, NIC_CHANGE_CHANNEL, "%c" % (chan))
+
+    def setChannels(self, channels=[]):
+        chans = ''.join(["%c" % chan for chan in channels])
+        return self.send(APP_NIC, NIC_SET_CHANNELS, struct.pack("<H", len(chans)) + chans)
+
+    def nextChannel(self):
+        return self.send(APP_NIC, NIC_NEXT_CHANNEL, '' )
+
+    def setupHopping(self, ms, mhz=24):
+        tickspd, t2pr, tip = T2SETTINGS[mhz][ms]
+
+        t2ctl = self.peek(T2CTL) & 0xfc
+        t2ctl |= tip
+
+        clkcon = (self.peek(CLKCON) & 0xc7)
+        clkcon |= (tickspd<<3)
+
+        self.poke(TICKSPD, "%c" % clkcon)
+        self.poke(T2PR, "%c" % t2pr)
+        self.poke(TIP, "%c" % tip)
 
 
+    def startHopping(self):
+        return self.send(APP_NIC, NIC_START_HOPPING, '')
 
+    def stopHopping(self):
+        return self.send(APP_NIC, NIC_STOP_HOPPING, '')
+
+    def setMACthreshold(self, value):
+        return self.send(APP_NIC, NIC_SET_MAC_THRESHOLD, '')
+
+    def mac_SyncCell(self):
+        return 1
 
 
 if __name__ == "__main__":
     idx = 0
     if len(sys.argv) > 1:
         idx = int(sys.argv.pop())
-    d = USBDongle(idx=idx)
+    d = FHSSNIC(idx=idx)
 
