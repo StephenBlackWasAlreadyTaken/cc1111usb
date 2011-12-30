@@ -5,11 +5,8 @@
 #include "global.h"
 
 #define     EP0_MAX_PACKET_SIZE     32
-#define     EP5OUT_MAX_PACKET_SIZE  255
-//#define     EP5OUT_MAX_PACKET_SIZE  512
-#define     EP5IN_MAX_PACKET_SIZE   255
-//#define     EP5IN_MAX_PACKET_SIZE   512
-#define     EP5_MAX_PACKET_SIZE     255
+#define     EP5OUT_MAX_PACKET_SIZE  256
+#define     EP5IN_MAX_PACKET_SIZE   256
         // note: descriptor needs to be adjusted to match EP5_MAX_PACKET_SIZE
 
 typedef struct {
@@ -217,14 +214,14 @@ __asm
                .DB 0x02                    ; bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
                ;//.DB 0xf4, 0x01              ; wMaxPacketSize
                ;//.DB 0x00, 0x02              ; wMaxPacketSize
-               .DB 0xff, 0x00              ; wMaxPacketSize
+               .DB 0x00, 0x01              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0005$:  ; Endpoint descriptor (EP5 OUT)
                .DB 0006$ - 0005$           ; bLength
                .DB USB_DESC_ENDPOINT       ; bDescriptorType
                .DB 0x05                    ; bEndpointAddress
                .DB 0x02                    ; bmAttributes
-               .DB 0xff, 0x00              ; wMaxPacketSize
+               .DB 0x00, 0x01              ; wMaxPacketSize
                ;//.DB 0x00, 0x02              ; wMaxPacketSize
                .DB 0x01                    ; bInterval
 0006$:    ; Language ID
@@ -293,6 +290,7 @@ __endasm;
 #define     CMD_STATUS      0x83
 #define     CMD_POKE_REG    0x84
 #define     CMD_RFMODE      0x85
+#define     CMD_RESET       0x8f
 
 #define     EP0_CMD_GET_DEBUG_CODES         0x00
 #define     EP0_CMD_GET_ADDRESS             0x01
