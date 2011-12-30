@@ -186,6 +186,8 @@ class USBDongle:
         while (self._do==None):
             try:
                 self.setup(console)
+                self._flush_recv_mbox()
+
             except:
                 if console: sys.stderr.write('.')
                 time.sleep(.4)
@@ -225,6 +227,10 @@ class USBDongle:
             return ''.join(retary)
             #return retary
         return ''
+
+    def _flush_recv_mbox(self):
+        for key in self.recv_mbox.keys():
+            self.trash.extend(self.recvAll(key))
 
     ######## TRANSMIT/RECEIVE THREADING ########
     def run(self):
