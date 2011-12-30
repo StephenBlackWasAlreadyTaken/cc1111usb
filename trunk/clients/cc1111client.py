@@ -594,10 +594,10 @@ class USBDongle:
             radiocfg = self.radiocfg
         output = []
 
-        output.append( "Modem Configuration")
-        output.append( self.reprModemConfig(mhz, radiocfg))
-        output.append( "\nFrequency Configuration")
+        output.append( "Frequency Configuration")
         output.append( self.reprFreqConfig(mhz, radiocfg))
+        output.append( "\nModem Configuration")
+        output.append( self.reprModemConfig(mhz, radiocfg))
         output.append( "\nPacket Configuration")
         output.append( self.reprPacketConfig(radiocfg))
         output.append( "\nRadio Test Signal Configuration")
@@ -726,7 +726,19 @@ class USBDongle:
         self.poke(MDMCFG2, chr(self.radiocfg.mdmcfg2))
         self.setModeRX()
 
-    def setFsIF(self, freq_if, if_off, mhz=24):
+    def getFsIFandOffset(self, mhz=24, radiocfg=None):
+        if radiocfg==None:
+            radiocfg = self.radiocfg
+            radiocfg.channr = ord(self.peek(CHANNR))
+            radiocfg.fsctrl1 = ord(self.peek(FSCTRL1))
+            radiocfg.fsctrl0 = ord(self.peek(FSCTRL0))
+
+        freq_if = (radiocfg.fsctrl1&0x1f) * (1000000.0 * mhz / pow(2,10))
+        freqoff = radiocfg.fsctrl0
+        return (freq_if, freqoff)
+
+
+    def setFsIFandOffset(self, freq_if, if_off, mhz=24):
         '''
         Note that the SmartRF Studio software
         automatically calculates the optimum register
@@ -734,12 +746,22 @@ class USBDongle:
         filter bandwidth. (from cc1110f32.pdf)
         '''
         ifBits = freq_if * pow(2,10) / (1000000.0 * mhz)
-        self.radiocfg.fsctrl1 &= ~(0x1f);
-        self.radiocfg.fscfrl0 = if_off
+        print ifBits
+        ifBits = int(ifBits + .5)
+
+        if ifBits >0x1f:
+            raise(Exception("FAIL:  freq_if is too high?  freqbits: %x (must be <0x1f)" % ifBits))
+        self.radiocfg.fsctrl1 &= ~(0x1f)
+        self.radiocfg.fsctrl1 |= int(ifBits)
+        self.radiocfg.fsctrl0 = if_off
         self.setModeIDLE()
         self.poke(FSCTRL1, chr(self.radiocfg.fsctrl1))
         self.poke(FSCTRL0, chr(self.radiocfg.fsctrl0))
         self.setModeRX()
+
+    def getChannel(self):
+        self.radiocfg.channr = ord(self.peek(CHANNR))
+        return self.radiocfg.channr
 
     def setChannel(self, channr):
         self.radiocfg.channr = channr
@@ -760,14 +782,14 @@ class USBDongle:
             With the channel filter bandwidth set to 500
             kHz, the signal should stay within 80% of 500
             kHz, which is 400 kHz. Assuming 915 MHz
-            frequency and ±20 ppm frequency uncertainty
+            frequency and +/-20 ppm frequency uncertainty
             for both the transmitting device and the
             receiving device, the total frequency
-            uncertainty is ±40 ppm of 915 MHz, which is
-            ±37 kHz. If the whole transmitted signal
+            uncertainty is +/-40 ppm of 915 MHz, which is
+            +/-37 kHz. If the whole transmitted signal
             bandwidth is to be received within 400 kHz, the
             transmitted signal bandwidth should be
-            maximum 400 kHz - 2·37 kHz, which is 326
+            maximum 400 kHz - 2*37 kHz, which is 326
             kHz.
 
         '''
@@ -850,7 +872,7 @@ class USBDongle:
         chanbw_e = radiocfg.mdmcfg4>>6
         chanbw_m = ((radiocfg.mdmcfg4>>4) & 0x3)
         bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
-        output.append("ChanBW:          i   %f khz"%bw)
+        output.append("ChanBW:              %f khz"%bw)
 
         drate_e = radiocfg.mdmcfg4 & 0xf
         drate_m = radiocfg.mdmcfg3
@@ -927,7 +949,7 @@ class USBDongle:
         freq_if = (radiocfg.fsctrl1&0x1f) * (1000000.0 * mhz / pow(2,10))
         freqoff = radiocfg.fsctrl0
         
-        output.append("Intermediate freq:   %d" % freq_if)
+        output.append("Intermediate freq:   %d hz" % freq_if)
         output.append("Frequency Offset:    %d +/-" % freqoff)
 
         return "\n".join(output)
@@ -1203,7 +1225,103 @@ def mkFreq(freq=902000000, mhz=24):
     return (num, freq2,freq1,freq0)
 
 def unittest(self):
-    pass
+    print "\nTesting USB ping()"
+    self.ping(3)
+    
+    print "\nTesting USB ep0Ping()"
+    self.ep0Ping()
+    
+    print "\nTesting USB enumeration"
+    print "getString(0,100): %s" % repr(self._do.getString(0,100))
+    
+    print "\nTesting USB EP MAX_PACKET_SIZE handling (ep0Peek(0xf000, 100))"
+    print repr(self.ep0Peek(0xf000, 100))
+
+    print "\nTesting USB EP MAX_PACKET_SIZE handling (peek(0xf000, 300))"
+    print repr(self.peek(0xf000, 400))
+
+    print "\nTesting getValueFromReprString()"
+    starry = self.reprRadioConfig().split('\n')
+    print repr(getValueFromReprString(starry, 'khz'))
+
+    print "\nTesting reprRadioConfig()"
+    print self.reprRadioConfig()
+
+    print "\nTesting Frequency Get/Setters"
+    # FREQ
+    freq0,freq0str = self.getFreq()
+
+    testfreq = 902000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+
+    testfreq = 868000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+
+    testfreq = 433000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    
+    starry = self.reprRadioConfig().split('\n')
+    line,val = getValueFromReprString(starry, "Frequency:")
+    try:
+        f = float(val.split(" ")[0])
+        if abs(f-testfreq) < 1024:
+            print "  passed: reprRadioConfig test: %s %f" % (repr(val), testfreq)
+        else:
+            print " *FAILED* reprRadioConfig test: %s %s %f" % (repr(line), repr(val), testfreq)
+
+    except ValueError, e:
+        print "  ERROR checking repr: %s" % e
+
+    self.setFreq(freq0)
+
+    # CHANNR
+    channr0 = self.getChannel()
+    for x in range(15):
+        self.setChannel(x)
+        channr = self.getChannel()
+        if channr != x:
+            print " *FAILED* get/setChannel():  %d : %d" % (x, channr)
+        else:
+            print "  passed: get/setChannel():  %d : %d" % (x, channr)
+    self.setChannel(channr0)
+
+    # IF and FREQ_OFF
+    freq_if, freqoff = self.getFsIFandOffset()
+    for fif, foff in ((164062,1),(140625,2),(187500,3)):
+        self.setFsIFandOffset(fif,foff)
+        nfif,nfoff = self.getFsIFandOffset()
+        if abs(nfif - fif) > 5:
+            print " *FAILED* get/setFsIFandOffset():  %d : %f (diff: %f)" % (fif,nfif,nfif-fif)
+        else:
+            print "  passed: get/setFsIFandOffset():  %d : %f (diff: %f)" % (fif,nfif,nfif-fif)
+
+        if foff != nfoff:
+            print " *FAILED* get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
+        else:
+            print "  passed: get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
+    self.setFsIFandOffset(freq_if, freqoff)
+
+def getValueFromReprString(stringarray, line_text):
+    for string in stringarray:
+        if line_text in string:
+            idx = string.find(":")
+            val = string[idx+1:].strip()
+            return (string,val)
 
 if __name__ == "__main__":
     idx = 0
