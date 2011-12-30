@@ -231,6 +231,8 @@ class USBDongle:
     def _flush_recv_mbox(self):
         for key in self.recv_mbox.keys():
             self.trash.extend(self.recvAll(key))
+        self.trash.append(self.recv_queue)
+        self.recv_queue = ''
 
     ######## TRANSMIT/RECEIVE THREADING ########
     def run(self):
@@ -536,7 +538,7 @@ class USBDongle:
     def setModeTXRXON(self):
         self.poke(X_RFST, "%c"%RFST_SFSTXON)
 
-    def setModeSCAL(self):
+    def setModeCAL(self):
         self.poke(X_RFST, "%c"%RFST_SCAL)
 
 
@@ -548,7 +550,9 @@ class USBDongle:
 
     def setRadioConfig(self):
         bytedef = self.radiocfg.vsEmit()
+        self.setModeIDLE()
         self.poke(0xdf00, bytedef)
+        self.setModeRX()
         return bytedef
 
     def setFreq(self, freq=902000000, mhz=24):
@@ -557,7 +561,9 @@ class USBDongle:
         self.radiocfg.freq2 = num >> 16
         self.radiocfg.freq1 = (num>>8) & 0xff
         self.radiocfg.freq0 = num & 0xff
+        self.setModeIDLE()
         self.poke(FREQ2, struct.pack("3B", self.radiocfg.freq2, self.radiocfg.freq1, self.radiocfg.freq0))
+        self.setModeRX()
 
     def getFreq(self, mhz=24, radiocfg=None):
         freqmult = (0x10000 / 1000000.0) / mhz
@@ -611,7 +617,9 @@ class USBDongle:
             raise(Exception("Please use constants MOD_FORMAT_* to specify modulation and "))
         radiocfg.mdmcfg2 = ord(self.peek(MDMCFG2)) & 0x87
         radiocfg.mdmcfg2 |= (mod) | (mchstr)
+        self.setModeIDLE()
         self.poke(MDMCFG2, struct.pack("<I",radiocfg.mdmcfg2)[0])
+        self.setModeRX()
 
     def getMdmChanSpc(self, mhz=24, radiocfg=None):
         if radiocfg==None:
@@ -622,17 +630,182 @@ class USBDongle:
         chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
         return (spacing)
 
-    def setMdmChanSpc(self, chanspc_m, chanspc_e, spacing=None, mhz=24, radiocfg=None):
+    def setMdmChanSpc(self, chanspc_khz=None, chanspc_m=None, chanspc_e=None, mhz=24, radiocfg=None):
+        '''
+        calculates the appropriate exponent and mantissa and updates the correct registers
+        chanspc is in kHz.  if you prefer, you may set the chanspc_m and chanspc_e settings 
+        directly.
+
+        only use one or the other:
+        * chanspc
+        * chanspc_m and chanspc_e
+        '''
         if radiocfg==None:
             radiocfg = self.radiocfg
-        if (spacing != None):
-            tmp = spacing * 0x262144/mhz
-            raise(Exception("setting channel spacing only supported using chanspc mantissa and exponent for now"))
+        if (chanspc_khz != None):
+            for e in range(16):
+                m = int((chanspc_khz * pow(2,18) / (1000.0 * mhz * pow(2,e)))-256)
+                if m < 256:
+                    chanspc_e = e
+                    chanspc_m = m
+                    break
+        if chanspc_e is None or chanspc_m is None:
+            raise(Exception("ChanSpc does not translate into acceptable parameters.  Should you be changing this?"))
+
+        chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
+        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f khz" % (e, m, chanspc)
+        
         radiocfg.mdmcfg1 = ord(self.peek(MDMCFG1)) & 0xfc  # clear out old exponent value
         radiocfg.mdmcfg1 |= chanspc_e
         radiocfg.mdmcfg0 = chanspc_m
-        self.poke(MDMCFG1, "%c"%mdmcfg1)
-        self.poke(MDMCFG0, "%c"%mdmcfg0)
+        self.setModeIDLE()
+        self.poke(MDMCFG1, chr(radiocfg.mdmcfg1))
+        self.poke(MDMCFG0, chr(radiocfg.mdmcfg0))
+        self.setModeRX()
+
+    def makeVLEN(self, maxlen=0xff):
+        self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktlen = maxlen
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.poke(PKTLEN, chr(self.radiocfg.pktlen))
+        self.setModeRX()
+
+    def makePktFLEN(self, flen=0xff):
+        self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktctrl0 |= 1
+        self.radiocfg.pktlen = flen
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.poke(PKTLEN, chr(self.radiocfg.pktlen))
+        self.setModeRX()
+
+    def setEnablePktCRC(self, enable=True):
+        crcE = (0,1)[enable]<<2
+        crcM = ~(1<<2)
+        self.radiocfg.pktctrl0 &= crcM
+        self.radiocfg.pktctrl0 |= crcE
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.setModeRX()
+
+    def setEnableDataWhitening(self, enable=True):
+        dwE = (0,1)[enable]<<6
+        dwM = ~(1<<6)
+        self.radiocfg.pktctrl0 &= dwM
+        self.radiocfg.pktctrl0 |= dwE
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.setModeRX()
+
+    def setPktPQT(self, num=3):
+        num &=  7
+        num <<= 5
+        numM = ~(7<<5)
+        self.radiocfg.pktctrl1 &= numM
+        self.radiocfg.pktctrl1 |= num
+        self.setModeIDLE()
+        self.poke(PKTCTRL1, chr(self.radiocfg.pktctrl1))
+        self.setModeRX()
+
+    def setEnableMdmDCFilter(self, enable=True):
+        dcfE = (0,1)[enable]<<7
+        dcfM = ~(1<<7)
+        self.radiocfg.mdmcfg2 &= dcfM
+        self.radiocfg.mdmcfg2 |= dcfE
+        self.setModeIDLE()
+        self.poke(MDMCFG2, chr(self.radiocfg.mdmcfg2))
+        self.setModeRX()
+
+    def setFsIF(self, freq_if, if_off, mhz=24):
+        '''
+        Note that the SmartRF Studio software
+        automatically calculates the optimum register
+        setting based on channel spacing and channel
+        filter bandwidth. (from cc1110f32.pdf)
+        '''
+        ifBits = freq_if * pow(2,10) / (1000000.0 * mhz)
+        self.radiocfg.fsctrl1 &= ~(0x1f);
+        self.radiocfg.fscfrl0 = if_off
+        self.setModeIDLE()
+        self.poke(FSCTRL1, chr(self.radiocfg.fsctrl1))
+        self.poke(FSCTRL0, chr(self.radiocfg.fsctrl0))
+        self.setModeRX()
+
+    def setChannel(self, channr):
+        self.radiocfg.channr = channr
+        self.setModeIDLE()
+        self.poke(CHANNR, chr(self.radiocfg.channr))
+        self.setModeRX()
+
+    def setMdmChanBW(self, bw, mhz=24):
+        '''
+        For best performance, the channel filter
+        bandwidth should be selected so that the
+        signal bandwidth occupies at most 80% of the
+        channel filter bandwidth. The channel centre
+        tolerance due to crystal accuracy should also
+        be subtracted from the signal bandwidth. The
+        following example illustrates this:
+
+            With the channel filter bandwidth set to 500
+            kHz, the signal should stay within 80% of 500
+            kHz, which is 400 kHz. Assuming 915 MHz
+            frequency and ±20 ppm frequency uncertainty
+            for both the transmitting device and the
+            receiving device, the total frequency
+            uncertainty is ±40 ppm of 915 MHz, which is
+            ±37 kHz. If the whole transmitted signal
+            bandwidth is to be received within 400 kHz, the
+            transmitted signal bandwidth should be
+            maximum 400 kHz - 2·37 kHz, which is 326
+            kHz.
+
+        '''
+
+        chanbw_e = None
+        chanbw_m = None
+        for e in range(4):
+            m = int((mhz*1000.0 / (bw *pow(2,e) * 8.0 )) - 4)
+            if m < 4:
+                chanbw_e = e
+                chanbw_m = m
+                break
+        if chanbw_e is None:
+            raise(Exception("ChanBW does not translate into acceptable parameters.  Should you be changing this?"))
+
+        bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
+        print "chanbw_e: %x   chanbw_m: %x   chanbw: %f kHz" % (e, m, bw)
+
+        self.radiocfg.mdmcfg4 &= 0x0f
+        self.radiocfg.mdmcfg4 |= ((chanbw_e<<6) | (chanbw_m<<4))
+        self.setModeIDLE()
+        self.poke(MDMCFG4, chr(self.radiocfg.mdmcfg4))
+        self.setModeRX()
+
+
+    def setMdmDRate(self, drate_khz, mhz=24):
+        drate_e = None
+        drate_m = None
+        for e in range(16):
+            m = int(drate_khz * pow(2,28) / (pow(2,e)* (mhz*1000.0))-256)
+            if m < 256:
+                drate_e = e
+                drate_m = m
+                break
+        if drate_e is None:
+            raise(Exception("DRate does not translate into acceptable parameters.  Should you be changing this?"))
+
+        drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
+        print "drate_e: %x   drate_m: %x   drate: %f kHz" % (e, m, drate)
+        
+        self.radiocfg.mdmcfg4 &= 0xf0
+        self.radiocfg.mdmcfg4 |= drate_e
+        self.radiocfg.mdmcfg3 = drate_m
+        self.setModeIDLE()
+        self.poke(MDMCFG3, chr(self.radiocfg.mdmcfg3))
+        self.poke(MDMCFG4, chr(self.radiocfg.mdmcfg4))
+        self.setModeRX()
 
     def getMdmDeviatn(self, dev_m, dev_e):
         raise(Exception("Not Implemented!"))
@@ -643,6 +816,12 @@ class USBDongle:
             radiocfg = self.radiocfg
             radiocfg.mdmcfg2 = ord(self.peek(MDMCFG2))
         return radiocfg.mdmcfg2&0x07
+
+    def setMdmSyncMode(self, syncmode=SYNCM_15_of_16):
+        mdmcfg2 = ord(self.peek(MDMCFG2)) & 0xf8
+        self.setModeIDLE()
+        self.poke(MDMCFG2, "%c" % (mdmcfg2 | syncmode))
+        self.setModeRX()
 
     def reprModemConfig(self, mhz=24, radiocfg=None):
         output = []
@@ -660,11 +839,11 @@ class USBDongle:
             syncmode = self.getMdmSyncMode(radiocfg)
 
         chanbw_e = radiocfg.mdmcfg4>>6
-        chanbw_m = (radiocfg.mdmcfg4>>4) & 0x3
+        chanbw_m = ((radiocfg.mdmcfg4>>4) & 0x3)
         bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
         output.append("ChanBW:          i   %f khz"%bw)
 
-        drate_e = radiocfg.mdmcfg4&0xf
+        drate_e = radiocfg.mdmcfg4 & 0xf
         drate_m = radiocfg.mdmcfg3
         drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
         output.append("DRate:               %f khz"%drate)
@@ -688,10 +867,6 @@ class USBDongle:
 
 
         return "\n".join(output)
-
-    def setMdmSyncMode(self, syncmode=SYNCM_15_of_16):
-        mdmcfg2 = ord(self.peek(MDMCFG2)) & 0xf8
-        self.poke(MDMCFG2, "%c" % (mdmcfg2 | syncmode))
 
     def getRSSI(self):
         rssi = self.peek(RSSI)
@@ -1003,6 +1178,12 @@ class USBDongle:
         self.setRadioConfig()
         self.setModeRX()
 
+    def testTX(self, data="XYZABCDEFGHIJKL"):
+        while (sys.stdin not in select.select([sys.stdin],[],[],0)[0]):
+            time.sleep(.4)
+            print "transmitting %s" % repr(data)
+            self.RFxmit(data)
+        sys.stdin.read(1)
 
 def mkFreq(freq=902000000, mhz=24):
     freqmult = (0x10000 / 1000000.0) / mhz
@@ -1012,7 +1193,8 @@ def mkFreq(freq=902000000, mhz=24):
     freq0 = num & 0xff
     return (num, freq2,freq1,freq0)
 
-
+def unittest(self):
+    pass
 
 if __name__ == "__main__":
     idx = 0

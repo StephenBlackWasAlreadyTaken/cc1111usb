@@ -37,6 +37,7 @@ extern xdata u8 lastCode[2];
     #define LED_RED   P2_3
     #define LED_GREEN P2_4
     #define SLEEPTIMER  1100
+    #define PLATFORM_CLOCK_FREQ 26
     
  #include "immedisplay.h"
  #include "immekeys.h"
@@ -49,12 +50,14 @@ extern xdata u8 lastCode[2];
     #define LED_GREEN P1_1
     #define SLEEPTIMER  1200
     #define CC1111EM_BUTTON P1_2
+    #define PLATFORM_CLOCK_FREQ 24
 
 #elif defined CHRONOSDONGLE
     // CC1111 USB Chronos watch dongle - 24mhz
     #define LED_RED   P1_0
     #define LED_GREEN P1_0
     #define SLEEPTIMER  1200
+    #define PLATFORM_CLOCK_FREQ 24
 #endif
 
 #define LED     LED_GREEN
