@@ -36,6 +36,7 @@
 
 xdata u32 loopCnt;
 xdata u8 xmitCnt;
+xdata u8 platform_clock_freq;
 
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
@@ -44,14 +45,13 @@ void appMainInit(void)
     xmitCnt = 1;
 
     RxMode();
-    //startRX();
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
  * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
-    /*  this is part of the NIC code to handle received RF packets
+    //  this is part of the NIC code to handle received RF packets and may be replaced/modified //
     xdata u8 processbuffer;
 
     if (rfif)
@@ -73,7 +73,8 @@ void appMainLoop(void)
 
         rfif = 0;
         IEN2 |= IEN2_RFIE;
-    }*/
+    }
+    //////////////////////////////////////////////////////////////////////////////////////////////
 }
 
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
@@ -191,6 +192,9 @@ int appHandleEP0(USB_Setup_Header* pReq)
 
                 // implement a RESET by trigging the watchdog timer
                 WDCTL = 0x83;   // Watchdog ENABLE, Watchdog mode, 2ms until reset
+                break;
+            case EP0_CMD_GET_FREQ:
+                setup_sendx_ep0(&platform_clock_freq, 1);
                 break;
         }
     }
@@ -341,6 +345,7 @@ void clock_init(void){
  *************************************************************************************************/
 void initBoard(void)
 {
+    platform_clock_freq = PLATFORM_CLOCK_FREQ;
     clock_init();
     io_init();
 }

@@ -19,16 +19,6 @@ void sleepMicros(int us)
     while (--us > 0) ;
 }
 
-/*void blink(u16 on_cycles, u16 off_cycles)                    // haxed for memory usage... made define instead
-{
-    LED= !LED;
-    //LED=1;
-    sleepMillis(on_cycles);
-    LED= !LED;
-    //LED=0;
-    sleepMillis(off_cycles);
-}*/
-
 void blink_binary_baby_lsb(u16 num, char bits)
 {
     EA=0;
