@@ -14,9 +14,9 @@ libsvcomd = $(appsd) cc1111_vcom.reld cc1111_vcomdesc.reld cc1111usbdebug.reld #
 libsvcomi = $(appsi) cc1111_vcom.reli cc1111_vcomdesc.reli cc1111usbdebug.reli #cc1111usb.rel
 
 libsusb  = $(apps) cc1111usb.rel cc1111usbdebug.rel
-libsusbc  = $(appsc) cc1111usb.relc cc1111usbdebug.relc
-libsusbd  = $(appsd) cc1111usb.reld cc1111usbdebug.reld
-libsusbi  = $(appsi) cc1111usb.reli cc1111usbdebug.reli
+libsusbc  = $(appsc) cc1111usb.rc cc1111usbdebug.relc
+libsusbd  = $(appsd) cc1111usb.rd cc1111usbdebug.reld
+libsusbi  = $(appsi) immeusb.reli immeusbdebug.reli
 
 libsimme  = $(appsi) immeio.reli immekeys.reli immefont.reli   #  immedisplay.rel immeterm.rel
 libsi  = $(apps) immeio.rel immekeys.rel immefont.rel   #  immedisplay.rel immeterm.rel
@@ -28,6 +28,15 @@ donfw: donsapplication.hex
 immefw: immeapplication.hex
 testrecv: testrecvapplication.hex
 testxmit: testxmitapplication.hex
+
+
+cc1111usb.rc : cc1111usb.c
+	./new_serial.py
+	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c cc1111usb.c
+
+cc1111usb.rd : cc1111usb.c
+	./new_serial.py
+	$(CC) $(CFLAGS) -DDONSDONGLES -c cc1111usb.c
 
 %.relc : %.c
 	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c $<
@@ -46,10 +55,11 @@ donsapplication.hex: application.c $(libsusbd)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DDONSDONGLES
 	packihx <application.ihx >bins/application.hex
 
-immedongleapplication.hex: application.c $(libsusbi)
-	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE -DIMME
-	packihx <application.ihx >bins/application.hex
-
+#	may be helpful when we actually have one...
+#immedongleapplication.hex: application.c $(libsusbi)
+#	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE -DIMME
+#	packihx <application.ihx >bins/application.hex
+#
 chronosNIC.hex: appNIC.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appNIC.ihx >bins/chronosNIC.hex
@@ -98,10 +108,10 @@ installdonfw: donsapplication.hex
 	goodfet.cc flash bins/application.hex
 	goodfet.cc info
 
-installimmefw: immedongleapplication.hex
-	goodfet.cc erase
-	goodfet.cc flash bins/application.hex
-	goodfet.cc info
+#installimmefw: immedongleapplication.hex
+#	goodfet.cc erase
+#	goodfet.cc flash bins/application.hex
+#	goodfet.cc info
 
 installchronosnicfw: chronosNIC.hex
 	goodfet.cc erase
@@ -149,7 +159,8 @@ installtestxmitfw: testxmitapplication.hex
 	goodfet.cc info
 
 
-testall: chronosapplication.hex donsapplication.hex immedongleapplication.hex testrecvusb.hex testxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+testall: chronosapplication.hex donsapplication.hex testrecvusb.hex testxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+##immedongleapplication.hex 
 
 # testing should see that each enumerates correctly in linux
 
