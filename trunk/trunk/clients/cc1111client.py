@@ -1,5 +1,5 @@
 #!/usr/bin/env ipython
-import sys, usb, threading, time, struct
+import sys, usb, threading, time, struct, select
 from chipcondefs import *
 
 EP_TIMEOUT_IDLE     = 400
@@ -456,6 +456,9 @@ class USBDongle:
             print >>sys.stderr,('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
             for x in self.recv_mbox.keys():
                 print >>sys.stderr,('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+            x,y,z = select.select([sys.stdin],[],[],0)
+            if sys.stdin in x:
+                break
             time.sleep(1)
 
     def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ", wait=10):
@@ -859,7 +862,9 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup900MHzHopTrans(self):
         self.getRadioConfig()
@@ -897,7 +902,9 @@ class USBDongle:
         rc.test2      = 0x88
         rc.test1      = 0x31
         rc.test0      = 0x09
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup900MHzContTrans(self):
         self.getRadioConfig()
@@ -939,7 +946,9 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup_rfstudio_902PktTx(self):
         self.getRadioConfig()
@@ -990,7 +999,9 @@ class USBDongle:
         rc.pa_table2  = 0x00
         rc.pa_table1  = 0x00
         rc.pa_table0  = 0x8e
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
 
 def mkFreq(freq=902000000, mhz=24):
