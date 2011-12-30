@@ -146,6 +146,8 @@ int waitRSSI()
 /* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
 u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
 {
+    u8 uiRSSITries = 5;
+
 	/* Put radio into idle state */
 	setRFIdle();
 
@@ -192,44 +194,33 @@ u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
     }
 
 	/* Strobe to rx */
-	/*RFST = RFST_SRX;
-	while(!(MARCSTATE & MARC_STATE_RX));*/
+	RFST = RFST_SRX;
+	while(!(MARCSTATE & MARC_STATE_RX));
 	/* wait for good RSSI, TODO change while loop this could hang forever */
-	/*while(1)
-	{
-		if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-		{
-			break;
-		}
-	}*/
-
-    /* Arm DMA channel */
-    if(bDma)
+	do
     {
-        DMAIRQ &= ~DMAARM0;
-        DMAARM |= (0x80 | DMAARM0);
-        nop(); nop(); nop(); nop();
-        nop(); nop(); nop(); nop();
-        DMAARM = DMAARM0;
-        nop(); nop(); nop(); nop();
-        nop(); nop(); nop(); nop();
+        uiRSSITries--;
+	} while(!waitRSSI() && uiRSSITries);
+
+    if(uiRSSITries)
+    {
+        /* Arm DMA channel */
+        if(bDma)
+        {
+            DMAIRQ &= ~DMAARM0;
+            DMAARM |= (0x80 | DMAARM0);
+            nop(); nop(); nop(); nop();
+            nop(); nop(); nop(); nop();
+            DMAARM = DMAARM0;
+            nop(); nop(); nop(); nop();
+            nop(); nop(); nop(); nop();
+        }
+	    /* Put radio into tx state */
+    	RFST = RFST_STX;
+    	while(!(MARCSTATE & MARC_STATE_TX));
+        return 1;
     }
-
-	/* Put radio into tx state */
-	RFST = RFST_STX;
-	while(!(MARCSTATE & MARC_STATE_TX));
-
-//	if(waitRSSI)
-//	{
-//		/* Put radio into tx state */
-//		RFST = RFST_STX;
-//		while(!(MARCSTATE & MARC_STATE_TX));
-//	}
-//	else
-//	{
-//		/* failed, retry? */
-//	}
-	return 0;
+    return 0;
 }
 
 void startRX(u8 bDma)
