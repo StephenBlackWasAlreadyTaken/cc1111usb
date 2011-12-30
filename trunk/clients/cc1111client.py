@@ -408,10 +408,10 @@ class USBDongle:
         self.recv_mbox[app]=[]
         return retval
 
-    def send(self, app, cmd, buf):
+    def send(self, app, cmd, buf, wait=100):
         #self._sendEP5("%c%c%s"%(app,cmd,buf))
         self.xmit_queue.append("%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf))
-        return self.recv(app)
+        return self.recv(app, wait)
 
     def getDebugCodes(self, timeout=100):
         x = self._recvEP0(timeout=timeout)
@@ -426,7 +426,7 @@ class USBDongle:
 
     def ep0Peek(self, addr, length, timeout=100):
         x = self._recvEP0(request=EP0_CMD_PEEKX, value=addr, length=length, timeout=timeout)
-        return x[3:]
+        return x#x[3:]
 
     def ep0Poke(self, addr, buf='\x00', timeout=100):
         x = self._sendEP0(request=EP0_CMD_POKEX, buf=buf, value=addr, timeout=timeout)
@@ -458,13 +458,13 @@ class USBDongle:
                 print >>sys.stderr,('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
             time.sleep(1)
 
-    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
+    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ", wait=10):
         good=0
         bad=0
         start = time.time()
         for x in range(count):
             istart = time.time()
-            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf)
+            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
             istop = time.time()
             print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
