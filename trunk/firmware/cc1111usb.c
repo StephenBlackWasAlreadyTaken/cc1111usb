@@ -161,8 +161,6 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
-        // FIXME:  debugging
-        //REALLYFASTBLINK();
     }
     //EA=1;
 }
@@ -189,12 +187,27 @@ void usb_init(void)
 {
     USB_RESET();
 
+    // setup Interrupt Flag MASKs... we want all interrupts at the moment.  change to your liking)
+    USBCIE = 0xf7;          // skip Start Of Frame (SOFIF).  it's basically a keep-alive packet to keep the device from entering SUSPEND.  
+    USBIIE = 0xff;
+    USBOIE = 0xff;
+
+    // setup interrupt behaviors
+    PICTL   |= PICTL_P0IENH;                // must have this enabled to resume from suspend
+    PICTL   &= ~PICTL_P0ICON;               // enable interrupts on rising edge
+    P0IE    = 1;                            // enable the p0 interrupt flag  (IEN1 is bit-accessible)
+    IEN2    |= IEN2_USBIE;                  // enable the USB interrupt flag (IEN2 is *not* bit-accessible)
+
+    USB_RESUME_INT_CLEAR();                 // P0IFG= 0; P0IF= 0
+    USB_INT_CLEAR();                        // P2IFG= 0; P2IF= 0;
+
 
     // usb dma
     DMA1CFGH = ((u16)(&usbdma))>>8;
     DMA1CFGL = ((u16)(&usbdma))&0xff;
     usbdma.vlen = 0;
     usbdma.wordSize = 0;
+    usbdma.lenH = 0;
     usbdma.tMode = 1;
     usbdma.trig = 0;
     usbdma.irqMask = 1;
@@ -212,8 +225,6 @@ void usb_init(void)
     //USBPOW |= USBPOW_SUSPEND_EN;          // ok, no.
     USBPOW &= ~USBPOW_SUSPEND_EN;           // i don't *wanna* go to sleep if the usb bus is idle for 3ms.  at least not yet.
 
-    // set us in the "unconfigured" state
-    //USBADDR = 0;
     usb_data.config = 0;                    // start out unconfigured
     usb_data.event = 0;
     usb_data.usbstatus  = USB_STATE_UNCONFIGURED;   // this tracks the status of our USB Controller
@@ -246,23 +257,7 @@ void usb_init(void)
 
 
    
-    // setup Interrupt Flag MASKs... we want all interrupts at the moment.  change to your liking)
-    USBCIE = 0xf7;          // skip Start Of Frame (SOFIF).  it's basically a keep-alive packet to keep the device from entering SUSPEND.  
-    USBIIE = 0xff;
-    USBOIE = 0xff;
-
-    // setup interrupt behaviors
-    PICTL   |= PICTL_P0IENH;                // must have this enabled to resume from suspend
-    PICTL   &= ~PICTL_P0ICON;               // enable interrupts on rising edge
-    P0IE    = 1;                            // enable the p0 interrupt flag  (IEN1 is bit-accessible)
-    IEN2    |= IEN2_USBIE;                  // enable the USB interrupt flag (IEN2 is *not* bit-accessible)
-
-    // clear interrupt flags
-    USB_RESUME_INT_CLEAR();                 // P0IFG= 0; P0IF= 0
-    USB_INT_CLEAR();                        // P2IFG= 0; P2IF= 0;
-
-    // Enable USB Interrupts to call an ISR
-    USB_INT_ENABLE();     
+    USB_INT_ENABLE();     // Enables USB Interrupts to call an ISR
 
 }
 
@@ -901,6 +896,17 @@ void processOUTEP5(void)
                             transmit(ptr, len);
                             break;
                     }
+                    txdata(app,cmd,len,ptr);
+                    break;
+
+                case CMD_RESET:
+                    if (strncmp(ptr, "RESET_NOW", 9))
+                        break;   //didn't match the signature.  must have been an accident.
+
+                    // implement a RESET by trigging the watchdog timer
+                    WDCTL = 0x80;   // Watchdog ENABLE, Watchdog mode, 1s until reset
+
+                    txdata(app,cmd,len,ptr);
                 default:
                     txdata(app,cmd,len,ptr);
             }
@@ -925,6 +931,8 @@ void processOUTEP5(void)
 
 void usbProcessEvents(void)
 {
+    // usb_data.event accumulates the event flags.  *as they are handled, make sure you clear them!*
+
     // handle Suspend signals
     if (usb_data.event & USBD_CIF_SUSPEND) {
         usb_data.usbstatus = USB_STATE_SUSPEND;
@@ -977,7 +985,8 @@ void usbProcessEvents(void)
     // usb_data.event accumulates the event flags.  *as they are handled, make sure you clear them!*
 
     if (usb_data.event & USBD_CIF_RESET || usb_data.usbstatus == USB_STATE_RESET)                // handle RESET
-    { //      catching either the CIF_RESET or the USB_STATE_RESET... should normalize.. probably catching the same stuff.
+    { 
+        //      catching either the CIF_RESET or the USB_STATE_RESET... should normalize.. probably catching the same stuff.
         usb_init();
         lastCode[0] = LC_USB_RESET;
         usb_data.event &= ~USBD_CIF_RESET;
@@ -1051,28 +1060,8 @@ void usbIntHandler(void) interrupt P2INT_VECTOR
         // read the packet and interpret/handle
         handleCS0();
         usb_data.event &= 0xfe7;
-    } 
+    } */
     
-    if (usb_data.event & (USBD_OIF_OUTEP5IF))
-    {
-        lastCode[0] = LC_USB_EP5OUT;
-        if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
-        {
-            //blink(200,200);
-            REALLYFASTBLINK();
-            lastCode[1] = LCE_USB_EP5_STALL;
-            ep5iobuf.epstatus = EP_STATE_IDLE;
-            USBINDEX=5;
-            USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
-        }
-        handleOUTEP5();                             // handles the immediate read into ep5iobuf
-        //processOUTEP5();                            // process the data read into ep5iobuf
-        //usb_data.event &= ~USBD_OIF_OUTEP5IF;       // this will allow more stuff to be written to EP5OUT from host...  don't clear until done handling.
-        
-    }
-    */
-    
-    //REALLYFASTBLINK();
     if (usb_data.event & (USBD_IIF_INEP5IF))
     {
         ep5iobuf.flags &= ~EP_INBUF_WRITTEN;        // host received our message, ok to write more
@@ -1098,3 +1087,118 @@ void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as t
     
     EA=1;
 }
+
+
+
+/*************************************************************************************************
+ * setup Config Descriptor  (see cc1111.h for defaults and fields to change)                     *
+ ************************************************************************************************/
+
+// all numbers are lsb.  modify this for your own use.
+
+__code u8 USBDESCBEGIN [] = {
+// Device descriptor
+               18,                      // bLength 
+               USB_DESC_DEVICE,         // bDescriptorType
+               0x00, 0x02,              // bcdUSB
+               0x02,                    // bDeviceClass i
+               0x00,                    // bDeviceSubClass
+               0x00,                    // bDeviceProtocol
+               EP0_MAX_PACKET_SIZE,     //   EP0_PACKET_SIZE
+               0x51, 0x04,              // idVendor Texas Instruments
+               0x15, 0x47,              // idProduct CC1111
+               0x01, 0x00,              // bcdDevice             (change to hardware version)
+               0x01,                    // iManufacturer
+               0x02,                    // iProduct
+               0x03,                    // iSerialNumber
+               0x01,                    // bNumConfigurations
+// Configuration descriptor
+               9,                       // bLength
+               USB_DESC_CONFIG,         // bDescriptorType
+               LE_WORD(32),             //   overall configuration length, including Config, Interface, Endpoints
+               0x01,                    // NumInterfaces
+               0x01,                    // bConfigurationValue  - should be nonzero
+               0x00,                    // iConfiguration
+               0x80,                    // bmAttributes
+               0xfa,                    // MaxPower
+// Interface descriptor
+               9,                       // bLength
+               USB_DESC_INTERFACE,      // bDescriptorType
+               0x00,                    // bInterfaceNumber
+               0x00,                    // bAlternateSetting
+               0x02,                    // bNumEndpoints
+               0xff,                    // bInterfaceClass
+               0xff,                    // bInterfaceSubClass
+               0x01,                    // bInterfaceProcotol
+               0x00,                    // iInterface
+// Endpoint descriptor (EP5 IN)
+               7,                       // bLength
+               USB_DESC_ENDPOINT,       // bDescriptorType
+               0x85,                    // bEndpointAddress
+               0x02,                    // bmAttributes - bits 0-1 Xfer Type (0=Ctrl, 1=Isoc, 2=Bulk, 3=Intrpt);      2-3 Isoc-SyncType (0=None, 1=FeedbackEndpoint, 2=Adaptive, 3=Synchronous);       4-5 Isoc-UsageType (0=Data, 1=Feedback, 2=Explicit)
+               LE_WORD(EP5IN_MAX_PACKET_SIZE),// wMaxPacketSize
+               0x01,                    // bInterval
+// Endpoint descriptor (EP5 OUT)
+               7,                       // bLength
+               USB_DESC_ENDPOINT,       // bDescriptorType
+               0x05,                    // bEndpointAddress
+               0x02,                    // bmAttributes
+               LE_WORD(EP5OUT_MAX_PACKET_SIZE),// wMaxPacketSize
+               0x01,                    // bInterval
+// Language ID
+               4,                       // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               0x09,                    // US-EN
+               0x04,
+// Manufacturer
+               36,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               'a',0,
+               't',0,
+               'l',0,
+               'a',0,
+               's',0,
+               ' ',0,
+               'i', 0 ,
+               'n', 0 ,
+               's', 0 ,
+               't', 0 ,
+               'r', 0 ,
+               'u', 0 ,
+               'm', 0 ,
+               'e', 0 ,
+               'n', 0 ,
+               't', 0 ,
+               's', 0 ,
+// Product
+               30,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+               'C', 0,
+               'C', 0,
+               '1', 0,
+               '1', 0,
+               '1', 0,
+               '1', 0,
+               ' ', 0,
+               'U', 0,
+               'S', 0,
+               'B', 0,
+               ' ', 0,
+               'n', 0,
+               'i', 0,
+               'c', 0,
+               //.DB 'k', 0
+               //.DB 'a', 0
+               //.DB 's', 0
+               //.DB 's', 0
+// Serial number
+               10,                      // bLength
+               USB_DESC_STRING,         // bDescriptorType
+              '0', 0,
+              '0', 0,
+              '0', 0,
+              '3', 0,
+                                
+// END OF STRINGS (len 0, type ff)
+               0, 0xff
+};
