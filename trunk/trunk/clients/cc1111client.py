@@ -708,6 +708,15 @@ class USBDongle:
         self.poke(PKTCTRL1, chr(self.radiocfg.pktctrl1))
         self.setModeRX()
 
+    def setEnableMdmFEC(self, enable=True):
+        crcE = (0,1)[enable]<<7
+        crcM = ~(1<<7)
+        self.radiocfg.mdmcfg1 &= crcM
+        self.radiocfg.mdmcfg1 |= crcE
+        self.setModeIDLE()
+        self.poke(MDMCFG1, chr(self.radiocfg.mdmcfg1))
+        self.setModeRX()
+
     def setEnableMdmDCFilter(self, enable=True):
         dcfE = (0,1)[enable]<<7
         dcfM = ~(1<<7)
@@ -934,9 +943,9 @@ class USBDongle:
             radiocfg.pktctrl1 = ord(self.peek(PKTCTRL1))
             radiocfg.pktctrl0 = ord(self.peek(PKTCTRL0))
 
-        output.append("Configured Address: 0x%x" % radiocfg.addr)
-        output.append("Sync Bytes:      %x %x" % (radiocfg.sync1, radiocfg.sync0))
+        output.append("Sync Bytes:      %.2x %.2x" % (radiocfg.sync1, radiocfg.sync0))
         output.append("Packet Length:       %d" % radiocfg.pktlen)
+        output.append("Configured Address: 0x%x" % radiocfg.addr)
 
         pqt = radiocfg.pktctrl1>>5
         output.append("Preamble Quality Threshold: 4 * %d" % pqt)
