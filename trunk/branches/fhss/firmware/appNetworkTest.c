@@ -225,17 +225,17 @@ int appHandleEP0(USB_Setup_Header* pReq)
 
 static void appInitRf(void)
 {
+    // initial radio state.  this is easily changed from the client, but
+    // most cases it's far superior to have a sane initial rf config.
+    // customize as desired, keeping in mind the impact any changes may
+    // have on the function of the firmware (assumptions abound)
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
     IOCFG0      = 0x00;
     SYNC1       = 0x0c;
     SYNC0       = 0x4e;
     PKTLEN      = 0xff;
-#ifdef RECEIVE_TEST
     PKTCTRL1    = 0x40; // PQT threshold  - was 0x00
-#else
-    PKTCTRL1    = 0x00;
-#endif
     PKTCTRL0    = 0x01;
     ADDR        = 0x00;
     CHANNR      = 0x00;
@@ -251,11 +251,7 @@ static void appInitRf(void)
     MDMCFG0     = 0x11;
     DEVIATN     = 0x36;
     MCSM2       = 0x07;             // RX_TIMEOUT
-#ifdef RECEIVE_TEST
-    MCSM1       = 0x3c;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
-#else
-    MCSM1       = 0x30;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
-#endif
+    MCSM1       = 0x3f;             // CCA_MODE RSSI below threshold unless currently recvg pkt - always end up in RX mode
     MCSM0       = 0x18;             // fsautosync when going from idle to rx/tx/fstxon
     FOCCFG      = 0x17;
     BSCFG       = 0x6c;
@@ -268,13 +264,8 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-#ifdef RECEIVE_TEST
-    TEST2       = 0x81; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x35; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
-#else
-    TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
-#endif
+    TEST2       = 0x88; // low data rates, increased sensitivity provided by 0x81- was 0x88
+    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates 0x35 provides increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
