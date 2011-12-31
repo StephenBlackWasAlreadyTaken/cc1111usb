@@ -305,7 +305,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     {
         // mark the last time we received a packet.  this will be used for MAC layer decisions in 
         // some protocols like FHSS
-        rf_tLastRecv = T2CT;
+        rf_tLastRecv = T2CT | (rf_MAC_timer << 8);
     }
 
     // contingency - RX Overflow
