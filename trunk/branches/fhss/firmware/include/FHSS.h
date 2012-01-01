@@ -2,6 +2,9 @@
 #define FHSS_NEXT_CHANNEL       0x11
 #define FHSS_CHANGE_CHANNEL     0x12
 #define FHSS_SET_MAC_THRESHOLD  0x13
+#define FHSS_GET_MAC_THRESHOLD  0x14
+#define FHSS_SET_MAC_DATA       0x15
+#define FHSS_GET_MAC_DATA       0x16
 
 #define FHSS_SET_STATE          0x20
 #define FHSS_GET_STATE          0x21
