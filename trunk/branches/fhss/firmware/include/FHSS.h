@@ -43,7 +43,7 @@ u8 MAC_getNextChannel();
 
 typedef struct MAC_DATA_s 
 {
-    u8 state;
+    u8 mac_state;
     // MAC parameters (FIXME: make this all cc1111fhssmac.c/h?)
     u32 g_MAC_threshold;              // when the T2 clock as overflowed this many times, change channel
     u16 g_NumChannels;                // in case of multiple paths through the available channels 
