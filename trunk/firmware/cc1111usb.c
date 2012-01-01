@@ -776,6 +776,7 @@ void handleOUTEP5(void)
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
+        // FIXME: differentiate between SENT_STALL and SEND_STALL?   CLEAR THE STALLS!
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
@@ -1002,6 +1003,8 @@ void usbProcessEvents(void)
     if (usb_data.event & (USBD_OIF_OUTEP5IF))
     {
         lastCode[0] = LC_USB_EP5OUT;
+        // FIXME: make this based on the USBCSIL.SENT_STALL and .SEND_STALL bits and clear both!
+        // FIXME: consider USBCSIL.FLUSH_PACKET effects as well, and consider flushing on SENT_STALL??.
         if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
         {
             //blink(200,200);
