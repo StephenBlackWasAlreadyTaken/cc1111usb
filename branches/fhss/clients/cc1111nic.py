@@ -13,13 +13,15 @@ FHSS_SET_CHANNELS =             0x10
 FHSS_NEXT_CHANNEL =             0x11
 FHSS_CHANGE_CHANNEL =           0x12
 FHSS_SET_MAC_THRESHOLD =        0x13
+FHSS_GET_MAC_THRESHOLD =        0x14
+FHSS_SET_MAC_DATA =             0x15
+FHSS_GET_MAC_DATA =             0x16
 
 FHSS_SET_STATE =                0x20
 FHSS_GET_STATE =                0x21
 FHSS_START_SYNC =               0x22
 FHSS_START_HOPPING =            0x23
 FHSS_STOP_HOPPING =             0x24
-
 
 FHSS_STATE_NONHOPPING =         0
 FHSS_STATE_DISCOVERY =          1
@@ -51,6 +53,29 @@ T2SETTINGS_26MHz = {
     200: (5, 158, 3),
     250: (5, 198, 3),
     }
+    
+TIP = (64,128,256,1024)
+
+def calculateT2(ms, mhz=24):
+    TICKSPD = [(mhz*1000000/pow(2,x)) for x in range(8)]
+    
+    ms = 1.0*ms/1000
+    candidates = []
+    for tickidx in xrange(8):
+        for tipidx in range(4):
+            for PR in xrange(256):
+                T = 1.0 * PR * TIP[tipidx] / TICKSPD[tickidx]
+                if abs(T-ms) < .010:
+                    candidates.append((T, tickidx, tipidx, PR))
+    diff = 1024
+    best = None
+    for c in candidates:
+        if abs(c[0] - ms) < diff:
+            best = c
+            diff = abs(c[0] - ms)
+    return best
+    #return ms, candidates, best
+            
 
 class FHSSNIC(USBDongle):
     def __init__(self, idx=0, debug=False):
@@ -95,6 +120,44 @@ class FHSSNIC(USBDongle):
 
     def stopHopping(self):
         return self.send(APP_NIC, FHSS_STOP_HOPPING, '')
+
+    def setMACperiod(self, ms, mhz=24):
+        val = calculateT2(ms, mhz)
+        T, tickidx, tipidx, PR = val
+        print "Setting MAC period to %f secs (%x %x %x)" % (val)
+        t2ctl = (ord(self.peek(X_T2CTL)) & 0xfc)   | (tipidx)
+        clkcon = (ord(self.peek(X_CLKCON)) & 0xc7) | (tickidx<<3)
+        
+        self.poke(X_T2PR, chr(PR))
+        self.poke(X_T2CTL, chr(t2ctl))
+        self.poke(X_CLKCON, chr(clkcon))
+        
+    def setMACdata(self, data):
+        datastr = ''.join([chr(d) for x in data])
+        return self.send(APP_NIC, FHSS_SET_MAC_DATA, datastr)
+
+    def getMACdata(self):
+        datastr = self.send(APP_NIC, FHSS_GET_MAC_DATA, '')
+        print (repr(datastr))
+        data = struct.unpack("<BIHHHHHHB", datastr)
+        return data
+    """
+        
+        
+    u8 mac_state;
+    // MAC parameters (FIXME: make this all cc1111fhssmac.c/h?)
+    u32 g_MAC_threshold;              // when the T2 clock as overflowed this many times, change channel
+    u16 g_NumChannels;                // in case of multiple paths through the available channels 
+    u16 g_NumChannelHops;             // total number of channels in pattern (>= g_MaxChannels)
+    u16 g_curChanIdx;                 // indicates current channel index of the hopping pattern
+    u16 g_tLastStateChange;
+    u16 g_tLastHop;
+    u16 g_desperatelySeeking;
+    u8  g_txMsgIdx;
+    """
+    
+    def getMACthreshold(self):
+        return self.send(APP_NIC, FHSS_SET_MAC_THRESHOLD, struct.pack("<I",value))
 
     def setMACthreshold(self, value):
         return self.send(APP_NIC, FHSS_SET_MAC_THRESHOLD, struct.pack("<I",value))

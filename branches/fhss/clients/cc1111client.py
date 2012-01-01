@@ -295,7 +295,7 @@ class USBDongle:
                                 if len(requeuebuf):
                                     if self._debug>1:  print >>sys.stderr,(" - DEBUG..requeuing %s"%repr(requeuebuf))
                                     q.insert(0,requeuebuf)
-                                print >>sys.stderr,("DEBUG: "+repr(printbuf))
+                                print >>sys.stderr,("DEBUG: (%.3f) %s" % (time.time(), repr(printbuf)))
                     elif (cmd == DEBUG_CMD_HEX):
                         #print >>sys.stderr, repr(buf[4:])
                         print >>sys.stderr, "DEBUG: %x"%(struct.unpack("B", buf[4:]))

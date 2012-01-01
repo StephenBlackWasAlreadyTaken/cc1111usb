@@ -215,6 +215,7 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
 
         MAC_set_chanidx(macdata.g_curChanIdx);
 #ifdef DEBUG_HOPPING
+        debug("hop");
         RFST = RFST_SIDLE;
         while(!(MARCSTATE & MARC_STATE_IDLE));
         RFST = RFST_STX;        // for debugging purposes, we'll just transmit carrier at each hop
@@ -458,6 +459,19 @@ int appHandleEP5()
             case FHSS_SET_MAC_THRESHOLD:
                 macdata.g_MAC_threshold = *buf;
                 txdata(app, cmd, 1, buf);
+                break;
+
+            case FHSS_GET_MAC_THRESHOLD:
+                txdata(app, cmd, 1, &macdata.g_MAC_threshold);
+                break;
+
+            case FHSS_SET_MAC_DATA:
+                memcpy(&macdata *buf, sizeof(macdata));
+                txdata(app, cmd, sizeof(macdata), buf);
+                break;
+
+            case FHSS_GET_MAC_DATA:
+                txdata(app, cmd, sizeof(macdata), &macdata);
                 break;
 
             case FHSS_START_SYNC:
