@@ -69,11 +69,11 @@ chronosFHSS.hex: appFHSSNIC.c $(libsusbc)
 	packihx <appFHSSNIC.ihx >bins/chronosFHSS.hex
 
 donsNIC.hex: appNIC.c $(libsusbd)
-	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
+	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DDONSDONGLES
 	packihx <appNIC.ihx >bins/donsNIC.hex
 
 donsFHSS.hex: appFHSSNIC.c $(libsusbd)
-	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DCHRONOSDONGLE
+	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DDONSDONGLES
 	packihx <appFHSSNIC.ihx >bins/donsFHSS.hex
 
 chronosSniff.hex: appSniff.c $(libsusbc)
