@@ -1,3 +1,5 @@
+fill out options for CC1111 stuff like DMA, etc....  right now it's skeleton and fits what i need, but perhaps not what others want.
+
 make python client handle multiple dongles at once
 
 detection firmware
@@ -27,6 +29,9 @@ cc1111nic.py/appNIC
         * primary channel - method
         * "waiting" method
 
+cc1111client.py
+    * simplify queuing?
+    * make recv() take an app and cmd as well, simplifying getting the right response even if others occur in the interrim.
 
 all USB firmwares:
     * add reset capability to EP0's commands

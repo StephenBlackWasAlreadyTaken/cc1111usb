@@ -44,6 +44,7 @@ SYS_CMD_PING                    = 0x82
 SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
 SYS_CMD_RFMODE                  = 0x85
+SYS_CMD_RESET                   = 0x8f
 
 EP0_CMD_GET_DEBUG_CODES         = 0x00
 EP0_CMD_GET_ADDRESS             = 0x01
@@ -162,7 +163,8 @@ class USBDongle:
         self.recv_mbox  = {}
         self.xmit_queue = []
         self.trash = []
-        self.sema = threading.Semaphore()
+        self.rsema = threading.Semaphore()
+        self.xsema = threading.Semaphore()
     
     def setup(self, console=True):
         idx = self.idx
@@ -221,7 +223,6 @@ class USBDongle:
 
     def _recvEP5(self, timeout=100):
         retary = ["%c"%x for x in self._do.bulkRead(0x85, 500, timeout)]
-        #retary = self._do.bulkRead(5, 500, timeout)
         if self._debug: print >>sys.stderr,"RECV:"+repr(retary)
         if len(retary):
             return ''.join(retary)
@@ -241,7 +242,7 @@ class USBDongle:
 
         while True:
             if (not self._threadGo): 
-                time.sleep(.1)
+                time.sleep(.04)
                 continue
 
             self.threadcounter = (self.threadcounter + 1) & 0xffffffff
@@ -251,7 +252,9 @@ class USBDongle:
             msgrecv = False
             try:
                 if len(self.xmit_queue):
+                    self.xsema.acquire()
                     msg = self.xmit_queue.pop(0)
+                    self.xsema.release()
                     self._sendEP5(msg)
                     msgsent = True
                 else:
@@ -345,12 +348,12 @@ class USBDongle:
                             self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
 
                             q = self.recv_mbox.get(app,None)
-                            self.sema.acquire()                            # THREAD SAFETY DANCE
+                            self.rsema.acquire()                            # THREAD SAFETY DANCE
                             if (q == None):
                                 q = []
                                 self.recv_mbox[app] = q
                             q.append(msg)
-                            self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                            self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                         else:            
                             if self._debug:     sys.stderr.write('=')
                     else:
@@ -358,7 +361,7 @@ class USBDongle:
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-                self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No such device' in repr(e)):
                     self._threadGo = False
@@ -366,7 +369,7 @@ class USBDongle:
                 self._usberrorcnt += 1
                 pass
             except:
-                self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                 sys.excepthook(*sys.exc_info())
 
 
@@ -389,30 +392,32 @@ class USBDongle:
             try:
                 q = self.recv_mbox.get(app, None)
                 #print >>sys.stderr,"debug(recv) q='%s'"%repr(q)
-                self.sema.acquire(False)
+                self.rsema.acquire(False)
                 resp = q.pop(0)
-                self.sema.release()
+                self.rsema.release()
                 return resp
             except IndexError:
                 #sys.excepthook(*sys.exc_info())
-                self.sema.release()
+                self.rsema.release()
                 pass
             except AttributeError:
                 #sys.excepthook(*sys.exc_info())
-                self.sema.release()
+                self.rsema.release()
                 pass
             except:
-                self.sema.release()
+                self.rsema.release()
                 sys.excepthook(*sys.exc_info())
-            time.sleep(.2)                                      # only hits here if we don't have something in queue
+            time.sleep(.001)                                      # only hits here if we don't have something in queue
     def recvAll(self, app):
         retval = self.recv_mbox.get(app,None)
         self.recv_mbox[app]=[]
         return retval
 
-    def send(self, app, cmd, buf, wait=100):
-        #self._sendEP5("%c%c%s"%(app,cmd,buf))
-        self.xmit_queue.append("%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf))
+    def send(self, app, cmd, buf, wait=10000):
+        msg = "%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf)
+        self.xsema.acquire()
+        self.xmit_queue.append(msg)
+        self.xsema.release()
         return self.recv(app, wait)
 
     def getDebugCodes(self, timeout=100):
@@ -425,6 +430,9 @@ class USBDongle:
     def ep0GetAddr(self):
         addr = self._recvEP0(request=EP0_CMD_GET_ADDRESS)
         return addr
+    def ep0Reset(self):
+        x = self._recvEP0(request=0xfe, value=0x5352, index=0x4e54)
+        return x
 
     def ep0Peek(self, addr, length, timeout=100):
         x = self._recvEP0(request=EP0_CMD_PEEKX, value=addr, length=length, timeout=timeout)
@@ -463,7 +471,7 @@ class USBDongle:
                 break
             time.sleep(1)
 
-    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ", wait=10):
+    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ", wait=1000):
         good=0
         bad=0
         start = time.time()
@@ -479,6 +487,8 @@ class USBDongle:
         stop = time.time()
         return (good,bad,stop-start)
 
+    def RESET(self):
+        r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
         return r[4:]
@@ -746,7 +756,6 @@ class USBDongle:
         filter bandwidth. (from cc1110f32.pdf)
         '''
         ifBits = freq_if * pow(2,10) / (1000000.0 * mhz)
-        print ifBits
         ifBits = int(ifBits + .5)
 
         if ifBits >0x1f:
@@ -870,7 +879,7 @@ class USBDongle:
             syncmode = self.getMdmSyncMode(radiocfg)
 
         chanbw_e = radiocfg.mdmcfg4>>6
-        chanbw_m = ((radiocfg.mdmcfg4>>4) & 0x3)
+        chanbw_m = (radiocfg.mdmcfg4>>4) & 0x3
         bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
         output.append("ChanBW:              %f khz"%bw)
 
@@ -1108,6 +1117,7 @@ class USBDongle:
         rc.test2      = 0x88
         rc.test1      = 0x31
         rc.test0      = 0x09
+        rc.pa_table0  = 0xc0
         self.setModeIDLE()
         self.setRadioConfig()
         self.setModeRX()
@@ -1204,7 +1214,8 @@ class USBDongle:
         rc.pa_table3  = 0x00
         rc.pa_table2  = 0x00
         rc.pa_table1  = 0x00
-        rc.pa_table0  = 0x8e
+        #rc.pa_table0  = 0x8e
+        rc.pa_table0  = 0xc0
         self.setModeIDLE()
         self.setRadioConfig()
         self.setModeRX()
@@ -1215,14 +1226,19 @@ class USBDongle:
             print "transmitting %s" % repr(data)
             self.RFxmit(data)
         sys.stdin.read(1)
+    def checkRepr(self, matchstr, checkval, maxdiff=0):
+        starry = self.reprRadioConfig().split('\n')
+        line,val = getValueFromReprString(starry, matchstr)
+        try:
+            f = checkval.__class__(val.split(" ")[0])
+            if abs(f-checkval) <= maxdiff:
+                print "  passed: reprRadioConfig test: %s %s" % (repr(val), checkval)
+            else:
+                print " *FAILED* reprRadioConfig test: %s %s %s" % (repr(line), repr(val), checkval)
 
-def mkFreq(freq=902000000, mhz=24):
-    freqmult = (0x10000 / 1000000.0) / mhz
-    num = int(freq * freqmult)
-    freq2 = num >> 16
-    freq1 = (num>>8) & 0xff
-    freq0 = num & 0xff
-    return (num, freq2,freq1,freq0)
+        except ValueError, e:
+            print "  ERROR checking repr: %s" % e
+
 
 def unittest(self):
     print "\nTesting USB ping()"
@@ -1274,19 +1290,8 @@ def unittest(self):
         print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
     else:
         print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
-    
-    starry = self.reprRadioConfig().split('\n')
-    line,val = getValueFromReprString(starry, "Frequency:")
-    try:
-        f = float(val.split(" ")[0])
-        if abs(f-testfreq) < 1024:
-            print "  passed: reprRadioConfig test: %s %f" % (repr(val), testfreq)
-        else:
-            print " *FAILED* reprRadioConfig test: %s %s %f" % (repr(line), repr(val), testfreq)
-
-    except ValueError, e:
-        print "  ERROR checking repr: %s" % e
-
+   
+    self.checkRepr("Frequency:", float(testfreq), 1024)
     self.setFreq(freq0)
 
     # CHANNR
@@ -1298,6 +1303,7 @@ def unittest(self):
             print " *FAILED* get/setChannel():  %d : %d" % (x, channr)
         else:
             print "  passed: get/setChannel():  %d : %d" % (x, channr)
+    self.checkRepr("Channel:", channr)
     self.setChannel(channr0)
 
     # IF and FREQ_OFF
@@ -1314,6 +1320,9 @@ def unittest(self):
             print " *FAILED* get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
         else:
             print "  passed: get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
+    self.checkRepr("Intermediate freq:", fif, 11720)
+    self.checkRepr("Frequency Offset:", foff)
+    
     self.setFsIFandOffset(freq_if, freqoff)
 
 def getValueFromReprString(stringarray, line_text):
@@ -1322,6 +1331,16 @@ def getValueFromReprString(stringarray, line_text):
             idx = string.find(":")
             val = string[idx+1:].strip()
             return (string,val)
+
+def mkFreq(freq=902000000, mhz=24):
+    freqmult = (0x10000 / 1000000.0) / mhz
+    num = int(freq * freqmult)
+    freq2 = num >> 16
+    freq1 = (num>>8) & 0xff
+    freq0 = num & 0xff
+    return (num, freq2,freq1,freq0)
+
+
 
 if __name__ == "__main__":
     idx = 0
