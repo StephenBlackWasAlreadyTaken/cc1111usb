@@ -334,9 +334,11 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
             {
                 // contingency - Packet Not Handled!
                 /* Main app didn't process previous packet yet, drop this one */
-                REALLYFASTBLINK();
+                LED = !LED;
+                //REALLYFASTBLINK();
                 memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
                 rfRxCounter[rfRxCurrentBuffer] = 0;
+                LED = !LED;
             }
         }
         //RFIF &= ~RFIF_IRQ_DONE;
@@ -344,18 +346,22 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 
     if(RFIF & RFIF_IRQ_RXOVF)
     {
-        REALLYFASTBLINK();
+        //REALLYFASTBLINK();
         /* RX overflow, only way to get out of this is to restart receiver */
         //resetRf();
+        LED = !LED;
         stopRX();
         startRX();
+        LED = !LED;
         //RFIF &= ~RFIF_IRQ_RXOVF;
     }
     // contingency - TX Underflow
     if(RFIF & RFIF_IRQ_TXUNF)
     {
         /* Put radio into idle state */
+        LED = !LED;
         setRFIdle();
+        LED = !LED;
         //resetRf();
         //RFIF &= ~RFIF_IRQ_TXUNF;
     }
