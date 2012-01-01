@@ -2,11 +2,12 @@ make python client handle multiple dongles at once
 
 detection firmware
     * reduce all dependence upon the data
-        * fixed length
+        * fixed length (0x10? 0x20?)
+        * no syncword
         * no address
-        * no encoding
+        * no manchester encoding / fec
         * no crc
-        * no 
+    * bit-analysis to determine possible sync-words
 
 cc1111nicserver.py
     * listen on two TCP ports
@@ -15,7 +16,7 @@ cc1111nicserver.py
 
 IMME Sniffer
     * UI
-        * power off/on
+        * power off/on/reset
         * adjust frequency/channel/spacing
         * adjust data rate and bw
         * adjust GFSK/MSK/OOK
@@ -26,3 +27,8 @@ cc1111nic.py/appNIC
         * primary channel - method
         * "waiting" method
 
+
+all USB firmwares:
+    * add reset capability to EP0's commands
+    * add stall recovery to client and EP0 commands (explore this one...)
+    * add poke() functionality to EP0's commands
