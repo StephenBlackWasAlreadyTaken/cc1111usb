@@ -1,6 +1,10 @@
 #!/usr/bin/env ipython
-import sys, usb, threading, time, struct
+import sys, usb, threading, time, struct, select
 from chipcondefs import *
+
+EP_TIMEOUT_IDLE     = 400
+EP_TIMEOUT_ACTIVE   = 10
+
 
 USB_BM_REQTYPE_TGTMASK          =0x1f
 USB_BM_REQTYPE_TGT_DEV          =0x00
@@ -41,6 +45,15 @@ SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
 SYS_CMD_RFMODE                  = 0x85
 SYS_CMD_RESET                   = 0x8f
+
+EP0_CMD_GET_DEBUG_CODES         = 0x00
+EP0_CMD_GET_ADDRESS             = 0x01
+EP0_CMD_POKEX                   = 0x01
+EP0_CMD_PEEKX                   = 0x02
+EP0_CMD_PING0                   = 0x03
+EP0_CMD_PING1                   = 0x04
+EP0_CMD_RESET                   = 0xfe
+
 
 DEBUG_CMD_STRING                = 0xf0
 DEBUG_CMD_HEX                   = 0xf1
@@ -150,7 +163,8 @@ class USBDongle:
         self.recv_mbox  = {}
         self.xmit_queue = []
         self.trash = []
-        self.sema = threading.Semaphore()
+        self.rsema = threading.Semaphore()
+        self.xsema = threading.Semaphore()
     
     def setup(self, console=True):
         idx = self.idx
@@ -166,6 +180,7 @@ class USBDongle:
         self._do = d.open()
         self._do.claimInterface(0)
         self._threadGo = True
+        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
         self._do=None
@@ -173,8 +188,11 @@ class USBDongle:
         while (self._do==None):
             try:
                 self.setup(console)
+                self._flush_recv_mbox()
+
             except:
                 if console: sys.stderr.write('.')
+                time.sleep(.4)
 
 
 
@@ -205,12 +223,17 @@ class USBDongle:
 
     def _recvEP5(self, timeout=100):
         retary = ["%c"%x for x in self._do.bulkRead(0x85, 500, timeout)]
-        #retary = self._do.bulkRead(5, 500, timeout)
         if self._debug: print >>sys.stderr,"RECV:"+repr(retary)
         if len(retary):
             return ''.join(retary)
             #return retary
         return ''
+
+    def _flush_recv_mbox(self):
+        for key in self.recv_mbox.keys():
+            self.trash.extend(self.recvAll(key))
+        self.trash.append(self.recv_queue)
+        self.recv_queue = ''
 
     ######## TRANSMIT/RECEIVE THREADING ########
     def run(self):
@@ -219,7 +242,7 @@ class USBDongle:
 
         while True:
             if (not self._threadGo): 
-                time.sleep(.1)
+                time.sleep(.04)
                 continue
 
             self.threadcounter = (self.threadcounter + 1) & 0xffffffff
@@ -229,7 +252,9 @@ class USBDongle:
             msgrecv = False
             try:
                 if len(self.xmit_queue):
+                    self.xsema.acquire()
                     msg = self.xmit_queue.pop(0)
+                    self.xsema.release()
                     self._sendEP5(msg)
                     msgsent = True
                 else:
@@ -291,7 +316,7 @@ class USBDongle:
             #### receive stuff.
             try:
                 #### first we populate the queue
-                msg = self._recvEP5(timeout=40)
+                msg = self._recvEP5(timeout=self.ep5timeout)
                 if len(msg) > 0:
                     self.recv_queue += msg
                     msgrecv = True
@@ -303,7 +328,8 @@ class USBDongle:
                 #### now we parse, sort, and deliver the mail.
                 idx = self.recv_queue.find('@')
                 if (idx==-1):
-                    sys.stderr.write('@')
+                    if self._debug:
+                        sys.stderr.write('@')
                 else:
                     if (idx>0):
                         self.trash.append(self.recv_queue[:idx])
@@ -322,12 +348,12 @@ class USBDongle:
                             self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
 
                             q = self.recv_mbox.get(app,None)
-                            self.sema.acquire()                            # THREAD SAFETY DANCE
+                            self.rsema.acquire()                            # THREAD SAFETY DANCE
                             if (q == None):
                                 q = []
                                 self.recv_mbox[app] = q
                             q.append(msg)
-                            self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                            self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                         else:            
                             if self._debug:     sys.stderr.write('=')
                     else:
@@ -335,7 +361,7 @@ class USBDongle:
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-                self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No such device' in repr(e)):
                     self._threadGo = False
@@ -343,13 +369,15 @@ class USBDongle:
                 self._usberrorcnt += 1
                 pass
             except:
-                self.sema.release()                            # THREAD SAFETY DANCE COMPLETE
+                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
                 sys.excepthook(*sys.exc_info())
 
 
             if not (msgsent or msgrecv or len(msg)) :
-                time.sleep(.1)
+                #time.sleep(.1)
+                self.ep5timeout = EP_TIMEOUT_IDLE
             else:
+                self.ep5timeout = EP_TIMEOUT_ACTIVE
                 if self._debug > 5:  sys.stderr.write(" %s:%s:%d .-P."%(msgsent,msgrecv,len(msg)))
 
 
@@ -364,31 +392,33 @@ class USBDongle:
             try:
                 q = self.recv_mbox.get(app, None)
                 #print >>sys.stderr,"debug(recv) q='%s'"%repr(q)
-                self.sema.acquire(False)
+                self.rsema.acquire(False)
                 resp = q.pop(0)
-                self.sema.release()
+                self.rsema.release()
                 return resp
             except IndexError:
                 #sys.excepthook(*sys.exc_info())
-                self.sema.release()
+                self.rsema.release()
                 pass
             except AttributeError:
                 #sys.excepthook(*sys.exc_info())
-                self.sema.release()
+                self.rsema.release()
                 pass
             except:
-                self.sema.release()
+                self.rsema.release()
                 sys.excepthook(*sys.exc_info())
-            time.sleep(.2)                                      # only hits here if we don't have something in queue
+            time.sleep(.001)                                      # only hits here if we don't have something in queue
     def recvAll(self, app):
         retval = self.recv_mbox.get(app,None)
         self.recv_mbox[app]=[]
         return retval
 
-    def send(self, app, cmd, buf):
-        #self._sendEP5("%c%c%s"%(app,cmd,buf))
-        self.xmit_queue.append("%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf))
-        return self.recv(app)
+    def send(self, app, cmd, buf, wait=10000):
+        msg = "%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf)
+        self.xsema.acquire()
+        self.xmit_queue.append(msg)
+        self.xsema.release()
+        return self.recv(app, wait)
 
     def getDebugCodes(self, timeout=100):
         x = self._recvEP0(timeout=timeout)
@@ -397,16 +427,19 @@ class USBDongle:
         else:
             return x
 
+    def ep0GetAddr(self):
+        addr = self._recvEP0(request=EP0_CMD_GET_ADDRESS)
+        return addr
     def ep0Reset(self):
         x = self._recvEP0(request=0xfe, value=0x5352, index=0x4e54)
         return x
 
     def ep0Peek(self, addr, length, timeout=100):
-        x = self._recvEP0(request=2, value=addr, length=length, timeout=timeout)
-        return x
+        x = self._recvEP0(request=EP0_CMD_PEEKX, value=addr, length=length, timeout=timeout)
+        return x#x[3:]
 
     def ep0Poke(self, addr, buf='\x00', timeout=100):
-        x = self._sendEP0(request=1, buf=buf, value=addr, timeout=timeout)
+        x = self._sendEP0(request=EP0_CMD_POKEX, buf=buf, value=addr, timeout=timeout)
         return x
 
     def ep0Ping(self, count=10):
@@ -433,19 +466,26 @@ class USBDongle:
             print >>sys.stderr,('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
             for x in self.recv_mbox.keys():
                 print >>sys.stderr,('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+            x,y,z = select.select([sys.stdin],[],[],0)
+            if sys.stdin in x:
+                break
             time.sleep(1)
 
-    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
+    def ping(self, count=10, buf="ABCDEFGHIJKLMNOPQRSTUVWXYZ", wait=1000):
         good=0
         bad=0
+        start = time.time()
         for x in range(count):
-            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf)
-            print "PING: %d bytes transmitted, received: %s"%(len(buf), repr(r))
+            istart = time.time()
+            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
+            istop = time.time()
+            print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
                 bad+=1
             else:
                 good+=1
-        return (good,bad)
+        stop = time.time()
+        return (good,bad,stop-start)
 
     def RESET(self):
         r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
@@ -508,7 +548,7 @@ class USBDongle:
     def setModeTXRXON(self):
         self.poke(X_RFST, "%c"%RFST_SFSTXON)
 
-    def setModeSCAL(self):
+    def setModeCAL(self):
         self.poke(X_RFST, "%c"%RFST_SCAL)
 
 
@@ -520,7 +560,9 @@ class USBDongle:
 
     def setRadioConfig(self):
         bytedef = self.radiocfg.vsEmit()
+        self.setModeIDLE()
         self.poke(0xdf00, bytedef)
+        self.setModeRX()
         return bytedef
 
     def setFreq(self, freq=902000000, mhz=24):
@@ -529,7 +571,9 @@ class USBDongle:
         self.radiocfg.freq2 = num >> 16
         self.radiocfg.freq1 = (num>>8) & 0xff
         self.radiocfg.freq0 = num & 0xff
+        self.setModeIDLE()
         self.poke(FREQ2, struct.pack("3B", self.radiocfg.freq2, self.radiocfg.freq1, self.radiocfg.freq0))
+        self.setModeRX()
 
     def getFreq(self, mhz=24, radiocfg=None):
         freqmult = (0x10000 / 1000000.0) / mhz
@@ -560,10 +604,10 @@ class USBDongle:
             radiocfg = self.radiocfg
         output = []
 
-        output.append( "Modem Configuration")
-        output.append( self.reprModemConfig(mhz, radiocfg))
-        output.append( "\nFrequency Configuration")
+        output.append( "Frequency Configuration")
         output.append( self.reprFreqConfig(mhz, radiocfg))
+        output.append( "\nModem Configuration")
+        output.append( self.reprModemConfig(mhz, radiocfg))
         output.append( "\nPacket Configuration")
         output.append( self.reprPacketConfig(radiocfg))
         output.append( "\nRadio Test Signal Configuration")
@@ -583,7 +627,9 @@ class USBDongle:
             raise(Exception("Please use constants MOD_FORMAT_* to specify modulation and "))
         radiocfg.mdmcfg2 = ord(self.peek(MDMCFG2)) & 0x87
         radiocfg.mdmcfg2 |= (mod) | (mchstr)
+        self.setModeIDLE()
         self.poke(MDMCFG2, struct.pack("<I",radiocfg.mdmcfg2)[0])
+        self.setModeRX()
 
     def getMdmChanSpc(self, mhz=24, radiocfg=None):
         if radiocfg==None:
@@ -594,17 +640,212 @@ class USBDongle:
         chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
         return (spacing)
 
-    def setMdmChanSpc(self, chanspc_m, chanspc_e, spacing=None, mhz=24, radiocfg=None):
+    def setMdmChanSpc(self, chanspc_khz=None, chanspc_m=None, chanspc_e=None, mhz=24, radiocfg=None):
+        '''
+        calculates the appropriate exponent and mantissa and updates the correct registers
+        chanspc is in kHz.  if you prefer, you may set the chanspc_m and chanspc_e settings 
+        directly.
+
+        only use one or the other:
+        * chanspc
+        * chanspc_m and chanspc_e
+        '''
         if radiocfg==None:
             radiocfg = self.radiocfg
-        if (spacing != None):
-            tmp = spacing * 0x262144/mhz
-            raise(Exception("setting channel spacing only supported using chanspc mantissa and exponent for now"))
+        if (chanspc_khz != None):
+            for e in range(16):
+                m = int((chanspc_khz * pow(2,18) / (1000.0 * mhz * pow(2,e)))-256)
+                if m < 256:
+                    chanspc_e = e
+                    chanspc_m = m
+                    break
+        if chanspc_e is None or chanspc_m is None:
+            raise(Exception("ChanSpc does not translate into acceptable parameters.  Should you be changing this?"))
+
+        chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
+        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f khz" % (e, m, chanspc)
+        
         radiocfg.mdmcfg1 = ord(self.peek(MDMCFG1)) & 0xfc  # clear out old exponent value
         radiocfg.mdmcfg1 |= chanspc_e
         radiocfg.mdmcfg0 = chanspc_m
-        self.poke(MDMCFG1, "%c"%mdmcfg1)
-        self.poke(MDMCFG0, "%c"%mdmcfg0)
+        self.setModeIDLE()
+        self.poke(MDMCFG1, chr(radiocfg.mdmcfg1))
+        self.poke(MDMCFG0, chr(radiocfg.mdmcfg0))
+        self.setModeRX()
+
+    def makeVLEN(self, maxlen=0xff):
+        self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktlen = maxlen
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.poke(PKTLEN, chr(self.radiocfg.pktlen))
+        self.setModeRX()
+
+    def makePktFLEN(self, flen=0xff):
+        self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktctrl0 |= 1
+        self.radiocfg.pktlen = flen
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.poke(PKTLEN, chr(self.radiocfg.pktlen))
+        self.setModeRX()
+
+    def setEnablePktCRC(self, enable=True):
+        crcE = (0,1)[enable]<<2
+        crcM = ~(1<<2)
+        self.radiocfg.pktctrl0 &= crcM
+        self.radiocfg.pktctrl0 |= crcE
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.setModeRX()
+
+    def setEnableDataWhitening(self, enable=True):
+        dwE = (0,1)[enable]<<6
+        dwM = ~(1<<6)
+        self.radiocfg.pktctrl0 &= dwM
+        self.radiocfg.pktctrl0 |= dwE
+        self.setModeIDLE()
+        self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
+        self.setModeRX()
+
+    def setPktPQT(self, num=3):
+        num &=  7
+        num <<= 5
+        numM = ~(7<<5)
+        self.radiocfg.pktctrl1 &= numM
+        self.radiocfg.pktctrl1 |= num
+        self.setModeIDLE()
+        self.poke(PKTCTRL1, chr(self.radiocfg.pktctrl1))
+        self.setModeRX()
+
+    def setEnableMdmFEC(self, enable=True):
+        crcE = (0,1)[enable]<<7
+        crcM = ~(1<<7)
+        self.radiocfg.mdmcfg1 &= crcM
+        self.radiocfg.mdmcfg1 |= crcE
+        self.setModeIDLE()
+        self.poke(MDMCFG1, chr(self.radiocfg.mdmcfg1))
+        self.setModeRX()
+
+    def setEnableMdmDCFilter(self, enable=True):
+        dcfE = (0,1)[enable]<<7
+        dcfM = ~(1<<7)
+        self.radiocfg.mdmcfg2 &= dcfM
+        self.radiocfg.mdmcfg2 |= dcfE
+        self.setModeIDLE()
+        self.poke(MDMCFG2, chr(self.radiocfg.mdmcfg2))
+        self.setModeRX()
+
+    def getFsIFandOffset(self, mhz=24, radiocfg=None):
+        if radiocfg==None:
+            radiocfg = self.radiocfg
+            radiocfg.channr = ord(self.peek(CHANNR))
+            radiocfg.fsctrl1 = ord(self.peek(FSCTRL1))
+            radiocfg.fsctrl0 = ord(self.peek(FSCTRL0))
+
+        freq_if = (radiocfg.fsctrl1&0x1f) * (1000000.0 * mhz / pow(2,10))
+        freqoff = radiocfg.fsctrl0
+        return (freq_if, freqoff)
+
+
+    def setFsIFandOffset(self, freq_if, if_off, mhz=24):
+        '''
+        Note that the SmartRF Studio software
+        automatically calculates the optimum register
+        setting based on channel spacing and channel
+        filter bandwidth. (from cc1110f32.pdf)
+        '''
+        ifBits = freq_if * pow(2,10) / (1000000.0 * mhz)
+        ifBits = int(ifBits + .5)
+
+        if ifBits >0x1f:
+            raise(Exception("FAIL:  freq_if is too high?  freqbits: %x (must be <0x1f)" % ifBits))
+        self.radiocfg.fsctrl1 &= ~(0x1f)
+        self.radiocfg.fsctrl1 |= int(ifBits)
+        self.radiocfg.fsctrl0 = if_off
+        self.setModeIDLE()
+        self.poke(FSCTRL1, chr(self.radiocfg.fsctrl1))
+        self.poke(FSCTRL0, chr(self.radiocfg.fsctrl0))
+        self.setModeRX()
+
+    def getChannel(self):
+        self.radiocfg.channr = ord(self.peek(CHANNR))
+        return self.radiocfg.channr
+
+    def setChannel(self, channr):
+        self.radiocfg.channr = channr
+        self.setModeIDLE()
+        self.poke(CHANNR, chr(self.radiocfg.channr))
+        self.setModeRX()
+
+    def setMdmChanBW(self, bw, mhz=24):
+        '''
+        For best performance, the channel filter
+        bandwidth should be selected so that the
+        signal bandwidth occupies at most 80% of the
+        channel filter bandwidth. The channel centre
+        tolerance due to crystal accuracy should also
+        be subtracted from the signal bandwidth. The
+        following example illustrates this:
+
+            With the channel filter bandwidth set to 500
+            kHz, the signal should stay within 80% of 500
+            kHz, which is 400 kHz. Assuming 915 MHz
+            frequency and +/-20 ppm frequency uncertainty
+            for both the transmitting device and the
+            receiving device, the total frequency
+            uncertainty is +/-40 ppm of 915 MHz, which is
+            +/-37 kHz. If the whole transmitted signal
+            bandwidth is to be received within 400 kHz, the
+            transmitted signal bandwidth should be
+            maximum 400 kHz - 2*37 kHz, which is 326
+            kHz.
+
+        '''
+
+        chanbw_e = None
+        chanbw_m = None
+        for e in range(4):
+            m = int((mhz*1000.0 / (bw *pow(2,e) * 8.0 )) - 4)
+            if m < 4:
+                chanbw_e = e
+                chanbw_m = m
+                break
+        if chanbw_e is None:
+            raise(Exception("ChanBW does not translate into acceptable parameters.  Should you be changing this?"))
+
+        bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
+        print "chanbw_e: %x   chanbw_m: %x   chanbw: %f kHz" % (e, m, bw)
+
+        self.radiocfg.mdmcfg4 &= 0x0f
+        self.radiocfg.mdmcfg4 |= ((chanbw_e<<6) | (chanbw_m<<4))
+        self.setModeIDLE()
+        self.poke(MDMCFG4, chr(self.radiocfg.mdmcfg4))
+        self.setModeRX()
+
+
+    def setMdmDRate(self, drate_khz, mhz=24):
+        drate_e = None
+        drate_m = None
+        for e in range(16):
+            m = int(drate_khz * pow(2,28) / (pow(2,e)* (mhz*1000.0))-256)
+            if m < 256:
+                drate_e = e
+                drate_m = m
+                break
+        if drate_e is None:
+            raise(Exception("DRate does not translate into acceptable parameters.  Should you be changing this?"))
+
+        drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
+        print "drate_e: %x   drate_m: %x   drate: %f kHz" % (e, m, drate)
+        
+        self.radiocfg.mdmcfg4 &= 0xf0
+        self.radiocfg.mdmcfg4 |= drate_e
+        self.radiocfg.mdmcfg3 = drate_m
+        self.setModeIDLE()
+        self.poke(MDMCFG3, chr(self.radiocfg.mdmcfg3))
+        self.poke(MDMCFG4, chr(self.radiocfg.mdmcfg4))
+        self.setModeRX()
 
     def getMdmDeviatn(self, dev_m, dev_e):
         raise(Exception("Not Implemented!"))
@@ -615,6 +856,12 @@ class USBDongle:
             radiocfg = self.radiocfg
             radiocfg.mdmcfg2 = ord(self.peek(MDMCFG2))
         return radiocfg.mdmcfg2&0x07
+
+    def setMdmSyncMode(self, syncmode=SYNCM_15_of_16):
+        mdmcfg2 = ord(self.peek(MDMCFG2)) & 0xf8
+        self.setModeIDLE()
+        self.poke(MDMCFG2, "%c" % (mdmcfg2 | syncmode))
+        self.setModeRX()
 
     def reprModemConfig(self, mhz=24, radiocfg=None):
         output = []
@@ -634,9 +881,9 @@ class USBDongle:
         chanbw_e = radiocfg.mdmcfg4>>6
         chanbw_m = (radiocfg.mdmcfg4>>4) & 0x3
         bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
-        output.append("ChanBW:          i   %f khz"%bw)
+        output.append("ChanBW:              %f khz"%bw)
 
-        drate_e = radiocfg.mdmcfg4&0xf
+        drate_e = radiocfg.mdmcfg4 & 0xf
         drate_m = radiocfg.mdmcfg3
         drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
         output.append("DRate:               %f khz"%drate)
@@ -660,10 +907,6 @@ class USBDongle:
 
 
         return "\n".join(output)
-
-    def setMdmSyncMode(self, syncmode=SYNCM_15_of_16):
-        mdmcfg2 = ord(self.peek(MDMCFG2)) & 0xf8
-        self.poke(MDMCFG2, "%c" % (mdmcfg2 | syncmode))
 
     def getRSSI(self):
         rssi = self.peek(RSSI)
@@ -715,7 +958,7 @@ class USBDongle:
         freq_if = (radiocfg.fsctrl1&0x1f) * (1000000.0 * mhz / pow(2,10))
         freqoff = radiocfg.fsctrl0
         
-        output.append("Intermediate freq:   %d" % freq_if)
+        output.append("Intermediate freq:   %d hz" % freq_if)
         output.append("Frequency Offset:    %d +/-" % freqoff)
 
         return "\n".join(output)
@@ -731,9 +974,9 @@ class USBDongle:
             radiocfg.pktctrl1 = ord(self.peek(PKTCTRL1))
             radiocfg.pktctrl0 = ord(self.peek(PKTCTRL0))
 
-        output.append("Configured Address: 0x%x" % radiocfg.addr)
-        output.append("Sync Bytes:      %x %x" % (radiocfg.sync1, radiocfg.sync0))
+        output.append("Sync Bytes:      %.2x %.2x" % (radiocfg.sync1, radiocfg.sync0))
         output.append("Packet Length:       %d" % radiocfg.pktlen)
+        output.append("Configured Address: 0x%x" % radiocfg.addr)
 
         pqt = radiocfg.pktctrl1>>5
         output.append("Preamble Quality Threshold: 4 * %d" % pqt)
@@ -834,7 +1077,9 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup900MHzHopTrans(self):
         self.getRadioConfig()
@@ -873,7 +1118,9 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup900MHzContTrans(self):
         self.getRadioConfig()
@@ -915,7 +1162,9 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
     def setup_rfstudio_902PktTx(self):
         self.getRadioConfig()
@@ -967,8 +1216,121 @@ class USBDongle:
         rc.pa_table1  = 0x00
         #rc.pa_table0  = 0x8e
         rc.pa_table0  = 0xc0
+        self.setModeIDLE()
         self.setRadioConfig()
+        self.setModeRX()
 
+    def testTX(self, data="XYZABCDEFGHIJKL"):
+        while (sys.stdin not in select.select([sys.stdin],[],[],0)[0]):
+            time.sleep(.4)
+            print "transmitting %s" % repr(data)
+            self.RFxmit(data)
+        sys.stdin.read(1)
+    def checkRepr(self, matchstr, checkval, maxdiff=0):
+        starry = self.reprRadioConfig().split('\n')
+        line,val = getValueFromReprString(starry, matchstr)
+        try:
+            f = checkval.__class__(val.split(" ")[0])
+            if abs(f-checkval) <= maxdiff:
+                print "  passed: reprRadioConfig test: %s %s" % (repr(val), checkval)
+            else:
+                print " *FAILED* reprRadioConfig test: %s %s %s" % (repr(line), repr(val), checkval)
+
+        except ValueError, e:
+            print "  ERROR checking repr: %s" % e
+
+
+def unittest(self):
+    print "\nTesting USB ping()"
+    self.ping(3)
+    
+    print "\nTesting USB ep0Ping()"
+    self.ep0Ping()
+    
+    print "\nTesting USB enumeration"
+    print "getString(0,100): %s" % repr(self._do.getString(0,100))
+    
+    print "\nTesting USB EP MAX_PACKET_SIZE handling (ep0Peek(0xf000, 100))"
+    print repr(self.ep0Peek(0xf000, 100))
+
+    print "\nTesting USB EP MAX_PACKET_SIZE handling (peek(0xf000, 300))"
+    print repr(self.peek(0xf000, 400))
+
+    print "\nTesting getValueFromReprString()"
+    starry = self.reprRadioConfig().split('\n')
+    print repr(getValueFromReprString(starry, 'khz'))
+
+    print "\nTesting reprRadioConfig()"
+    print self.reprRadioConfig()
+
+    print "\nTesting Frequency Get/Setters"
+    # FREQ
+    freq0,freq0str = self.getFreq()
+
+    testfreq = 902000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+
+    testfreq = 868000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+
+    testfreq = 433000000
+    self.setFreq(testfreq)
+    freq,freqstr = self.getFreq()
+    if abs(testfreq - freq) < 1024:
+        print "  passed: %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+    else:
+        print " *FAILED* %d : %f  (diff: %f)" % (testfreq, freq, testfreq-freq)
+   
+    self.checkRepr("Frequency:", float(testfreq), 1024)
+    self.setFreq(freq0)
+
+    # CHANNR
+    channr0 = self.getChannel()
+    for x in range(15):
+        self.setChannel(x)
+        channr = self.getChannel()
+        if channr != x:
+            print " *FAILED* get/setChannel():  %d : %d" % (x, channr)
+        else:
+            print "  passed: get/setChannel():  %d : %d" % (x, channr)
+    self.checkRepr("Channel:", channr)
+    self.setChannel(channr0)
+
+    # IF and FREQ_OFF
+    freq_if, freqoff = self.getFsIFandOffset()
+    for fif, foff in ((164062,1),(140625,2),(187500,3)):
+        self.setFsIFandOffset(fif,foff)
+        nfif,nfoff = self.getFsIFandOffset()
+        if abs(nfif - fif) > 5:
+            print " *FAILED* get/setFsIFandOffset():  %d : %f (diff: %f)" % (fif,nfif,nfif-fif)
+        else:
+            print "  passed: get/setFsIFandOffset():  %d : %f (diff: %f)" % (fif,nfif,nfif-fif)
+
+        if foff != nfoff:
+            print " *FAILED* get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
+        else:
+            print "  passed: get/setFsIFandOffset():  %d : %d (diff: %d)" % (foff,nfoff,nfoff-foff)
+    self.checkRepr("Intermediate freq:", fif, 11720)
+    self.checkRepr("Frequency Offset:", foff)
+    
+    self.setFsIFandOffset(freq_if, freqoff)
+
+def getValueFromReprString(stringarray, line_text):
+    for string in stringarray:
+        if line_text in string:
+            idx = string.find(":")
+            val = string[idx+1:].strip()
+            return (string,val)
 
 def mkFreq(freq=902000000, mhz=24):
     freqmult = (0x10000 / 1000000.0) / mhz
