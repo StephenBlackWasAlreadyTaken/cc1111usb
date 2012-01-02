@@ -198,6 +198,7 @@ void t1IntHandler(void) interrupt T1_VECTOR  // interrupt handler should trigger
 
 void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger on T2 overflow
 {
+    xdata u8 packet[28];
     // timer2 controls hopping.
     // if the system is not supposed to be hopping, T2 Interrupt should be disabled
     // otherwise....
@@ -223,6 +224,23 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
         while(!(MARCSTATE & MARC_STATE_TX));
 #endif
         rf_MAC_timer = 0;
+
+        // if we are the SYNC_MASTER and are in the process of "doing the SYNC"
+        // we need to transmit something indicating the channel we're on
+        if (macdata.mac_state = FHSS_STATE_SYNCINGMASTER)
+        {
+            packet[0] = 6;
+            packet[1] = macdata.g_curChanIdx & 0xff;
+            packet[2] = macdata.g_curChanIdx >> 8;
+            packet[3] = 'B';
+            packet[4] = 'L';
+            packet[5] = 'A';
+            packet[6] = 'H';
+
+
+
+            transmit((xdata u8*)&packet, packet[0]);
+        }
     }
     // if the queue is not empty, wait but then tx.
 }
