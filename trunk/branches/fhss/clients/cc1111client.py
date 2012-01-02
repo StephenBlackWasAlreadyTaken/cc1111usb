@@ -108,6 +108,7 @@ MODULATIONS = {
         MOD_MSK  | MANCHESTER    : "MSK/Manchester encoding",
         }
 
+# FIXME: make these auto-generated
 SYNCMODES = {
         SYNCM_NONE: "None",
         SYNCM_15_of_16: "15 of 16 bits must match",
@@ -850,6 +851,11 @@ class USBDongle:
     def getMdmDeviatn(self, dev_m, dev_e):
         raise(Exception("Not Implemented!"))
 
+    def setMdmSyncWord(self, word):
+        self.setModeIDLE()
+        self.poke(SYNC1, chr(word >> 8))
+        self.poke(SYNC0, chr(word & 0xff))
+        self.setModeRX()
 
     def getMdmSyncMode(self, radiocfg=None):
         if radiocfg==None:
