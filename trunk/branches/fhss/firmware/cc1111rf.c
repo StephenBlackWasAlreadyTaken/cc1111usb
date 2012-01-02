@@ -55,7 +55,7 @@ void init_RF(void)
 
     /* Setup interrupts */
     RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
-    RFIM = 0xff;
+    RFIM = 0xd1;    // TXUNF, RXOVF, DONE, SFD  (SFD to mark time of receipt)
     RFIF = 0;
     rfif = 0;
     IEN2 |= IEN2_RFIE;
@@ -63,6 +63,20 @@ void init_RF(void)
     /* Put radio into idle state */
     setRFIdle();
 
+}
+
+void setRFRx(void)
+{
+    RFST = RFST_SRX;
+    while(!(MARCSTATE & MARC_STATE_RX));
+    rf_status = RF_STATE_IDLE;
+}
+
+void setRFTx(void)
+{
+    RFST = RFST_STX;
+    while(!(MARCSTATE & MARC_STATE_TX));
+    rf_status = RF_STATE_IDLE;
 }
 
 void setRFIdle(void)
@@ -275,7 +289,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
         rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
         if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
         {
-            rfRxCounter[rfRxCurrentBuffer] = 0;
+            rfRxCounter[rfRxCurrentBuffer] = BUFFER_SIZE;
         }
     }
     else if(MARCSTATE == MARC_STATE_TX)
@@ -297,18 +311,55 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
 
 void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
+    // which events trigger this interrupt is determined by RFIM (set in init_RF())
+    // note: S1CON should be cleared before handling the RFIF flags.
     lastCode[0] = 16;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
-    rfif |= RFIF;
 
     if (RFIF & RFIF_IRQ_SFD)
     {
         // mark the last time we received a packet.  this will be used for MAC layer decisions in 
         // some protocols like FHSS
         rf_tLastRecv = T2CT | (rf_MAC_timer << 8);
+        RFIF &= ~RFIF_IRQ_SFD;
     }
 
     // contingency - RX Overflow
+    if(RFIF & RFIF_IRQ_RXOVF)
+    {
+        //REALLYFASTBLINK();
+        // RX overflow, only way to get out of this is to restart receiver //
+        //resetRf();
+        lastCode[1] = LCE_RF_RXOVF;
+        LED = !LED;
+
+        RFST = RFST_SIDLE;
+        while(!(MARCSTATE & MARC_STATE_IDLE));
+        RFST = RFST_SRX;
+        while(!(MARCSTATE & MARC_STATE_RX));
+
+        LED = !LED;
+        RFIF &= ~RFIF_IRQ_RXOVF;
+    }
+    // contingency - TX Underflow
+    if(RFIF & RFIF_IRQ_TXUNF)
+    {
+        // Put radio into idle state //
+        lastCode[1] = LCE_RF_TXUNF;
+        LED = !LED;
+
+        RFST = RFST_SIDLE;
+        while(!(MARCSTATE & MARC_STATE_IDLE));
+        RFST = RFST_SRX;
+
+        while(!(MARCSTATE & MARC_STATE_RX));
+        LED = !LED;
+
+        //resetRf();
+        RFIF &= ~RFIF_IRQ_TXUNF;
+    }
+
+
     if(RFIF & RFIF_IRQ_DONE)
     {
         if(rf_status == RF_STATE_TX)
@@ -318,12 +369,15 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         }
         else
         {
+            // FIXME: is rfif the best way to communicate that we've received a packet to appMain??
+            rfif |= RFIF;
+            // FIXME: rfRxCurrentBuffer is used for both recv and sending on.... this should be separate.
             if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
             {
                 // EXPECTED RESULT - RX complete.
                 //
                 /* Clear processed buffer */
-                memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
+                memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);      // FIXME: do we want to waste cycles on this?
                 /* Switch current buffer */
                 rfRxCurrentBuffer ^= 1;
                 rfRxCounter[rfRxCurrentBuffer] = 0;
@@ -337,39 +391,14 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
                 /* Main app didn't process previous packet yet, drop this one */
                 LED = !LED;
                 //REALLYFASTBLINK();
-                memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
+                //memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
                 rfRxCounter[rfRxCurrentBuffer] = 0;
                 LED = !LED;
             }
         }
-        //RFIF &= ~RFIF_IRQ_DONE;
+        RFIF &= ~RFIF_IRQ_DONE;
     }
 
-    if(RFIF & RFIF_IRQ_RXOVF)
-    {
-        //REALLYFASTBLINK();
-        /* RX overflow, only way to get out of this is to restart receiver */
-        //resetRf();
-        lastCode[1] = LCE_RF_RXOVF;
-        LED = !LED;
-        stopRX();
-        startRX();
-        LED = !LED;
-        //RFIF &= ~RFIF_IRQ_RXOVF;
-    }
-    // contingency - TX Underflow
-    if(RFIF & RFIF_IRQ_TXUNF)
-    {
-        /* Put radio into idle state */
-        lastCode[1] = LCE_RF_TXUNF;
-        LED = !LED;
-        setRFIdle();
-        startRX();
-        LED = !LED;
-        //resetRf();
-        //RFIF &= ~RFIF_IRQ_TXUNF;
-    }
-
-    RFIF = 0;                       // FIXME: RFIF handling is awfully simple, and should be fixed... this could be the cause of various state bugs
+    //RFIF = 0;    // FIXME: RFIF handling is awfully simple, and should be fixed... this could be the cause of various state bugs
 }
 
