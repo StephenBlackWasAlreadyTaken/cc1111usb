@@ -613,6 +613,10 @@ class USBDongle:
         output.append( self.reprPacketConfig(radiocfg))
         output.append( "\nRadio Test Signal Configuration")
         output.append( self.reprRadioTestSignalConfig(radiocfg))
+        output.append( "\nRadio State")
+        output.append( self.reprRadioState(radiocfg))
+        output.append("\nClient State")
+        output.append( self.reprClientState())
         return "\n".join(output)
 
 
@@ -1044,6 +1048,31 @@ class USBDongle:
     TEST0       = 0x09;
     PA_TABLE0   = 0x83;
 """
+
+    def reprRadioState(self, radiocfg=None):
+        if radiocfg==None:
+            #radiocfg = self.radiocfg
+            #radiocfg.iocfg2 = ord(self.peek(IOCFG2))
+            #radiocfg.iocfg1 = ord(self.peek(IOCFG1))
+            #radiocfg.iocfg0 = ord(self.peek(IOCFG0))
+            #radiocfg.test2 = ord(self.peek(TEST2))
+            #radiocfg.test1 = ord(self.peek(TEST1))
+            #radiocfg.test0 = ord(self.peek(TEST0))
+            pass
+        output = []
+        output.append("     MARCSTATE:      %s (%x)" % (self.getMARCSTATE()))
+        return "\n".join(output)
+
+    def reprClientState(self):
+        output = []
+        output.append('recv_queue:\t\t (%d bytes) "%s"'%(len(self.recv_queue),repr(self.recv_queue)[:len(self.recv_queue)%39+20]))
+        output.append('trash:     \t\t (%d bytes) "%s"'%(len(self.trash),repr(self.trash)[:len(self.trash)%39+20]))
+        output.append('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
+        for x in self.recv_mbox.keys():
+            output.append('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+        return "\n".join(output)
+
+
     ######## APPLICATION METHODS ########
     def setup900MHz(self):
         self.getRadioConfig()

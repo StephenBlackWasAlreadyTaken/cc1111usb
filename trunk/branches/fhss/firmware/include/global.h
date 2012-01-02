@@ -30,6 +30,7 @@ extern xdata u8 lastCode[2];
 #define LCE_USB_EP5_STALL                       0x8
 #define LCE_USB_DATA_LEFTOVER_FLAGS             0x9
 #define LCE_RF_RXOVF                            0x10
+#define LCE_RF_TXUNF                            0x11
 
 
 /* board-specific defines */

@@ -313,6 +313,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     {
         if(rf_status == RF_STATE_TX)
         {
+            // rearm the DMA?  not sure this is a good thing.
             DMAARM |= 0x81;
         }
         else
@@ -349,6 +350,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         //REALLYFASTBLINK();
         /* RX overflow, only way to get out of this is to restart receiver */
         //resetRf();
+        lastCode[1] = LCE_RF_RXOVF;
         LED = !LED;
         stopRX();
         startRX();
@@ -359,13 +361,15 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
     if(RFIF & RFIF_IRQ_TXUNF)
     {
         /* Put radio into idle state */
+        lastCode[1] = LCE_RF_TXUNF;
         LED = !LED;
         setRFIdle();
+        startRX();
         LED = !LED;
         //resetRf();
         //RFIF &= ~RFIF_IRQ_TXUNF;
     }
 
-    RFIF = 0;
+    RFIF = 0;                       // FIXME: RFIF handling is awfully simple, and should be fixed... this could be the cause of various state bugs
 }
 
