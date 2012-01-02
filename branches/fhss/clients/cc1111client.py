@@ -674,8 +674,9 @@ class USBDongle:
         self.poke(MDMCFG0, chr(radiocfg.mdmcfg0))
         self.setModeRX()
 
-    def makeVLEN(self, maxlen=0xff):
+    def makePktVLEN(self, maxlen=0xff):
         self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktctrl0 |= 1
         self.radiocfg.pktlen = maxlen
         self.setModeIDLE()
         self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
@@ -684,7 +685,6 @@ class USBDongle:
 
     def makePktFLEN(self, flen=0xff):
         self.radiocfg.pktctrl0 &= 0xfc
-        self.radiocfg.pktctrl0 |= 1
         self.radiocfg.pktlen = flen
         self.setModeIDLE()
         self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
