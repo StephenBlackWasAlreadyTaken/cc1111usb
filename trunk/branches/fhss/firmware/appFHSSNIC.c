@@ -819,8 +819,6 @@ void main (void)
 {
     initBoard();
     initUSB();
-    blink(300,300);
-
     init_RF();
     appMainInit();
 
@@ -828,6 +826,8 @@ void main (void)
 
     /* Enable interrupts */
     EA = 1;
+
+    REALLYFASTBLINK();
 
     while (1)
     {  
