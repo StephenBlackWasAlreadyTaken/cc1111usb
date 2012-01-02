@@ -16,6 +16,7 @@ FHSS_SET_MAC_THRESHOLD =        0x13
 FHSS_GET_MAC_THRESHOLD =        0x14
 FHSS_SET_MAC_DATA =             0x15
 FHSS_GET_MAC_DATA =             0x16
+FHSS_XMIT =                     0x17
 
 FHSS_SET_STATE =                0x20
 FHSS_GET_STATE =                0x21
@@ -87,6 +88,9 @@ class FHSSNIC(USBDongle):
     def RFrecv(self, timeout=100):
         return self.recv(APP_NIC, timeout)
 
+    def FHSSxmit(self, data):
+        self.send(APP_NIC, FHSS_XMIT, "%c%s" % (len(data)+1, data))
+
     def changeChannel(self, chan):
         return self.send(APP_NIC, FHSS_CHANGE_CHANNEL, "%c" % (chan))
 
@@ -139,7 +143,7 @@ class FHSSNIC(USBDongle):
     def getMACdata(self):
         datastr = self.send(APP_NIC, FHSS_GET_MAC_DATA, '')
         print (repr(datastr))
-        data = struct.unpack("<BIHHHHHHBH", datastr[4:])
+        data = struct.unpack("<BIHHHHHHBBH", datastr[4:])
         return data
 
     def reprMACdata(self):
@@ -154,6 +158,7 @@ u16 tLastStateChange        %x
 u16 tLastHop                %x
 u16 desperatelySeeking      %x
 u8  txMsgIdx                %x
+u8  txMsgIdxDone            %x
 u16 synched_chans           %x
 
 """ % data
