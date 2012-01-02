@@ -16,7 +16,7 @@
 
 
 ////  turn this on to enable TX of CARRIER at each hop instead of normal RX/TX
-#define DEBUG_HOPPING 1
+//#define DEBUG_HOPPING 1
 
 xdata u32 clock;
 
@@ -53,11 +53,11 @@ void MAC_initChannels()
 {
     // rudimentary channel setup.  this is for default hopping and testing.
     int loop;
-    for (loop=0; loop<macdata.g_NumChannelHops; loop++)
+    for (loop=0; loop<macdata.NumChannelHops; loop++)
     {
-        g_Channels[loop] = loop % macdata.g_NumChannels;
+        g_Channels[loop] = loop % macdata.NumChannels;
     }
-    macdata.g_MAC_threshold = 0;
+    macdata.MAC_threshold = 0;
 }
 
 void begin_hopping(u8 T2_offset)
@@ -95,26 +95,26 @@ void MAC_sync(u16 CellID)
     stop_hopping();
 
     // FIXME: what happens if the first channel is jammed?  make this random or make it try several
-    macdata.g_curChanIdx = 0;
+    macdata.curChanIdx = 0;
     while (1)
     {
-        MAC_set_chanidx(macdata.g_curChanIdx);
+        MAC_set_chanidx(macdata.curChanIdx);
         while (!MARCSTATE == MARC_STATE_RX)
             ;
         if ((RSSI&0x7f) < 0x60)
             break;
 
-        macdata.g_curChanIdx++;
+        macdata.curChanIdx++;
     }
 
     // set state =  SYNC
     macdata.mac_state = FHSS_STATE_SYNCHING;
 
     // store the main timer value for beginning of this phase.
-    macdata.g_tLastStateChange = clock;
+    macdata.tLastStateChange = clock;
 
     // store the cell we're seeking.  since this search will use other parts of the code...
-    macdata.g_desperatelySeeking = CellID;
+    macdata.desperatelySeeking = CellID;
 
     // at MAX_SYNC_TIMEOUT,start activesync, where i become the cell master/time master, and periodically transmit beacons.
 }
@@ -123,7 +123,7 @@ void MAC_stop_sync()
 {
     // this only stops the hunt.  hopping is not re-enabled.  if you want that, use a different mode
     macdata.mac_state = FHSS_STATE_NONHOPPING;
-    macdata.g_tLastStateChange = clock;
+    macdata.tLastStateChange = clock;
 
 }
 
@@ -131,14 +131,14 @@ void MAC_become_master()
 {
     // this will force our nic to become the master
     macdata.mac_state = FHSS_STATE_SYNC_MASTER;
-    macdata.g_tLastStateChange = clock;
+    macdata.tLastStateChange = clock;
 
 }
 
 void MAC_do_Master_scanny_thingy()
 {
     macdata.mac_state = FHSS_STATE_SYNCINGMASTER;
-    macdata.g_tLastStateChange = clock;
+    macdata.tLastStateChange = clock;
 }
 
 
@@ -152,13 +152,13 @@ void MAC_tx(u8 len, u8* message)
     // FIXME: possibly integrate USB/RF buffers so we don't have to keep copying...
     // queue data for sending at subsequent time slots.
 
-    if (macdata.g_txMsgIdx++ >= MAX_TX_MSGS)
+    if (macdata.txMsgIdx++ >= MAX_TX_MSGS)
     {
-        macdata.g_txMsgIdx = 0;
+        macdata.txMsgIdx = 0;
     }
 
-    g_txMsgQueue[macdata.g_txMsgIdx][0] = len;
-    memcpy(&g_txMsgQueue[macdata.g_txMsgIdx][1], message, len);
+    g_txMsgQueue[macdata.txMsgIdx][0] = len;
+    memcpy(&g_txMsgQueue[macdata.txMsgIdx][1], message, len);
 }
 
 
@@ -179,12 +179,12 @@ void MAC_rx_handle(u8 len, u8* message)
 
 u8 MAC_getNextChannel()
 {
-    macdata.g_curChanIdx++;
-    if (macdata.g_curChanIdx >= MAX_CHANNELS)
+    macdata.curChanIdx++;
+    if (macdata.curChanIdx >= MAX_CHANNELS)
     {
-        macdata.g_curChanIdx = 0;
+        macdata.curChanIdx = 0;
     }
-    return g_Channels[macdata.g_curChanIdx];
+    return g_Channels[macdata.curChanIdx];
 }
 
 
@@ -204,17 +204,18 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
     // otherwise....
     //
     // if we are here, the T2CT must have cycled.  increment rf_MAC_timer
-    if (++rf_MAC_timer >= macdata.g_MAC_threshold)
+    if (++rf_MAC_timer >= macdata.MAC_threshold)
     {
         // change to the next channel
-        macdata.g_tLastHop = T2CT | (rf_MAC_timer<<8);
+        macdata.tLastHop = T2CT | (rf_MAC_timer<<8);
         
-        if (++macdata.g_curChanIdx >= macdata.g_NumChannelHops)
+        if (++macdata.curChanIdx >= macdata.NumChannelHops)
         {
-            macdata.g_curChanIdx = 0;
+            macdata.curChanIdx = 0;
         }
 
-        MAC_set_chanidx(macdata.g_curChanIdx);
+        MAC_set_chanidx(macdata.curChanIdx);
+        rf_MAC_timer = 0;
 #ifdef DEBUG_HOPPING
         debug("hop");
         RFST = RFST_SIDLE;
@@ -222,16 +223,15 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
         RFST = RFST_STX;        // for debugging purposes, we'll just transmit carrier at each hop
         LED = !LED;
         while(!(MARCSTATE & MARC_STATE_TX));
-#endif
-        rf_MAC_timer = 0;
+#else
 
         // if we are the SYNC_MASTER and are in the process of "doing the SYNC"
         // we need to transmit something indicating the channel we're on
         if (macdata.mac_state = FHSS_STATE_SYNCINGMASTER)
         {
             packet[0] = 6;
-            packet[1] = macdata.g_curChanIdx & 0xff;
-            packet[2] = macdata.g_curChanIdx >> 8;
+            packet[1] = macdata.curChanIdx & 0xff;
+            packet[2] = macdata.curChanIdx >> 8;
             packet[3] = 'B';
             packet[4] = 'L';
             packet[5] = 'A';
@@ -240,7 +240,9 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
 
 
             transmit((xdata u8*)&packet, packet[0]);
+            macdata.synched_chans++;
         }
+#endif
     }
     // if the queue is not empty, wait but then tx.
 }
@@ -253,12 +255,12 @@ void t3IntHandler(void) interrupt T3_VECTOR
 
 void init_FHSS(void)
 {
-    macdata.g_txMsgIdx = 0;
-    macdata.g_curChanIdx = 0;
-    macdata.g_NumChannels = DEFAULT_NUM_CHANS;
-    macdata.g_NumChannelHops = DEFAULT_NUM_CHANHOPS;
-    macdata.g_tLastHop = 0;
-    macdata.g_tLastStateChange = 0;
+    macdata.txMsgIdx = 0;
+    macdata.curChanIdx = 0;
+    macdata.NumChannels = DEFAULT_NUM_CHANS;
+    macdata.NumChannelHops = DEFAULT_NUM_CHANHOPS;
+    macdata.tLastHop = 0;
+    macdata.tLastStateChange = 0;
 
     MAC_initChannels();
 
@@ -358,7 +360,7 @@ void appMainLoop(void)
     switch  (macdata.mac_state)
     {
         case FHSS_STATE_SYNCHING:
-            // FIXME: need to compare part of the packet to g_desperatelySeeking;
+            // FIXME: need to compare part of the packet to desperatelySeeking;
             // FIXME: TIMEOUT??  do we just stay in SYNCHING forever1?!?
             if (rfif)
             {
@@ -367,7 +369,7 @@ void appMainLoop(void)
 
                 if(rfif & RFIF_IRQ_DONE)
                 {
-                    // FIXME: do something with g_desperatelySeeking here.
+                    // FIXME: do something with desperatelySeeking here.
                     // FIXME: OR... use protocol knowledge to dynamically generate a hopping pattern from this discovered cell
                     macdata.mac_state = FHSS_STATE_SYNCHED;
                     begin_hopping((u8)(rf_tLastRecv & 0xff));       // synching happens within
@@ -404,6 +406,13 @@ void appMainLoop(void)
             IEN2 |= IEN2_RFIE;
             break;
 
+        case FHSS_STATE_SYNCINGMASTER:
+            // if we've done one loop, stop
+            if (macdata.synched_chans >= macdata.NumChannelHops)
+            {
+                macdata.mac_state = FHSS_STATE_SYNC_MASTER;
+            }
+            break;
         // perhaps we should just make this "default:"
         case FHSS_STATE_SYNC_MASTER:
         case FHSS_STATE_SYNCHED:
@@ -483,12 +492,12 @@ int appHandleEP5()
                 break;
                 
             case FHSS_SET_CHANNELS:
-                macdata.g_NumChannels = (xdata u16)*buf;
-                if (macdata.g_NumChannels <= MAX_CHANNELS)
+                macdata.NumChannels = (xdata u16)*buf;
+                if (macdata.NumChannels <= MAX_CHANNELS)
                 {
                     buf += 2;
-                    memcpy(&g_Channels[0], buf, macdata.g_NumChannels);
-                    txdata(app, cmd, 2, (u8*)&macdata.g_NumChannels);
+                    memcpy(&g_Channels[0], buf, macdata.NumChannels);
+                    txdata(app, cmd, 2, (u8*)&macdata.NumChannels);
                 } else {
                     txdata(app, cmd, 8, (xdata u8*)"NO DEAL");
                 }
@@ -496,7 +505,7 @@ int appHandleEP5()
 
             case FHSS_NEXT_CHANNEL:
                 MAC_set_chanidx(MAC_getNextChannel());
-                txdata(app, cmd, 1, &g_Channels[macdata.g_curChanIdx]);
+                txdata(app, cmd, 1, &g_Channels[macdata.curChanIdx]);
                 break;
 
             case FHSS_CHANGE_CHANNEL:
@@ -516,12 +525,12 @@ int appHandleEP5()
 
             // FIXME: do we even need g_MAC_threshold anymore?
             case FHSS_SET_MAC_THRESHOLD:
-                macdata.g_MAC_threshold = *buf;
+                macdata.MAC_threshold = *buf;
                 txdata(app, cmd, 1, buf);
                 break;
 
             case FHSS_GET_MAC_THRESHOLD:
-                txdata(app, cmd, 4, (xdata u8*)&macdata.g_MAC_threshold);
+                txdata(app, cmd, 4, (xdata u8*)&macdata.MAC_threshold);
                 break;
 
             case FHSS_SET_MAC_DATA:
@@ -540,7 +549,7 @@ int appHandleEP5()
                 
             case FHSS_SET_STATE:
                 // store the main timer value for beginning of this phase.
-                macdata.g_tLastStateChange = clock;
+                macdata.tLastStateChange = clock;
                 macdata.mac_state = (u8)*buf;
                 
                 // if macdata.mac_state is > 2, make sure the T2 interrupt is set
