@@ -48,12 +48,13 @@ typedef struct MAC_DATA_s
 {
     u8 mac_state;
     // MAC parameters (FIXME: make this all cc1111fhssmac.c/h?)
-    u32 g_MAC_threshold;              // when the T2 clock as overflowed this many times, change channel
-    u16 g_NumChannels;                // in case of multiple paths through the available channels 
-    u16 g_NumChannelHops;             // total number of channels in pattern (>= g_MaxChannels)
-    u16 g_curChanIdx;                 // indicates current channel index of the hopping pattern
-    u16 g_tLastStateChange;
-    u16 g_tLastHop;
-    u16 g_desperatelySeeking;
-    u8  g_txMsgIdx;
+    u32 MAC_threshold;              // when the T2 clock as overflowed this many times, change channel
+    u16 NumChannels;                // in case of multiple paths through the available channels 
+    u16 NumChannelHops;             // total number of channels in pattern (>= g_MaxChannels)
+    u16 curChanIdx;                 // indicates current channel index of the hopping pattern
+    u16 tLastStateChange;
+    u16 tLastHop;
+    u16 desperatelySeeking;
+    u8  txMsgIdx;
+    u16 synched_chans;
 } MAC_DATA_t;
