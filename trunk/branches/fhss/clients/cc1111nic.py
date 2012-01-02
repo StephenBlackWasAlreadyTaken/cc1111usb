@@ -139,8 +139,24 @@ class FHSSNIC(USBDongle):
     def getMACdata(self):
         datastr = self.send(APP_NIC, FHSS_GET_MAC_DATA, '')
         print (repr(datastr))
-        data = struct.unpack("<BIHHHHHHB", datastr[4:])
+        data = struct.unpack("<BIHHHHHHBH", datastr[4:])
         return data
+
+    def reprMACdata(self):
+        data = self.getMACdata()
+        return """\
+u8 mac_state                %x
+u32 MAC_threshold           %x
+u16 NumChannels             %x
+u16 NumChannelHops          %x
+u16 curChanIdx              %x
+u16 tLastStateChange        %x
+u16 tLastHop                %x
+u16 desperatelySeeking      %x
+u8  txMsgIdx                %x
+u16 synched_chans           %x
+
+""" % data
     """
         
         

@@ -7,6 +7,8 @@
 :tabnew ./firmware/cc1111usbdebug.c
 :tabnew ./firmware/include/global.h
 :tabnew ./firmware/include/cc1111usb.h
+:tabnew ./firmware/include/nic.h
+:tabnew ./firmware/include/FHSS.h
 :tabnew ./firmware/include/cc1111.h
 :tabnew ./firmware/include/cc1111rf.h
 :tabnew ./firmware/include/cc1110-ext.h
