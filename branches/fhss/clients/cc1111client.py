@@ -144,10 +144,40 @@ LENGTH_CONFIGS = [
         "reserved",
         "reserved",
         ]
+LC_USB_INITUSB                = 0x2
+LC_MAIN_RFIF                  = 0xd
+LC_USB_DATA_RESET_RESUME      = 0xa
+LC_USB_RESET                  = 0xb
+LC_USB_EP5OUT                 = 0xc
+LC_RF_VECTOR                  = 0x10
+LC_RFTXRX_VECTOR              = 0x11
+
+LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN    = 0x1
+LCE_USB_EP0_SENT_STALL                = 0x4
+LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN  = 0x5
+LCE_USB_EP5_LEN_TOO_BIG               = 0x6
+LCE_USB_EP5_GOT_CRAP                  = 0x7
+LCE_USB_EP5_STALL                     = 0x8
+LCE_USB_DATA_LEFTOVER_FLAGS           = 0x9
+LCE_RF_RXOVF                          = 0x10
+LCE_RF_TXUNF                          = 0x11
+
+LCS = {}
+LCES = {}
+lcls = locals()
+for lcl in lcls.keys():
+    if lcl.startswith("LCE_"):
+        LCES[lcl] = lcls[lcl]
+        LCES[lcls[lcl]] = lcl
+    if lcl.startswith("LC_"):
+        LCS[lcl] = lcls[lcl]
+        LCS[lcls[lcl]] = lcl
+
 
 class USBDongle:
     ######## INITIALIZATION ########
     def __init__(self, idx=0, debug=False):
+        self._do = None
         self.idx = idx
         self.cleanup()
         self._debug = debug
@@ -157,6 +187,8 @@ class USBDongle:
         self.recv_thread = threading.Thread(target=self.run)
         self.recv_thread.setDaemon(True)
         self.recv_thread.start()
+        self.rsema = None
+        self.xsema = None
 
     def cleanup(self):
         self._usberrorcnt = 0;
@@ -164,8 +196,6 @@ class USBDongle:
         self.recv_mbox  = {}
         self.xmit_queue = []
         self.trash = []
-        self.rsema = threading.Semaphore()
-        self.xsema = threading.Semaphore()
     
     def setup(self, console=True):
         idx = self.idx
@@ -177,6 +207,11 @@ class USBDongle:
                     else:
                         if console: print >>sys.stderr,(dev)
                         d=dev
+
+        self.rsema.release()
+        self.rsema = threading.Semaphore()
+        self.xsema.release()
+        self.xsema = threading.Semaphore()
         self._d = d
         self._do = d.open()
         self._do.claimInterface(0)
@@ -184,15 +219,21 @@ class USBDongle:
         self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
+        '''try:
+            self._do.releaseInterface()
+        except:
+            pass
+        '''
         self._do=None
-        if console: print >>sys.stderr,("waiting")
+        if console or self._debug: print >>sys.stderr,("waiting (resetup)")
         while (self._do==None):
             try:
                 self.setup(console)
                 self._flush_recv_mbox()
 
-            except:
+            except Exception, e:
                 if console: sys.stderr.write('.')
+                if self._debug: print >>sys.stderr,(repr(e))
                 time.sleep(.4)
 
 
@@ -231,6 +272,8 @@ class USBDongle:
         return ''
 
     def _flush_recv_mbox(self):
+        if self._debug:
+            print >>sys.stderr,("_flush_recv_mbox")
         for key in self.recv_mbox.keys():
             self.trash.extend(self.recvAll(key))
         self.trash.append(self.recv_queue)
@@ -333,6 +376,7 @@ class USBDongle:
                         sys.stderr.write('@')
                 else:
                     if (idx>0):
+                        if self._debug: print >>sys.stderr,("run(): idx>0?")
                         self.trash.append(self.recv_queue[:idx])
                         self.recv_queue = self.recv_queue[idx:]
                
@@ -411,7 +455,9 @@ class USBDongle:
             time.sleep(.001)                                      # only hits here if we don't have something in queue
     def recvAll(self, app):
         retval = self.recv_mbox.get(app,None)
+        self.rsema.acquire()
         self.recv_mbox[app]=[]
+        self.rsema.release()
         return retval
 
     def send(self, app, cmd, buf, wait=10000):
@@ -458,6 +504,7 @@ class USBDongle:
 
     def debug(self):
         while True:
+            """
             try:
                 print >>sys.stderr, ("DONGLE RESPONDING:  mode :%x, last error# %d"%(self.getDebugCodes()))
             except:
@@ -467,6 +514,9 @@ class USBDongle:
             print >>sys.stderr,('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
             for x in self.recv_mbox.keys():
                 print >>sys.stderr,('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+                """
+            print self.reprRadioState()
+            print self.reprClientState()
             x,y,z = select.select([sys.stdin],[],[],0)
             if sys.stdin in x:
                 break
@@ -508,7 +558,7 @@ class USBDongle:
     def getInterruptRegisters(self):
         regs = {}
         # IEN0,1,2
-        regs['IEN0'] = self.peek(IEN0,1)
+        regs['IEN0'] = self.peek(0xdf00 + IEN0,1)
         regs['IEN1'] = self.peek(IEN1,1)
         regs['IEN2'] = self.peek(IEN2,1)
         # TCON
@@ -1061,15 +1111,20 @@ class USBDongle:
             pass
         output = []
         output.append("     MARCSTATE:      %s (%x)" % (self.getMARCSTATE()))
+        try:
+            output.append("     DONGLE RESPONDING:  mode :%x, last error# %d"%(self.getDebugCodes()))
+        except:
+            pass
+
         return "\n".join(output)
 
     def reprClientState(self):
         output = []
-        output.append('recv_queue:\t\t (%d bytes) "%s"'%(len(self.recv_queue),repr(self.recv_queue)[:len(self.recv_queue)%39+20]))
-        output.append('trash:     \t\t (%d bytes) "%s"'%(len(self.trash),repr(self.trash)[:len(self.trash)%39+20]))
-        output.append('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
+        output.append('     recv_queue:\t\t (%d bytes) "%s"'%(len(self.recv_queue),repr(self.recv_queue)[:len(self.recv_queue)%39+20]))
+        output.append('     trash:     \t\t (%d bytes) "%s"'%(len(self.trash),repr(self.trash)[:min(len(self.trash),39)+20]))
+        output.append('     recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:min(len(repr(self.recv_mbox)),79)]))
         for x in self.recv_mbox.keys():
-            output.append('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+            output.append('         recv_mbox   0x%x\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:min(len(repr(self.recv_mbox[x])),79)]))
         return "\n".join(output)
 
 
