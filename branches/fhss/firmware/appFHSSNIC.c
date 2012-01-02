@@ -423,7 +423,7 @@ void appMainLoop(void)
             {
                 //LED = !LED;
                 lastCode[0] = 0xd;
-                IEN2 &= ~IEN2_RFIE;
+                //IEN2 &= ~IEN2_RFIE;
 
                 if(rfif & RFIF_IRQ_DONE)
                 {
@@ -439,10 +439,10 @@ void appMainLoop(void)
                         /* Set receive buffer to processed so it can be used again */
                         rfRxProcessed[processbuffer] = RX_PROCESSED;
                     }
+                    rfif &= ~RFIF_IRQ_DONE;           // FIXME: rfif is way too easily tossed aside here...
                 }
 
-                rfif = 0;           // FIXME: rfif is way too easily tossed aside here...
-                IEN2 |= IEN2_RFIE;
+                //IEN2 |= IEN2_RFIE;
                 //LED = !LED;
             }
             break;
