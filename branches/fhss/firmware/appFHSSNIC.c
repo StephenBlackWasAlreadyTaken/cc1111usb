@@ -456,22 +456,23 @@ int appHandleEP5()
                 txdata(app, cmd, 1, buf);
                 break;
 
+            // FIXME: do we even need g_MAC_threshold anymore?
             case FHSS_SET_MAC_THRESHOLD:
                 macdata.g_MAC_threshold = *buf;
                 txdata(app, cmd, 1, buf);
                 break;
 
             case FHSS_GET_MAC_THRESHOLD:
-                txdata(app, cmd, 1, &macdata.g_MAC_threshold);
+                txdata(app, cmd, 4, (xdata u8*)&macdata.g_MAC_threshold);
                 break;
 
             case FHSS_SET_MAC_DATA:
-                memcpy(&macdata *buf, sizeof(macdata));
+                memcpy((xdata u8*)&macdata, (xdata u8*)*buf, sizeof(macdata));
                 txdata(app, cmd, sizeof(macdata), buf);
                 break;
 
             case FHSS_GET_MAC_DATA:
-                txdata(app, cmd, sizeof(macdata), &macdata);
+                txdata(app, cmd, sizeof(macdata), (xdata u8*)&macdata);
                 break;
 
             case FHSS_START_SYNC:
