@@ -230,7 +230,7 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
         // we need to transmit something indicating the channel we're on
         if (macdata.mac_state == FHSS_STATE_SYNCINGMASTER)
         {
-            packet[0] = 6;
+            packet[0] = 28;
             packet[1] = macdata.curChanIdx & 0xff;
             packet[2] = macdata.curChanIdx >> 8;
             packet[3] = 'B';
@@ -421,6 +421,7 @@ void appMainLoop(void)
             // this is where we handle the RF packet
             if (rfif)
             {
+                //LED = !LED;
                 lastCode[0] = 0xd;
                 IEN2 &= ~IEN2_RFIE;
 
@@ -440,8 +441,9 @@ void appMainLoop(void)
                     }
                 }
 
-                rfif = 0;
+                rfif = 0;           // FIXME: rfif is way too easily tossed aside here...
                 IEN2 |= IEN2_RFIE;
+                //LED = !LED;
             }
             break;
     }
