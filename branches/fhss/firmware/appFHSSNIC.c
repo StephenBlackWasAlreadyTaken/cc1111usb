@@ -138,6 +138,7 @@ void MAC_become_master()
 void MAC_do_Master_scanny_thingy()
 {
     macdata.mac_state = FHSS_STATE_SYNCINGMASTER;
+    macdata.synched_chans = 0;
     macdata.tLastStateChange = clock;
 }
 
@@ -227,7 +228,7 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
 
         // if we are the SYNC_MASTER and are in the process of "doing the SYNC"
         // we need to transmit something indicating the channel we're on
-        if (macdata.mac_state = FHSS_STATE_SYNCINGMASTER)
+        if (macdata.mac_state == FHSS_STATE_SYNCINGMASTER)
         {
             packet[0] = 6;
             packet[1] = macdata.curChanIdx & 0xff;
