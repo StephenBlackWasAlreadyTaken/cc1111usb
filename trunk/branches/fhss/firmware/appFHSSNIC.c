@@ -554,13 +554,20 @@ int appHandleEP5()
                 
                 // if macdata.mac_state is > 2, make sure the T2 interrupt is set
                 // if macdata.mac_state <= 2, make sure T2 interrupt is ignored
-                if (macdata.mac_state > FHSS_LAST_NONHOPPING_STATE)
+                switch (macdata.mac_state)
                 {
-                    begin_hopping(0);
-                }
-                else
-                {
-                    stop_hopping();
+                    case FHSS_STATE_NONHOPPING:
+                    case FHSS_STATE_DISCOVERY:
+                    case FHSS_STATE_SYNCHING:
+                        stop_hopping();
+                        break;
+
+                    case FHSS_STATE_SYNCINGMASTER:
+                        macdata.synched_chans = 0;
+                    case FHSS_STATE_SYNCHED:
+                    case FHSS_STATE_SYNC_MASTER:
+                        begin_hopping(0);
+                        break;
                 }
                 
                 txdata(app, cmd, 1, buf);
