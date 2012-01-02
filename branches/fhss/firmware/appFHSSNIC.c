@@ -256,7 +256,7 @@ void init_FHSS(void)
     // setup TIMER 1
     // free running mode
     // time freq:
-    CLKCON |= 0x38;          //(0b111000);
+    CLKCON &= 0xc7;          //( ~ 0b111000);
     T1CTL |= T1CTL_DIV_128;
     T1CTL |= T1CTL_MODE_FREERUN;
 // FIXME: turn on timer interrupts for t1 and t2
@@ -267,9 +267,49 @@ void init_FHSS(void)
     //
     // free running mode
     // time freq:
-    T2PR = 0;
+#ifndef IMME
+    // 100ms at 24mhz
+    //T2PR = 0x92;        
+    //T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+
+    // 150ms at 24mhz
+    T2PR = 0xdc;        
     T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+
+    // 200ms at 24mhz
+    //T2PR = 0x92;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+    
+    // 250ms at 24mhz
+    //T2PR = 0xb7;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+    
+    // 300ms at 24mhz
+    //T2PR = 0xdc;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+#else
+    // 100ms at 26mhz
+    //T2PR = 0x9f;        
+    //T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+
+    // 150ms at 26mhz
+    T2PR = 0xee;        
+    T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+
+    // 200ms at 26mhz
+    //T2PR = 0x9f;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+
+    // 250ms at 26mhz
+    //T2PR = 0xc6;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+    
+    // 300ms at 26mhz
+    //T2PR = 0xee;        
+    //T2CTL |= T2CTL_TIP_128;  // 64, 128, 256, 1024
+#endif
     T2CTL |= T2CTL_TIG;
+
 
     // setup TIMER 3
     // free running mode
