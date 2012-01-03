@@ -17,6 +17,8 @@ u8 rfif;
 volatile __xdata u8 rf_status;
 volatile __xdata DMA_DESC rfDMA;
 
+volatile __xdata u8 bRepeatMode = 0;
+
 /*************************************************************************************************
  * RF init stuff                                                                                 *
  ************************************************************************************************/
@@ -109,13 +111,27 @@ void init_RF(u8 bEuRadio, register_e rRegisterType)
 
 	/* Setup interrupts */
 	RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
-	RFIM = 0xff;
+	RFIM = 0xd1;
 	RFIF = 0;
 	rfif = 0;
 	IEN2 |= IEN2_RFIE;
 
 	/* Put radio into idle state */
 	setRFIdle();
+}
+
+void setRFRx(void)
+{
+    RFST = RFST_SRX;
+    while(!(MARCSTATE & MARC_STATE_RX));
+    rf_status = RF_STATE_IDLE;
+}
+
+void setRFTx(void)
+{
+    RFST = RFST_STX;
+    while(!(MARCSTATE & MARC_STATE_TX));
+    rf_status = RF_STATE_IDLE;
 }
 
 void setRFIdle(void)
@@ -315,6 +331,26 @@ void RxIdle(void)
     }
 }
 
+/* Repeater mode...
+    Say whut? Mode that receives a packet and then sends it into the air again :)
+    Idea: Setup two DMA channels, we can use channel 0 we normally use and combine that with channel 3, because if correct 1 and 2 are used by USB
+    Channel 0 will hold the RX, with one extra configuration than normally it should generate an interrupt when DMA is done.
+    Channel 3 will hold the TX data, the TX data will be set to the buffer the RX puts his data in, the channel is activated by the DMA done interrupt of the receiver.
+   */
+void RepeaterStart()
+{
+    bRepeatMode = 1;
+}
+
+void RepeaterStop()
+{
+    bRepeatMode = 0;
+}
+
+/* End Repeater mode... */
+
+//void dmaIntHandler(void) __interrupt DMA_VECTOR // Interrupt handler for DMA */
+
 void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {
     lastCode[1] = 17;
@@ -344,16 +380,24 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
     rfif |= RFIF;
 
-    if(RFIF & RFIF_IRQ_RXOVF)
+    if (RFIF & RFIF_IRQ_SFD)
+    {
+        // mark the last time we received a packet.  this will be used for MAC layer decisions in 
+        // some protocols like FHSS 
+        RFIF &= ~RFIF_IRQ_SFD;
+    }
+    else if(RFIF & RFIF_IRQ_RXOVF)
     {
     	/* RX overflow, only way to get out of this is to restart receiver */
     	stopRX();
     	startRX(bRxDMA);
+        RFIF &= ~RFIF_IRQ_RXOVF;
     }
     else if(RFIF & RFIF_IRQ_TXUNF)
     {
     	/* Put radio into idle state */
 		setRFIdle();
+        RFIF &= ~RFIF_IRQ_TXUNF;
     }
     else if(RFIF & RFIF_IRQ_DONE)
     {
@@ -365,8 +409,6 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
     	{
 			if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
 			{
-				/* Clear processed buffer */
-				memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);
 				/* Switch current buffer */
 				rfRxCurrentBuffer ^= 1;
 				rfRxCounter[rfRxCurrentBuffer] = 0;
@@ -391,7 +433,6 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
 				rfRxCounter[rfRxCurrentBuffer] = 0;
 			}
     	}
+        RFIF &= ~RFIF_IRQ_DONE;
     }
-    //RFIF &= ~RFIF_IRQ_DONE;
-    RFIF = 0;
 }
