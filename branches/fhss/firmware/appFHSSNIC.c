@@ -148,18 +148,19 @@ void MAC_set_chanidx(u16 chanidx)
     PHY_set_channel( g_Channels[ chanidx ] );
 }
 
-void MAC_tx(u8 len, u8* message)
+void MAC_tx(u8* message, u8 len)
 {
     // FIXME: possibly integrate USB/RF buffers so we don't have to keep copying...
     // queue data for sending at subsequent time slots.
 
-    if (macdata.txMsgIdx++ >= MAX_TX_MSGS)
+    g_txMsgQueue[macdata.txMsgIdx][0] = len;
+    memcpy(&g_txMsgQueue[macdata.txMsgIdx][1], message, len);
+
+    if (++macdata.txMsgIdx >= MAX_TX_MSGS)
     {
         macdata.txMsgIdx = 0;
     }
 
-    g_txMsgQueue[macdata.txMsgIdx][0] = len;
-    memcpy(&g_txMsgQueue[macdata.txMsgIdx][1], message, len);
 }
 
 
@@ -246,6 +247,17 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
 #endif
     }
     // if the queue is not empty, wait but then tx.
+    if (g_txMsgQueue[macdata.txMsgIdxDone][0])      // if length byte >0
+    {
+        transmit(&g_txMsgQueue[macdata.txMsgIdxDone][1], g_txMsgQueue[macdata.txMsgIdxDone][0]);
+        // FIXME: rudimentary FHSS_tx in interrupt handler, make more elegant (with confirmation or somesuch?)
+        g_txMsgQueue[macdata.txMsgIdxDone][0] = 0;
+
+        if (++macdata.txMsgIdxDone > MAX_TX_MSGS)
+        {
+            macdata.txMsgIdxDone = 0;
+        }
+    }
 }
 
 void t3IntHandler(void) interrupt T3_VECTOR
@@ -256,12 +268,17 @@ void t3IntHandler(void) interrupt T3_VECTOR
 
 void init_FHSS(void)
 {
+    macdata.mac_state = 0;
     macdata.txMsgIdx = 0;
+    macdata.txMsgIdxDone = 0;
     macdata.curChanIdx = 0;
     macdata.NumChannels = DEFAULT_NUM_CHANS;
     macdata.NumChannelHops = DEFAULT_NUM_CHANHOPS;
     macdata.tLastHop = 0;
     macdata.tLastStateChange = 0;
+    macdata.MAC_threshold = 0;
+    macdata.desperatelySeeking = 0;
+    macdata.synched_chans = 0;
 
     MAC_initChannels();
 
@@ -492,6 +509,11 @@ int appHandleEP5()
             case NIC_SET_ID:
                 MAC_set_NIC_ID(*buf);
                 txdata(app, cmd, 1, buf);
+                break;
+
+            case FHSS_XMIT:
+                MAC_tx(buf, len);
+                txdata(app, cmd, 1, (xdata u8*)"\x00");
                 break;
                 
             case FHSS_SET_CHANNELS:

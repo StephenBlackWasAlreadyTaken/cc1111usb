@@ -5,6 +5,7 @@
 #define FHSS_GET_MAC_THRESHOLD  0x14
 #define FHSS_SET_MAC_DATA       0x15
 #define FHSS_GET_MAC_DATA       0x16
+#define FHSS_XMIT               0x17
 
 #define FHSS_SET_STATE          0x20
 #define FHSS_GET_STATE          0x21
@@ -39,7 +40,7 @@ void PHY_set_channel(u16 chan);
 void MAC_initChannels();
 void MAC_sync(u16 netID);
 void MAC_set_chanidx(u16 chanidx);
-void MAC_tx(u8 len, u8* message);
+void MAC_tx(u8* message, u8 len);
 void MAC_rx_handle(u8 len, u8* message);
 u8 MAC_getNextChannel();
 
@@ -56,5 +57,6 @@ typedef struct MAC_DATA_s
     u16 tLastHop;
     u16 desperatelySeeking;
     u8  txMsgIdx;
+    u8  txMsgIdxDone;
     u16 synched_chans;
 } MAC_DATA_t;
