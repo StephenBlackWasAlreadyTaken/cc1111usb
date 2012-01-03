@@ -1,6 +1,8 @@
 #include "cc1111rf.h"
 #include "global.h"
 
+#include <string.h>
+
 #ifdef VIRTUAL_COM
 	#include "cc1111.h"
 	#include "cc1111_vcom.h"
@@ -78,6 +80,8 @@ void appMainLoop(void)
 				txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 				/* Set receive buffer to processed so it can be used again */
 				rfRxProcessed[processbuffer] = RX_PROCESSED;
+				/* Clear processed buffer */
+				memset(rfrxbuf[processbuffer],0,BUFFER_SIZE);
 			}
         }
 
