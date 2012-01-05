@@ -177,6 +177,8 @@ for lcl in lcls.keys():
 class USBDongle:
     ######## INITIALIZATION ########
     def __init__(self, idx=0, debug=False):
+        self.rsema = None
+        self.xsema = None
         self._do = None
         self.idx = idx
         self.cleanup()
@@ -187,8 +189,6 @@ class USBDongle:
         self.recv_thread = threading.Thread(target=self.run)
         self.recv_thread.setDaemon(True)
         self.recv_thread.start()
-        self.rsema = None
-        self.xsema = None
 
     def cleanup(self):
         self._usberrorcnt = 0;
@@ -198,22 +198,25 @@ class USBDongle:
         self.trash = []
     
     def setup(self, console=True):
+        global dongles
+
         idx = self.idx
+        dongles = []
+
         for bus in usb.busses():
             for dev in bus.devices:
                 if dev.idProduct == 0x4715:
-                    if idx:
-                        idx -= 1
-                    else:
-                        if console: print >>sys.stderr,(dev)
-                        d=dev
+                    if console: print >>sys.stderr,(dev)
+                    do = dev.open()
+                    iSN = do.getDescriptor(1,0,50)[16]
+                    sn = do.getString(iSN, 50)
+                    dongles.append((sn, dev, do))
 
-        self.rsema.release()
-        self.rsema = threading.Semaphore()
-        self.xsema.release()
-        self.xsema = threading.Semaphore()
-        self._d = d
-        self._do = d.open()
+        dongles.sort()
+        self.serialnun, self._d, self._do = dongles[idx]
+
+        self.rsema = threading.Lock()
+        self.xsema = threading.Lock()
         self._do.claimInterface(0)
         self._threadGo = True
         self.ep5timeout = EP_TIMEOUT_ACTIVE
@@ -233,7 +236,7 @@ class USBDongle:
 
             except Exception, e:
                 if console: sys.stderr.write('.')
-                if self._debug: print >>sys.stderr,(repr(e))
+                if console or self._debug: print >>sys.stderr,(repr(e))
                 time.sleep(.4)
 
 
@@ -406,7 +409,11 @@ class USBDongle:
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                try:
+                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                except: 
+                    pass
+
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No such device' in repr(e)):
                     self._threadGo = False
@@ -414,7 +421,10 @@ class USBDongle:
                 self._usberrorcnt += 1
                 pass
             except:
-                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                try:
+                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                except:
+                    pass
                 sys.excepthook(*sys.exc_info())
 
 
@@ -443,14 +453,23 @@ class USBDongle:
                 return resp
             except IndexError:
                 #sys.excepthook(*sys.exc_info())
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 pass
             except AttributeError:
                 #sys.excepthook(*sys.exc_info())
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 pass
             except:
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 sys.excepthook(*sys.exc_info())
             time.sleep(.001)                                      # only hits here if we don't have something in queue
     def recvAll(self, app):
