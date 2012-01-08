@@ -1254,9 +1254,9 @@ __code u8 USBDESCBEGIN [] = {
                10,                      // bLength
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
-              '0', 0,
-              '9', 0,
-              '8', 0,
+              '1', 0,
+              '2', 0,
+              '7', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff
