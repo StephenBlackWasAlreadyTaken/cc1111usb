@@ -101,7 +101,7 @@ chronostestxmitusb.hex: appNetworkTest.c $(libsusbc)
 	packihx <appNetworkTest.ihx >bins/testxmit.hex
 
 donstestxmitusb.hex: appNetworkTest.c $(libsusbd)
-	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DDONDONGLES -DTRANSMIT_TEST 
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DDONSDONGLES -DTRANSMIT_TEST 
 	packihx <appNetworkTest.ihx >bins/testxmit.hex
 
 chronostestrecvusb.hex: appNetworkTest.c $(libsusbc)
@@ -203,7 +203,7 @@ installtestxmitfw: testxmitapplication.hex
 	goodfet.cc info
 
 
-testall: chronosapplication.hex donsapplication.hex testrecvusb.hex testxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+testall: chronosapplication.hex donsapplication.hex chronostestrecvusb.hex donstestrecvusb.hex chronostestxmitusb.hex donstestxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
 ##immedongleapplication.hex 
 
 # testing should see that each enumerates correctly in linux
