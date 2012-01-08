@@ -64,6 +64,7 @@ void begin_hopping(u8 T2_offset)
 {
     // reset the T2 clock settings based on T1 clock an offset
     T2CT -= T2_offset;
+    T2CT -= MAC_TIMER_STATIC_DIFF;
     // start the T2 clock interrupt
     T2CTL |= T2CTL_INT;
     T2IE = 1;
@@ -105,6 +106,7 @@ void MAC_sync(u16 CellID)
             break;
 
         macdata.curChanIdx++;
+        blink(10,10);
     }
 
     // set state =  SYNC
@@ -152,6 +154,7 @@ void MAC_tx(u8* message, u8 len)
 {
     // FIXME: possibly integrate USB/RF buffers so we don't have to keep copying...
     // queue data for sending at subsequent time slots.
+    // FIXME: this is not good for fixed-length
 
     g_txMsgQueue[macdata.txMsgIdx][0] = len;
     memcpy(&g_txMsgQueue[macdata.txMsgIdx][1], message, len);
@@ -231,6 +234,7 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
         // we need to transmit something indicating the channel we're on
         if (macdata.mac_state == FHSS_STATE_SYNCINGMASTER)
         {
+            sleepMillis(FHSS_TX_SLEEP_DELAY);
             packet[0] = 28;
             packet[1] = macdata.curChanIdx & 0xff;
             packet[2] = macdata.curChanIdx >> 8;
@@ -244,19 +248,24 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
             transmit((xdata u8*)&packet, packet[0]);
             macdata.synched_chans++;
         }
-#endif
-    }
-    // if the queue is not empty, wait but then tx.
-    if (g_txMsgQueue[macdata.txMsgIdxDone][0])      // if length byte >0
-    {
-        transmit(&g_txMsgQueue[macdata.txMsgIdxDone][1], g_txMsgQueue[macdata.txMsgIdxDone][0]);
-        // FIXME: rudimentary FHSS_tx in interrupt handler, make more elegant (with confirmation or somesuch?)
-        g_txMsgQueue[macdata.txMsgIdxDone][0] = 0;
-
-        if (++macdata.txMsgIdxDone > MAX_TX_MSGS)
+        else
         {
-            macdata.txMsgIdxDone = 0;
+            // if the queue is not empty, wait but then tx.
+            // FIXME: this currently sends only once per hop.  this may or may not be appropriate, but it's simple to implement.
+            if (g_txMsgQueue[macdata.txMsgIdxDone][0])      // if length byte >0
+            {
+                sleepMillis(FHSS_TX_SLEEP_DELAY);
+                transmit(&g_txMsgQueue[macdata.txMsgIdxDone][!(PKTCTRL0&1)], g_txMsgQueue[macdata.txMsgIdxDone][0]);
+                // FIXME: rudimentary FHSS_tx in interrupt handler, make more elegant (with confirmation or somesuch?)
+                g_txMsgQueue[macdata.txMsgIdxDone][0] = 0;
+
+                if (++macdata.txMsgIdxDone > MAX_TX_MSGS)
+                {
+                    macdata.txMsgIdxDone = 0;
+                }
+            }
         }
+#endif
     }
 }
 
@@ -396,6 +405,21 @@ void appMainLoop(void)
                     debug("network packet(sync)");
                     debughex16((u16)rf_tLastRecv);
                     debug((code u8*)&rfrxbuf[rfRxCurrentBuffer][0]);
+
+                    // now back to usual programming
+                    processbuffer = !rfRxCurrentBuffer;
+                    if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
+                    {   
+                        // we've received a packet.  deliver it.
+                        if (PKTCTRL0&1)
+                            txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                        else
+                            txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
+
+                        /* Set receive buffer to processed so it can be used again */
+                        rfRxProcessed[processbuffer] = RX_PROCESSED;
+                    }
+                    rfif &= ~RFIF_IRQ_DONE;
                 }
             }
 
@@ -418,6 +442,21 @@ void appMainLoop(void)
                     debug("network packet(discovery)");
                     debughex16((u16)rfrxbuf[processbuffer]);
                     debug((code u8*)&rfrxbuf[processbuffer][0]);
+
+                    // now back to usual programming
+                    processbuffer = !rfRxCurrentBuffer;
+                    if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
+                    {   
+                        // we've received a packet.  deliver it.
+                        if (PKTCTRL0&1)
+                            txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                        else
+                            txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
+
+                        /* Set receive buffer to processed so it can be used again */
+                        rfRxProcessed[processbuffer] = RX_PROCESSED;
+                    }
+                    rfif &= ~RFIF_IRQ_DONE;
                 }
             }
 
@@ -607,6 +646,9 @@ int appHandleEP5()
 
                     case FHSS_STATE_SYNCINGMASTER:
                         macdata.synched_chans = 0;
+                        begin_hopping(0);
+                        break;
+
                     case FHSS_STATE_SYNCHED:
                     case FHSS_STATE_SYNC_MASTER:
                         begin_hopping(0);
