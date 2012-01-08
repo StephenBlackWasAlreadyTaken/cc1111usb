@@ -55,6 +55,14 @@ donsapplication.hex: application.c $(libsusbd)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DDONSDONGLES
 	packihx <application.ihx >bins/application.hex
 
+chronostestusbonly.hex: usbonly.c cc1111usb.rc global.relc
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DCHRONOSDONGLE
+	packihx <usbonly.ihx >bins/usbonly.hex
+
+donstestusbonly.hex: usbonly.c cc1111usb.rc global.reld
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DDONSDONGLES
+	packihx <usbonly.ihx >bins/usbonly.hex
+
 #	may be helpful when we actually have one...
 #immedongleapplication.hex: application.c $(libsusbi)
 #	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE -DIMME

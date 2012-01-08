@@ -6,8 +6,8 @@ from cc1111client import *
 APP_NIC =                       0x42
 NIC_RECV =                      0x1
 NIC_XMIT =                      0x2
-
 NIC_SET_ID =                    0x3
+NIC_RFMODE =                    0x4
 
 FHSS_SET_CHANNELS =             0x10
 FHSS_NEXT_CHANNEL =             0x11
@@ -81,6 +81,9 @@ def calculateT2(ms, mhz=24):
 class FHSSNIC(USBDongle):
     def __init__(self, idx=0, debug=False):
         USBDongle.__init__(self, idx, debug)
+
+    def setRfMode(self, rfmode, parms=''):
+        r = self.send(APP_NIC, NIC_RFMODE, "%c"%rfmode + parms)
 
     def RFxmit(self, data):
         self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
