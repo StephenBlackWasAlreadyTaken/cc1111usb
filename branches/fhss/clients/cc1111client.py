@@ -43,7 +43,6 @@ SYS_CMD_POKE                    = 0x81
 SYS_CMD_PING                    = 0x82
 SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
-SYS_CMD_RFMODE                  = 0x85
 SYS_CMD_RESET                   = 0x8f
 
 EP0_CMD_GET_DEBUG_CODES         = 0x00
@@ -570,9 +569,6 @@ class USBDongle:
     def pokeReg(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
         return r[4:]
-
-    def setRfMode(self, rfmode, parms=''):
-        r = self.send(APP_SYSTEM, SYS_CMD_RFMODE, "%c"%rfmode + parms)
             
     def getInterruptRegisters(self):
         regs = {}

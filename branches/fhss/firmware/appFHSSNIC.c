@@ -362,6 +362,7 @@ void init_FHSS(void)
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
+    registerCb_ep5( appHandleEP5 );
     clock = 0;
 
     init_FHSS();
@@ -499,6 +500,22 @@ int appHandleEP5()
 
         switch (cmd)
         {
+            case NIC_RFMODE:
+                switch (*buf++)
+                {
+                    case RF_STATE_RX:
+
+                        RxMode();
+                        break;
+                    case RF_STATE_IDLE:
+                        IdleMode();
+                        break;
+                    case RF_STATE_TX:
+                        transmit(buf, len);
+                        break;
+                }
+                txdata(app,cmd,len,buf);
+                break;
             case NIC_XMIT:
                 // FIXME:  this needs to place buf data into the FHSS txMsgQueue
                 transmit(buf, len);
@@ -584,6 +601,7 @@ int appHandleEP5()
                     case FHSS_STATE_NONHOPPING:
                     case FHSS_STATE_DISCOVERY:
                     case FHSS_STATE_SYNCHING:
+                        
                         stop_hopping();
                         break;
 
@@ -834,7 +852,6 @@ void clock_init(void){
     while (CLKCON & CLKCON_OSC);
     SLEEP |= SLEEP_OSC_PD;
     while (!IS_XOSC_STABLE());
-
 }
 
 /*************************************************************************************************
@@ -858,6 +875,7 @@ void main (void)
 
     /* Enable interrupts */
     EA = 1;
+    waitForUSBsetup();
 
     REALLYFASTBLINK();
 
