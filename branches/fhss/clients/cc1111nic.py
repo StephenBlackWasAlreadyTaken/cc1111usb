@@ -89,7 +89,7 @@ class FHSSNIC(USBDongle):
         self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
 
     def RFrecv(self, timeout=100):
-        return self.recv(APP_NIC, timeout)
+        return self.recv(APP_NIC, NIC_RECV, timeout)
 
     def FHSSxmit(self, data):
         self.send(APP_NIC, FHSS_XMIT, "%c%s" % (len(data)+1, data))
