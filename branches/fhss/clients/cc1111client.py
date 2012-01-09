@@ -172,6 +172,9 @@ for lcl in lcls.keys():
         LCS[lcl] = lcls[lcl]
         LCS[lcls[lcl]] = lcl
 
+class CC111xTimeoutException(Exception):
+    def __str__(self):
+        return "Timeout waiting for USB response."
 
 class USBDongle:
     ######## INITIALIZATION ########
@@ -231,12 +234,12 @@ class USBDongle:
         while (self._do==None):
             try:
                 self.setup(console)
-                self._flush_recv_mbox()
+                self._clear_buffers()
 
             except Exception, e:
                 if console: sys.stderr.write('.')
                 if console or self._debug: print >>sys.stderr,(repr(e))
-                time.sleep(.4)
+                time.sleep(1)
 
 
 
@@ -273,13 +276,17 @@ class USBDongle:
             #return retary
         return ''
 
-    def _flush_recv_mbox(self):
+    def _clear_buffers(self):
+        self._threadGo = False
         if self._debug:
-            print >>sys.stderr,("_flush_recv_mbox")
+            print >>sys.stderr,("_clear_buffers()")
         for key in self.recv_mbox.keys():
             self.trash.extend(self.recvAll(key))
         self.trash.append(self.recv_queue)
         self.recv_queue = ''
+        # self.xmit_queue = []          # do we want to keep this?
+        self._threadGo = True
+
 
     ######## TRANSMIT/RECEIVE THREADING ########
     def run(self):
@@ -490,6 +497,8 @@ class USBDongle:
                     pass
                 sys.excepthook(*sys.exc_info())
             time.sleep(.001)                                      # only hits here if we don't have something in queue
+            
+        raise(CC111xTimeoutException())
 
     def recvAll(self, app, cmd=None):
         retval = self.recv_mbox.get(app,None)
@@ -574,7 +583,12 @@ class USBDongle:
         start = time.time()
         for x in range(count):
             istart = time.time()
-            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
+            
+            try:
+                r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
+            except CC111xTimeoutException, e:
+                pass #print e
+                
             istop = time.time()
             print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
@@ -585,7 +599,11 @@ class USBDongle:
         return (good,bad,stop-start)
 
     def RESET(self):
-        r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
+        try:
+            r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
+        except CC111xTimeoutException:
+            pass
+        
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
         return r[4:]
