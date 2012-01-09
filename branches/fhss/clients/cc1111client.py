@@ -107,7 +107,6 @@ MODULATIONS = {
         MOD_MSK  | MANCHESTER    : "MSK/Manchester encoding",
         }
 
-# FIXME: make these auto-generated
 SYNCMODES = {
         SYNCM_NONE: "None",
         SYNCM_15_of_16: "15 of 16 bits must match",
@@ -277,6 +276,7 @@ class USBDongle:
         return ''
 
     def _clear_buffers(self):
+        threadGo = self._threadGo
         self._threadGo = False
         if self._debug:
             print >>sys.stderr,("_clear_buffers()")
@@ -285,7 +285,7 @@ class USBDongle:
         self.trash.append(self.recv_queue)
         self.recv_queue = ''
         # self.xmit_queue = []          # do we want to keep this?
-        self._threadGo = True
+        self._threadGo = threadGo
 
 
     ######## TRANSMIT/RECEIVE THREADING ########
@@ -619,7 +619,7 @@ class USBDongle:
     def getInterruptRegisters(self):
         regs = {}
         # IEN0,1,2
-        regs['IEN0'] = self.peek(0xdf00 + IEN0,1)
+        regs['IEN0'] = self.peek(IEN0,1)
         regs['IEN1'] = self.peek(IEN1,1)
         regs['IEN2'] = self.peek(IEN2,1)
         # TCON
