@@ -38,6 +38,11 @@ xdata u16  ep0value;
 xdata DMA_DESC usbdma;
 //xdata u8 usbdmar[8];
 
+__xdata void (*cb_ep0outdone)(void);
+__xdata void (*cb_ep0out)(void);
+__xdata void (*cb_ep0vendor)(USB_Setup_Header*);
+__xdata void (*cb_ep5)(void);
+int _usb_internal_handle_vendor(USB_Setup_Header* pReq);
 // state tracking:
 // * appstatus
 // * usb_data.usbstatus  - usb state overall...  (IDLE, SUSPEND, RESUME, RESET)
@@ -376,11 +381,11 @@ u8 setup_recv_ep0(){
 }
 
 u16 usb_recv_ep0OUT(){
-    /*********************************************************************************************
+    /********************************************************************************************
      * handle receipt of one packet and set flags
      * if another packet has yet to be handled by the application (ie. received through this 
      * function but not acted upon or cleared), return -1
-     ********************************************************************************************/
+     *******************************************************************************************/
     u16 loop;
 
     xdata u8* payload = &ep0iobuf.OUTbuf[0];
@@ -404,17 +409,19 @@ u16 usb_recv_ep0OUT(){
     ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
     //blink_binary_baby_lsb(ep0iobuf.OUTlen, 8);
     for (loop=ep0iobuf.OUTlen; loop>0; loop--){
-    //for (loop=16; loop>0; loop--){
         *payload++ = USBF0;
     }
     //////////////////////////////////////////////////////////////////////////////////////////
    
     // handle each packet
-    appHandleEP0OUT();
+    if (cb_ep0out)
+        cb_ep0out();
 
     if (ep0iobuf.OUTlen < EP0_MAX_PACKET_SIZE)
     {
-        appHandleEP0OUTdone();
+        if (cb_ep0outdone)
+            cb_ep0outdone();
+
         USBCS0 |= USBCS0_DATA_END;
         ep0iobuf.epstatus = EP_STATE_IDLE;
     }
@@ -423,58 +430,25 @@ u16 usb_recv_ep0OUT(){
     
 }
 
-    /**********************************         NEVER USED..... deprecating.
-u16 usb_recv_ep5OUT(){
-     * handle receipt of one packet and set flags
-     * if another packet has yet to be handled by the application (ie. received through this function but not acted upon or cleared), return -1
-    //u16 loop;
+//void registerCb_ep0OutDone(void (*callback)(void))
+//{
+//    cb_ep0outdone = callback;
+//}
 
-    u8* payload = &ep5iobuf.OUTbuf[0];
+//void registerCb_ep0Out(void (*callback)(void))
+//{
+//    cb_ep0out = callback;
+//}
 
-    USBINDEX = 5;
-    ep5iobuf.OUTlen = (USBCNTH<<8) + USBCNTL;
-
-    if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)
-    {
-        USBCSOL |= USBCSOL_SEND_STALL;
-        ep5iobuf.epstatus = EP_STATE_STALL;
-        return -1;
-    }
-    ep5iobuf.flags |= EP_OUTBUF_WRITTEN;            // hey, we've written here, don't write again until this is cleared by a application handler
-
-    if (ep5iobuf.OUTlen>ep5iobuf.BUFmaxlen)
-        ep5iobuf.OUTlen = ep5iobuf.BUFmaxlen;
-
-    ///////////////////////////////  FIXME: USE DMA //////////////////////////////////////////
-    //for (loop=ep5iobuf.OUTlen; loop>0; loop--){
-    //    *payload++ = USBF5;
-    //}
-    //////////////////////////////////////////////////////////////////////////////////////////
-
-    while ((DMAIRQ & DMAARM1))
-        blink(20,20);
-    DMAARM |= 0x80 + DMAARM1;
-    usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
-    usbdma.srcAddrL = 0x2a;
-    usbdma.destAddrH = ((u16)payload)>>8;
-    usbdma.destAddrL = ((u16)payload)&0xff;
-    usbdma.lenL = ep5iobuf.OUTlen;
-    usbdma.lenH = 0;
-    usbdma.srcInc = 0;
-    usbdma.destInc = 1;
-    DMAARM |= DMAARM1;
-    DMAREQ |= DMAARM1;
-
-    while (!(DMAIRQ & DMAARM1));
-    DMAIRQ &= ~DMAARM1;             // FIXME: superfuous?
-        
-    USBCSOL &= 0xfe;
-    
-    return ep5iobuf.OUTlen;
-    
+void registerCb_ep0Vendor(void (*callback)(void))
+{
+    cb_ep0vendor = callback;
 }
 
-     */
+void registerCb_ep5(void (*callback)(void))
+{
+    cb_ep5 = callback;
+}
 
 
 /*************************************************************************************************
@@ -677,7 +651,15 @@ void handleCS0(void)
                     case USB_BM_REQTYPE_TYPE_CLASS:             // CLASS type
                         break;
                     case USB_BM_REQTYPE_TYPE_VENDOR:            // VENDOR type
-                        appHandleEP0(&req);
+                        if (cb_ep0vendor)
+                        {
+                            //ep0iobuf.epstatus = EP_STATE_TX;
+                            cb_ep0vendor(&req);
+                        }
+                        else
+                        {
+                            _usb_internal_handle_vendor(&req);
+                        }
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED
                         USBCS0 |= USBCS0_SEND_STALL;
@@ -736,11 +718,15 @@ void handleCS0(void)
                     case USB_BM_REQTYPE_TYPE_CLASS:             // CLASS type
                         break;
                     case USB_BM_REQTYPE_TYPE_VENDOR:            // VENDOR type
-                        ep0iobuf.epstatus = EP_STATE_RX;
-                        ep0req = req.bRequest;
-                        ep0value = req.wValue;
-                        ep0len = req.wLength;
-                        //appHandleEP0(&req);
+                        if (cb_ep0vendor)
+                        {
+                            //ep0iobuf.epstatus = EP_STATE_RX;
+                            cb_ep0vendor(&req);
+                        }
+                        else
+                        {
+                            _usb_internal_handle_vendor(&req);
+                        }
                         break;
                     case USB_BM_REQTYPE_TYPE_RESERVED:          // RESERVED type
                         debugEP0Req((u8*)&req);
@@ -768,6 +754,71 @@ void handleCS0(void)
     
 }
 
+int _usb_internal_handle_vendor(USB_Setup_Header* pReq)
+{
+#ifdef VIRTUAL_COM
+    pReq = 0;
+#else
+    u16 loop;
+    xdata u8* dst;
+
+    if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
+    {
+        switch (pReq->bRequest)
+        {
+            case EP0_CMD_GET_DEBUG_CODES:
+                setup_send_ep0(&lastCode[0], 2);
+                break;
+            case EP0_CMD_GET_ADDRESS:
+                setup_sendx_ep0((xdata u8*)USBADDR, 40);
+                break;
+            case EP0_CMD_PEEKX:
+                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
+                break;
+            case EP0_CMD_PING0:
+                setup_send_ep0((u8*)pReq, pReq->wLength);
+                break;
+            case EP0_CMD_PING1:
+                setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
+                break;
+            case EP0_CMD_RESET:
+                if (strncmp((char*)&(pReq->wValue), "RSTN", 4))           // therefore, ->wValue == "RS" and ->wIndex == "TN" or no reset
+                {
+                    blink(300,300);
+                    break;   //didn't match the signature.  must have been an accident.
+                }
+
+                // implement a RESET by trigging the watchdog timer
+                WDCTL = 0x83;   // Watchdog ENABLE, Watchdog mode, 2ms until reset
+        }
+    }
+    else                        // OUT from host
+    {
+        switch (ep0req)
+        {
+            case EP0_CMD_POKEX:     // poke
+                
+                dst = (xdata u8*) pReq->wValue;
+
+                USBINDEX = 0;
+                loop = USBCNT0;
+                blink_binary_baby_lsb(loop, 8);
+
+                for (; loop>0; loop--)
+                {
+                    *dst++ = USBF0;
+                }
+                break;
+        }
+
+        // must be done with the buffer by now...
+        ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
+    }
+#endif
+    return 0;
+}
+
+
 void handleOUTEP5(void)
 {
     // client is sending commands... or looking for information...  status... whatever...
@@ -780,7 +831,6 @@ void handleOUTEP5(void)
         ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
-        REALLYFASTBLINK();
         lastCode[1] = LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN;
         return;
     }
@@ -878,26 +928,10 @@ void processOUTEP5(void)
                     break;
                 case CMD_PING:
                     txdata(app,cmd,len,ptr);
-                    //REALLYFASTBLINK();
                     break;
                 case CMD_STATUS:
                     txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
                     // unimplemented
-                    break;
-                case CMD_RFMODE:
-                    switch (*ptr++)
-                    {
-                        case RF_STATE_RX:
-                            RxMode();
-                            break;
-                        case RF_STATE_IDLE:
-                            IdleMode();
-                            break;
-                        case RF_STATE_TX:
-                            transmit(ptr, len);
-                            break;
-                    }
-                    txdata(app,cmd,len,ptr);
                     break;
 
                 case CMD_RESET:
@@ -914,7 +948,13 @@ void processOUTEP5(void)
             ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN; 
         }
         else
-            appHandleEP5();                                         // must clear this flag:   ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN; 
+        {
+            if (cb_ep5)
+            {
+                cb_ep5();
+            }
+            //appHandleEP5();                                         // must clear this flag:   ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN; 
+        }
     } else {
         lastCode[1] = LCE_USB_EP5_GOT_CRAP;                                            // got crap...
     }
@@ -1091,6 +1131,22 @@ void p0IntHandler(void) interrupt P0INT_VECTOR  // P0_7's interrupt is used as t
     EA=1;
 }
 
+/* blinks the EP0 SETUP packet in binary on the LED */
+void debugEP0Req(u8 *pReq)
+{
+    (void) pReq;
+    /*
+    //u8  loop;
+
+    for (loop = sizeof(USB_Setup_Header);loop>0; loop--)
+    {
+        blink_binary_baby_lsb(*(pReq), 8);
+        pReq++;
+    }*/
+
+}
+
+
 
 
 /*************************************************************************************************
@@ -1200,7 +1256,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '0', 0,
               '0', 0,
-              '3', 0,
+              '6', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff

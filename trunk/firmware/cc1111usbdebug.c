@@ -3,22 +3,6 @@
 /*************************************************************************************************
  * debug stuff.  slows executions.                                                               *
  ************************************************************************************************/
-/* blinks the EP0 SETUP packet in binary on the LED */
-void debugEP0Req(u8 *pReq)
-{
-    (void) pReq;
-    /*
-    //u8  loop;
-
-    for (loop = sizeof(USB_Setup_Header);loop>0; loop--)
-    {
-        blink_binary_baby_lsb(*(pReq), 8);
-        pReq++;
-    }*/
-
-}
-
-
 /* sends a debug message up to the python code to be spit out on stderr */
 void debug(code u8* text)
 {

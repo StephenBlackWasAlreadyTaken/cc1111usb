@@ -46,6 +46,9 @@ extern volatile xdata u8 rfRxProcessed[BUFFER_AMOUNT];
 extern volatile xdata u8 rftxbuf[BUFFER_SIZE];
 extern volatile xdata u8 rfTxCounter;
 
+extern volatile xdata u16 rf_MAC_timer;
+extern volatile xdata u16 rf_tLastRecv;
+
 extern u8 rfif;
 
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR; // interrupt handler should transmit or receive the next byte

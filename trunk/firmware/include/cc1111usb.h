@@ -149,6 +149,11 @@ void waitForUSBsetup();
 // export as this *must* be in main loop.
 void usbProcessEvents(void);
 
+void registerCb_ep0OutDone(void (*callback)(void));
+void registerCb_ep0Out(void (*callback)(void));
+void registerCb_ep0Vendor(void (*callback)(USB_Setup_Header* pReq));
+void registerCb_ep5(void (*callback)(void));
+
 
 // provided by user application
 void appHandleEP0OUTdone(void);
@@ -193,7 +198,7 @@ int appHandleEP5();
 
 #define     EP0_CMD_GET_DEBUG_CODES         0x00
 #define     EP0_CMD_GET_ADDRESS             0x01
-#define     EP0_CMD_POKEX                   0x01    // only for OUT requests
+#define     EP0_CMD_POKEX                   0x01
 #define     EP0_CMD_PEEKX                   0x02
 #define     EP0_CMD_PING0                   0x03
 #define     EP0_CMD_PING1                   0x04

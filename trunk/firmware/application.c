@@ -41,6 +41,9 @@ xdata u8 platform_clock_freq;
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
+    //registerCb_ep0Vendor( appHandleEP0Vendor );
+    registerCb_ep5( appHandleEP5 );
+
     loopCnt = 0;
     xmitCnt = 1;
 
@@ -106,6 +109,24 @@ int appHandleEP5()
     //   then process the data
     switch (cmd)
     {
+        /*
+        case CMD_RFMODE:
+            switch (*ptr++)
+            {
+                case RF_STATE_RX:
+
+                    RxMode();
+                    break;
+                case RF_STATE_IDLE:
+                    IdleMode();
+                    break;
+                case RF_STATE_TX:
+                    transmit(ptr, len);
+                    break;
+            }
+            txdata(app,cmd,len,ptr);
+            break;
+            */
         default:
             break;
     }
@@ -113,96 +134,6 @@ int appHandleEP5()
 #endif
     return 0;
 }
-
-
-
-///////////////////////////////  EndPoint 0 Handlers /////////////////////////////////////////////
-/* in case your application cares when an OUT packet has been completely received on EP0.       */
-void appHandleEP0OUTdone(void)
-{
-}
-
-/* called each time a usb OUT packet is received */
-void appHandleEP0OUT(void)
-{
-#ifndef VIRTUAL_COM
-    u16 loop;
-    xdata u8* dst;
-    xdata u8* src;
-
-    // we are not called with the Request header as is appHandleEP0.  this function is only called after an OUT packet has been received,
-    // which triggers another usb interrupt.  the important variables from the EP0 request are stored in ep0req, ep0len, and ep0value, as
-    // well as ep0iobuf.OUTlen (the actual length of ep0iobuf.OUTbuf, not just some value handed in).
-
-    // for our purposes, we only pay attention to single-packet transfers.  in more complex firmwares, this may not be sufficient.
-    switch (ep0req)
-    {
-        case EP0_CMD_POKEX:     // poke
-            
-            src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-            dst = (xdata u8*) ep0value + 3;         // FIXME:  why does this need to be 3 off?
-
-            for (loop=ep0iobuf.OUTlen; loop>0; loop--)
-            {
-                *dst++ = *src++;
-            }
-            break;
-    }
-
-    // must be done with the buffer by now...
-    ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
-#endif
-}
-
-/* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
- * messages.  currently it implements a simple debug, ping, and peek functionality.              *
- * data is sent back through calls to either setup_send_ep0 or setup_sendx_ep0 for xdata vars    *
- * theoretically you can process stuff without the IN-direction bit, but we've found it is better*
- * to handle OUT packets in appHandleEP0OUTdone, which is called when the last packet is complete*/
-int appHandleEP0(USB_Setup_Header* pReq)
-{
-#ifdef VIRTUAL_COM
-    pReq = 0;
-#else
-    if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
-    {
-        switch (pReq->bRequest)
-        {
-            case EP0_CMD_GET_DEBUG_CODES:
-                setup_send_ep0(&lastCode[0], 2);
-                break;
-            case EP0_CMD_GET_ADDRESS:
-                setup_sendx_ep0((xdata u8*)USBADDR, 40);
-                break;
-            case EP0_CMD_PEEKX:
-                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
-                break;
-            case EP0_CMD_PING0:
-                setup_send_ep0((u8*)pReq, pReq->wLength);
-                break;
-            case EP0_CMD_PING1:
-                setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
-                break;
-            case EP0_CMD_RESET:
-                if (strncmp((char*)&(pReq->wValue), "RSTN", 4))           // therefore, ->wValue == "RS" and ->wIndex == "TN" or no reset
-                {
-                    blink(300,300);
-                    break;   //didn't match the signature.  must have been an accident.
-                }
-
-                // implement a RESET by trigging the watchdog timer
-                WDCTL = 0x83;   // Watchdog ENABLE, Watchdog mode, 2ms until reset
-                break;
-            case EP0_CMD_GET_FREQ:
-                setup_sendx_ep0(&platform_clock_freq, 1);
-                break;
-        }
-    }
-#endif
-    return 0;
-}
-//////////////////////////////////////////////////////////////////////////////////////////////////
-
 
 /*************************************************************************************************
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
@@ -355,8 +286,6 @@ void main (void)
 {
     initBoard();
     initUSB();
-    blink(300,300);
-
     init_RF();
     appMainInit();
 

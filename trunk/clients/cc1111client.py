@@ -186,10 +186,10 @@ class USBDongle:
         self._debug = debug
         self._threadGo = False
         self.radiocfg = RadioConfig()
-        self.resetup()
         self.recv_thread = threading.Thread(target=self.run)
         self.recv_thread.setDaemon(True)
         self.recv_thread.start()
+        self.resetup()
 
     def cleanup(self):
         self._usberrorcnt = 0;
@@ -203,6 +203,7 @@ class USBDongle:
 
         idx = self.idx
         dongles = []
+        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
         for bus in usb.busses():
             for dev in bus.devices:
@@ -219,8 +220,6 @@ class USBDongle:
         self.rsema = threading.Lock()
         self.xsema = threading.Lock()
         self._do.claimInterface(0)
-        self._threadGo = True
-        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
         '''try:
@@ -229,6 +228,7 @@ class USBDongle:
             pass
         '''
         self._do=None
+        self._threadGo = True
         if console or self._debug: print >>sys.stderr,("waiting (resetup)")
         while (self._do==None):
             try:
@@ -239,6 +239,7 @@ class USBDongle:
                 if console: sys.stderr.write('.')
                 if console or self._debug: print >>sys.stderr,(repr(e))
                 time.sleep(1)
+        self._threadGo = True
 
 
 
@@ -294,7 +295,7 @@ class USBDongle:
         self.threadcounter = 0
 
         while True:
-            if (not self._threadGo): 
+            if (self._do is None or not self._threadGo): 
                 time.sleep(.04)
                 continue
 
@@ -475,7 +476,7 @@ class USBDongle:
                     self.rsema.acquire(False)
                     resp = q.pop(0)
                     self.rsema.release()
-                    return resp
+                    return resp[4:]         # peeling off the USB header tacked on between the usb dongle and the client
             except IndexError:
                 #sys.excepthook(*sys.exc_info())
                 try:
@@ -587,6 +588,7 @@ class USBDongle:
             try:
                 r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
             except CC111xTimeoutException, e:
+                r = None
                 pass #print e
                 
             istop = time.time()
@@ -606,15 +608,15 @@ class USBDongle:
         
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
-        return r[4:]
+        return r
 
     def poke(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE, struct.pack("<H", addr) + data)
-        return r[4:]
+        return r
     
     def pokeReg(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
-        return r[4:]
+        return r
             
     def getInterruptRegisters(self):
         regs = {}
