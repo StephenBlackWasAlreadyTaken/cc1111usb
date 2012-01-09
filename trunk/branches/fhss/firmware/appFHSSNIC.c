@@ -232,38 +232,39 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
 
         // if we are the SYNC_MASTER and are in the process of "doing the SYNC"
         // we need to transmit something indicating the channel we're on
-        if (macdata.mac_state == FHSS_STATE_SYNCINGMASTER)
+        switch (macdata.mac_state)
         {
-            sleepMillis(FHSS_TX_SLEEP_DELAY);
-            packet[0] = 28;
-            packet[1] = macdata.curChanIdx & 0xff;
-            packet[2] = macdata.curChanIdx >> 8;
-            packet[3] = 'B';
-            packet[4] = 'L';
-            packet[5] = 'A';
-            packet[6] = 'H';
-
-
-
-            transmit((xdata u8*)&packet, packet[0]);
-            macdata.synched_chans++;
-        }
-        else
-        {
-            // if the queue is not empty, wait but then tx.
-            // FIXME: this currently sends only once per hop.  this may or may not be appropriate, but it's simple to implement.
-            if (g_txMsgQueue[macdata.txMsgIdxDone][0])      // if length byte >0
-            {
+            case FHSS_STATE_SYNCINGMASTER:
                 sleepMillis(FHSS_TX_SLEEP_DELAY);
-                transmit(&g_txMsgQueue[macdata.txMsgIdxDone][!(PKTCTRL0&1)], g_txMsgQueue[macdata.txMsgIdxDone][0]);
-                // FIXME: rudimentary FHSS_tx in interrupt handler, make more elegant (with confirmation or somesuch?)
-                g_txMsgQueue[macdata.txMsgIdxDone][0] = 0;
+                packet[0] = 28;
+                packet[1] = macdata.curChanIdx & 0xff;
+                packet[2] = macdata.curChanIdx >> 8;
+                packet[3] = 'B';
+                packet[4] = 'L';
+                packet[5] = 'A';
+                packet[6] = 'H';
 
-                if (++macdata.txMsgIdxDone > MAX_TX_MSGS)
+                transmit((xdata u8*)&packet, packet[0]);
+                macdata.synched_chans++;
+                break;
+
+            case FHSS_STATE_SYNCHED:
+            case FHSS_STATE_SYNC_MASTER:
+                // if the queue is not empty, wait but then tx.
+                // FIXME: this currently sends only once per hop.  this may or may not be appropriate, but it's simple to implement.
+                if (g_txMsgQueue[macdata.txMsgIdxDone][0])      // if length byte >0
                 {
-                    macdata.txMsgIdxDone = 0;
+                    LED = !LED;
+                    sleepMillis(FHSS_TX_SLEEP_DELAY);
+                    transmit(&g_txMsgQueue[macdata.txMsgIdxDone][!(PKTCTRL0&1)], g_txMsgQueue[macdata.txMsgIdxDone][0]);
+                    // FIXME: rudimentary FHSS_tx in interrupt handler, make more elegant (with confirmation or somesuch?)
+                    g_txMsgQueue[macdata.txMsgIdxDone][0] = 0;
+
+                    if (++macdata.txMsgIdxDone > MAX_TX_MSGS)
+                    {
+                        macdata.txMsgIdxDone = 0;
+                    }
                 }
-            }
         }
 #endif
     }
