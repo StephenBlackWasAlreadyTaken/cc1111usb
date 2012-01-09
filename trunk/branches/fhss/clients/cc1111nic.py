@@ -107,21 +107,6 @@ class FHSSNIC(USBDongle):
     def nextChannel(self):
         return self.send(APP_NIC, FHSS_NEXT_CHANNEL, '' )
 
-    def setupHopping(self, ms, mhz=24):
-        # FIXME: auto-calibrate...
-        tickspd, t2pr, tip = T2SETTINGS[mhz][ms]
-
-        t2ctl = self.peek(T2CTL) & 0xfc
-        t2ctl |= tip
-
-        clkcon = (self.peek(CLKCON) & 0xc7)
-        clkcon |= (tickspd<<3)
-
-        self.poke(TICKSPD, "%c" % clkcon)
-        self.poke(T2PR, "%c" % t2pr)
-        self.poke(TIP, "%c" % tip)
-
-
     def startHopping(self):
         return self.send(APP_NIC, FHSS_START_HOPPING, '')
 
