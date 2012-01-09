@@ -43,7 +43,6 @@ SYS_CMD_POKE                    = 0x81
 SYS_CMD_PING                    = 0x82
 SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
-SYS_CMD_RFMODE                  = 0x85
 SYS_CMD_RESET                   = 0x8f
 
 EP0_CMD_GET_DEBUG_CODES         = 0x00
@@ -143,10 +142,45 @@ LENGTH_CONFIGS = [
         "reserved",
         "reserved",
         ]
+LC_USB_INITUSB                = 0x2
+LC_MAIN_RFIF                  = 0xd
+LC_USB_DATA_RESET_RESUME      = 0xa
+LC_USB_RESET                  = 0xb
+LC_USB_EP5OUT                 = 0xc
+LC_RF_VECTOR                  = 0x10
+LC_RFTXRX_VECTOR              = 0x11
+
+LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN    = 0x1
+LCE_USB_EP0_SENT_STALL                = 0x4
+LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN  = 0x5
+LCE_USB_EP5_LEN_TOO_BIG               = 0x6
+LCE_USB_EP5_GOT_CRAP                  = 0x7
+LCE_USB_EP5_STALL                     = 0x8
+LCE_USB_DATA_LEFTOVER_FLAGS           = 0x9
+LCE_RF_RXOVF                          = 0x10
+LCE_RF_TXUNF                          = 0x11
+
+LCS = {}
+LCES = {}
+lcls = locals()
+for lcl in lcls.keys():
+    if lcl.startswith("LCE_"):
+        LCES[lcl] = lcls[lcl]
+        LCES[lcls[lcl]] = lcl
+    if lcl.startswith("LC_"):
+        LCS[lcl] = lcls[lcl]
+        LCS[lcls[lcl]] = lcl
+
+class CC111xTimeoutException(Exception):
+    def __str__(self):
+        return "Timeout waiting for USB response."
 
 class USBDongle:
     ######## INITIALIZATION ########
     def __init__(self, idx=0, debug=False):
+        self.rsema = None
+        self.xsema = None
+        self._do = None
         self.idx = idx
         self.cleanup()
         self._debug = debug
@@ -163,36 +197,48 @@ class USBDongle:
         self.recv_mbox  = {}
         self.xmit_queue = []
         self.trash = []
-        self.rsema = threading.Semaphore()
-        self.xsema = threading.Semaphore()
     
     def setup(self, console=True):
+        global dongles
+
         idx = self.idx
+        dongles = []
+
         for bus in usb.busses():
             for dev in bus.devices:
                 if dev.idProduct == 0x4715:
-                    if idx:
-                        idx -= 1
-                    else:
-                        if console: print >>sys.stderr,(dev)
-                        d=dev
-        self._d = d
-        self._do = d.open()
+                    if console: print >>sys.stderr,(dev)
+                    do = dev.open()
+                    iSN = do.getDescriptor(1,0,50)[16]
+                    sn = do.getString(iSN, 50)
+                    dongles.append((sn, dev, do))
+
+        dongles.sort()
+        self.serialnun, self._d, self._do = dongles[idx]
+
+        self.rsema = threading.Lock()
+        self.xsema = threading.Lock()
         self._do.claimInterface(0)
         self._threadGo = True
         self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
+        '''try:
+            self._do.releaseInterface()
+        except:
+            pass
+        '''
         self._do=None
-        if console: print >>sys.stderr,("waiting")
+        if console or self._debug: print >>sys.stderr,("waiting (resetup)")
         while (self._do==None):
             try:
                 self.setup(console)
-                self._flush_recv_mbox()
+                self._clear_buffers()
 
-            except:
+            except Exception, e:
                 if console: sys.stderr.write('.')
-                time.sleep(.4)
+                if console or self._debug: print >>sys.stderr,(repr(e))
+                time.sleep(1)
 
 
 
@@ -229,11 +275,18 @@ class USBDongle:
             #return retary
         return ''
 
-    def _flush_recv_mbox(self):
+    def _clear_buffers(self):
+        threadGo = self._threadGo
+        self._threadGo = False
+        if self._debug:
+            print >>sys.stderr,("_clear_buffers()")
         for key in self.recv_mbox.keys():
             self.trash.extend(self.recvAll(key))
         self.trash.append(self.recv_queue)
         self.recv_queue = ''
+        # self.xmit_queue = []          # do we want to keep this?
+        self._threadGo = threadGo
+
 
     ######## TRANSMIT/RECEIVE THREADING ########
     def run(self):
@@ -268,47 +321,51 @@ class USBDongle:
 
             #### handle debug application
             try:
-                q = self.recv_mbox.get(APP_DEBUG, None)
-                if (q != None and len(q)):
-                    buf = q.pop(0)
-                    cmd = ord(buf[1])
-                    if self._debug > 1: print >>sys.stderr,("buf length: %x\t\t cmd: %x\t\t(%s)"%(len(buf), cmd, repr(buf)))
-                    if (cmd == DEBUG_CMD_STRING):
-                        if (len(buf) < 4):
-                            if (len(q)):
-                                buf2 = q.pop(0)
-                                buf += buf2
-                            q.insert(0,buf)
-                            if self._debug: sys.stderr.write('*')
-                        else:
-                            length, = struct.unpack("<H", buf[2:4])
-                            if self._debug >1: print >>sys.stderr,("len=%d"%length)
-                            if (len(buf) < 4+length):
-                                if (len(q)):
-                                    buf2 = q.pop(0)
-                                    buf += buf2
-                                q.insert(0,buf)
-                                if self._debug: sys.stderr.write('&')
+                q = None
+                b = self.recv_mbox.get(APP_DEBUG, None)
+                if (b != None):
+                    for cmd in b.keys():
+                        q = b[cmd]
+                        if len(q):
+                            buf = q.pop(0)
+                            #cmd = ord(buf[1])
+                            if self._debug > 1: print >>sys.stderr,("buf length: %x\t\t cmd: %x\t\t(%s)"%(len(buf), cmd, repr(buf)))
+                            if (cmd == DEBUG_CMD_STRING):
+                                if (len(buf) < 4):
+                                    if (len(q)):
+                                        buf2 = q.pop(0)
+                                        buf += buf2
+                                    q.insert(0,buf)
+                                    if self._debug: sys.stderr.write('*')
+                                else:
+                                    length, = struct.unpack("<H", buf[2:4])
+                                    if self._debug >1: print >>sys.stderr,("len=%d"%length)
+                                    if (len(buf) < 4+length):
+                                        if (len(q)):
+                                            buf2 = q.pop(0)
+                                            buf += buf2
+                                        q.insert(0,buf)
+                                        if self._debug: sys.stderr.write('&')
+                                    else:
+                                        printbuf = buf[4:4+length]
+                                        requeuebuf = buf[4+length:]
+                                        if len(requeuebuf):
+                                            if self._debug>1:  print >>sys.stderr,(" - DEBUG..requeuing %s"%repr(requeuebuf))
+                                            q.insert(0,requeuebuf)
+                                        print >>sys.stderr,("DEBUG: (%.3f) %s" % (time.time(), repr(printbuf)))
+                            elif (cmd == DEBUG_CMD_HEX):
+                                #print >>sys.stderr, repr(buf[4:])
+                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("B", buf[4:]))
+                            elif (cmd == DEBUG_CMD_HEX16):
+                                #print >>sys.stderr, repr(buf[4:])
+                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<H", buf[4:]))
+                            elif (cmd == DEBUG_CMD_HEX32):
+                                #print >>sys.stderr, repr(buf[4:])
+                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<L", buf[4:]))
+                            elif (cmd == DEBUG_CMD_INT):
+                                print >>sys.stderr, "DEBUG: %d"%(struct.unpack("<L", buf[4:]))
                             else:
-                                printbuf = buf[4:4+length]
-                                requeuebuf = buf[4+length:]
-                                if len(requeuebuf):
-                                    if self._debug>1:  print >>sys.stderr,(" - DEBUG..requeuing %s"%repr(requeuebuf))
-                                    q.insert(0,requeuebuf)
-                                print >>sys.stderr,("DEBUG: "+repr(printbuf))
-                    elif (cmd == DEBUG_CMD_HEX):
-                        #print >>sys.stderr, repr(buf[4:])
-                        print >>sys.stderr, "DEBUG: %x"%(struct.unpack("B", buf[4:]))
-                    elif (cmd == DEBUG_CMD_HEX16):
-                        #print >>sys.stderr, repr(buf[4:])
-                        print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<H", buf[4:]))
-                    elif (cmd == DEBUG_CMD_HEX32):
-                        #print >>sys.stderr, repr(buf[4:])
-                        print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<L", buf[4:]))
-                    elif (cmd == DEBUG_CMD_INT):
-                        print >>sys.stderr, "DEBUG: %d"%(struct.unpack("<L", buf[4:]))
-                    else:
-                        print >>sys.stderr,('DEBUG COMMAND UNKNOWN: %x (buf=%s)'%(cmd,repr(buf)))
+                                print >>sys.stderr,('DEBUG COMMAND UNKNOWN: %x (buf=%s)'%(cmd,repr(buf)))
 
             except:
                 sys.excepthook(*sys.exc_info())
@@ -320,56 +377,73 @@ class USBDongle:
                 if len(msg) > 0:
                     self.recv_queue += msg
                     msgrecv = True
-                #while (len(self.recv_queue) and self.recv_queue[0] != 0x40):
-                #    self.recv_queue = [1:]                     # true up to the next packet
-                #self.recv_queue.pop(0)                          # get rid of the @ symbol
-
-
-                #### now we parse, sort, and deliver the mail.
-                idx = self.recv_queue.find('@')
-                if (idx==-1):
-                    if self._debug:
-                        sys.stderr.write('@')
-                else:
-                    if (idx>0):
-                        self.trash.append(self.recv_queue[:idx])
-                        self.recv_queue = self.recv_queue[idx:]
-               
-                    msg = self.recv_queue[1:]                           # pop off the leading "@"   really?  here?  before we know we're done?
-                    msglen = len(msg)
-                    if (msglen>=4):                                      # if not enough to parse length... we'll wait.
-                        app = ord(msg[0])
-                        cmd = ord(msg[1])
-                        length, = struct.unpack("<H", msg[2:4])
-                        if self._debug>1: print>>sys.stderr,("app=%x  cmd=%x  len=%x"%(app,cmd,length))
-                        if (msglen >= length+4):
-                            #### if the queue has enough characters to handle the next message... chop it and put it in the appropriate recv_mbox
-                            msg = self.recv_queue[1:length+5]                   # drop the initial '@' and chop out the right number of chars
-                            self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
-
-                            q = self.recv_mbox.get(app,None)
-                            self.rsema.acquire()                            # THREAD SAFETY DANCE
-                            if (q == None):
-                                q = []
-                                self.recv_mbox[app] = q
-                            q.append(msg)
-                            self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
-                        else:            
-                            if self._debug:     sys.stderr.write('=')
-                    else:
-                        if self._debug:     sys.stderr.write('.')
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                try:
+                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                except: 
+                    pass
+
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No such device' in repr(e)):
                     self._threadGo = False
                     self.resetup(False)
                 self._usberrorcnt += 1
                 pass
+
+
+            #### parse, sort, and deliver the mail.
+            try:
+                if len(self.recv_queue):
+                    idx = self.recv_queue.find('@')
+                    if (idx==-1):
+                        if self._debug:
+                            sys.stderr.write('@')
+                    else:
+                        if (idx>0):
+                            if self._debug: print >>sys.stderr,("run(): idx>0?")
+                            self.trash.append(self.recv_queue[:idx])
+                            self.recv_queue = self.recv_queue[idx:]
+                   
+                        msg = self.recv_queue[1:]                           # pop off the leading "@"   really?  here?  before we know we're done?
+                        msglen = len(msg)
+                        if (msglen>=4):                                      # if not enough to parse length... we'll wait.
+                            app = ord(msg[0])
+                            cmd = ord(msg[1])
+                            length, = struct.unpack("<H", msg[2:4])
+
+                            if self._debug>1: print>>sys.stderr,("app=%x  cmd=%x  len=%x"%(app,cmd,length))
+
+                            if (msglen >= length+4):
+                                #### if the queue has enough characters to handle the next message... chop it and put it in the appropriate recv_mbox
+                                msg = self.recv_queue[1:length+5]                   # drop the initial '@' and chop out the right number of chars
+                                self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
+
+                                b = self.recv_mbox.get(app,None)
+                                self.rsema.acquire()                            # THREAD SAFETY DANCE
+                                if (b == None):
+                                    b = {}
+                                    self.recv_mbox[app] = b
+                                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                               
+                                q = b.get(cmd)
+                                self.rsema.acquire()                            # THREAD SAFETY DANCE
+                                if (q is None):
+                                    q = []
+                                    b[cmd] = q
+
+                                q.append(msg)
+                                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                            else:            
+                                if self._debug:     sys.stderr.write('=')
+                        else:
+                            if self._debug:     sys.stderr.write('.')
             except:
-                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                try:
+                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                except:
+                    pass
                 sys.excepthook(*sys.exc_info())
 
 
@@ -387,38 +461,66 @@ class USBDongle:
 
 
     ######## APPLICATION API ########
-    def recv(self, app, wait=100):
+    def recv(self, app, cmd=None, wait=100):
         for x in xrange(wait):
             try:
-                q = self.recv_mbox.get(app, None)
-                #print >>sys.stderr,"debug(recv) q='%s'"%repr(q)
-                self.rsema.acquire(False)
-                resp = q.pop(0)
-                self.rsema.release()
-                return resp
+                b = self.recv_mbox.get(app)
+                if cmd is None:
+                    keys = b.keys()
+                    if len(keys):
+                        cmd = b.keys()[-1]
+                if b is not None:
+                    q = b.get(cmd)
+                    #print >>sys.stderr,"debug(recv) q='%s'"%repr(q)
+                    self.rsema.acquire(False)
+                    resp = q.pop(0)
+                    self.rsema.release()
+                    return resp
             except IndexError:
                 #sys.excepthook(*sys.exc_info())
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 pass
             except AttributeError:
                 #sys.excepthook(*sys.exc_info())
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 pass
             except:
-                self.rsema.release()
+                try:
+                    self.rsema.release()
+                except:
+                    pass
                 sys.excepthook(*sys.exc_info())
             time.sleep(.001)                                      # only hits here if we don't have something in queue
-    def recvAll(self, app):
+            
+        raise(CC111xTimeoutException())
+
+    def recvAll(self, app, cmd=None):
         retval = self.recv_mbox.get(app,None)
-        self.recv_mbox[app]=[]
-        return retval
+        if retval is not None:
+            if cmd is not None:
+                b = retval
+                self.rsema.acquire()
+                retval = b.get(cmd)
+                b[cmd]=[]
+                self.rsema.release()
+            else:
+                self.rsema.acquire()
+                self.recv_mbox[app]={}
+                self.rsema.release()
+            return retval
 
     def send(self, app, cmd, buf, wait=10000):
         msg = "%c%c%s%s"%(app,cmd, struct.pack("<H",len(buf)),buf)
         self.xsema.acquire()
         self.xmit_queue.append(msg)
         self.xsema.release()
-        return self.recv(app, wait)
+        return self.recv(app, cmd, wait)
 
     def getDebugCodes(self, timeout=100):
         x = self._recvEP0(timeout=timeout)
@@ -457,6 +559,7 @@ class USBDongle:
 
     def debug(self):
         while True:
+            """
             try:
                 print >>sys.stderr, ("DONGLE RESPONDING:  mode :%x, last error# %d"%(self.getDebugCodes()))
             except:
@@ -466,6 +569,9 @@ class USBDongle:
             print >>sys.stderr,('recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:len(repr(self.recv_mbox))%79]))
             for x in self.recv_mbox.keys():
                 print >>sys.stderr,('    recv_mbox   %d\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:len(repr(self.recv_mbox[x]))%79]))
+                """
+            print self.reprRadioState()
+            print self.reprClientState()
             x,y,z = select.select([sys.stdin],[],[],0)
             if sys.stdin in x:
                 break
@@ -477,7 +583,12 @@ class USBDongle:
         start = time.time()
         for x in range(count):
             istart = time.time()
-            r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
+            
+            try:
+                r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
+            except CC111xTimeoutException, e:
+                pass #print e
+                
             istop = time.time()
             print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
@@ -488,7 +599,11 @@ class USBDongle:
         return (good,bad,stop-start)
 
     def RESET(self):
-        r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
+        try:
+            r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
+        except CC111xTimeoutException:
+            pass
+        
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
         return r[4:]
@@ -500,9 +615,6 @@ class USBDongle:
     def pokeReg(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
         return r[4:]
-
-    def setRfMode(self, rfmode, parms=''):
-        r = self.send(APP_SYSTEM, SYS_CMD_RFMODE, "%c"%rfmode + parms)
             
     def getInterruptRegisters(self):
         regs = {}
@@ -612,6 +724,10 @@ class USBDongle:
         output.append( self.reprPacketConfig(radiocfg))
         output.append( "\nRadio Test Signal Configuration")
         output.append( self.reprRadioTestSignalConfig(radiocfg))
+        output.append( "\nRadio State")
+        output.append( self.reprRadioState(radiocfg))
+        output.append("\nClient State")
+        output.append( self.reprClientState())
         return "\n".join(output)
 
 
@@ -673,8 +789,9 @@ class USBDongle:
         self.poke(MDMCFG0, chr(radiocfg.mdmcfg0))
         self.setModeRX()
 
-    def makeVLEN(self, maxlen=0xff):
+    def makePktVLEN(self, maxlen=0xff):
         self.radiocfg.pktctrl0 &= 0xfc
+        self.radiocfg.pktctrl0 |= 1
         self.radiocfg.pktlen = maxlen
         self.setModeIDLE()
         self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
@@ -683,7 +800,6 @@ class USBDongle:
 
     def makePktFLEN(self, flen=0xff):
         self.radiocfg.pktctrl0 &= 0xfc
-        self.radiocfg.pktctrl0 |= 1
         self.radiocfg.pktlen = flen
         self.setModeIDLE()
         self.poke(PKTCTRL0, chr(self.radiocfg.pktctrl0))
@@ -850,6 +966,11 @@ class USBDongle:
     def getMdmDeviatn(self, dev_m, dev_e):
         raise(Exception("Not Implemented!"))
 
+    def setMdmSyncWord(self, word):
+        self.setModeIDLE()
+        self.poke(SYNC1, chr(word >> 8))
+        self.poke(SYNC0, chr(word & 0xff))
+        self.setModeRX()
 
     def getMdmSyncMode(self, radiocfg=None):
         if radiocfg==None:
@@ -1038,6 +1159,36 @@ class USBDongle:
     TEST0       = 0x09;
     PA_TABLE0   = 0x83;
 """
+
+    def reprRadioState(self, radiocfg=None):
+        if radiocfg==None:
+            #radiocfg = self.radiocfg
+            #radiocfg.iocfg2 = ord(self.peek(IOCFG2))
+            #radiocfg.iocfg1 = ord(self.peek(IOCFG1))
+            #radiocfg.iocfg0 = ord(self.peek(IOCFG0))
+            #radiocfg.test2 = ord(self.peek(TEST2))
+            #radiocfg.test1 = ord(self.peek(TEST1))
+            #radiocfg.test0 = ord(self.peek(TEST0))
+            pass
+        output = []
+        output.append("     MARCSTATE:      %s (%x)" % (self.getMARCSTATE()))
+        try:
+            output.append("     DONGLE RESPONDING:  mode :%x, last error# %d"%(self.getDebugCodes()))
+        except:
+            pass
+
+        return "\n".join(output)
+
+    def reprClientState(self):
+        output = []
+        output.append('     recv_queue:\t\t (%d bytes) "%s"'%(len(self.recv_queue),repr(self.recv_queue)[:len(self.recv_queue)%39+20]))
+        output.append('     trash:     \t\t (%d bytes) "%s"'%(len(self.trash),repr(self.trash)[:min(len(self.trash),39)+20]))
+        output.append('     recv_mbox  \t\t (%d keys)  "%s"'%(len(self.recv_mbox),repr(self.recv_mbox)[:min(len(repr(self.recv_mbox)),79)]))
+        for x in self.recv_mbox.keys():
+            output.append('         recv_mbox   0x%x\t (%d records)  "%s"'%(x,len(self.recv_mbox[x]),repr(self.recv_mbox[x])[:min(len(repr(self.recv_mbox[x])),79)]))
+        return "\n".join(output)
+
+
     ######## APPLICATION METHODS ########
     def setup900MHz(self):
         self.getRadioConfig()
