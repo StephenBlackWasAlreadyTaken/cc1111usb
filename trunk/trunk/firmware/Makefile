@@ -55,6 +55,14 @@ donsapplication.hex: application.c $(libsusbd)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DDONSDONGLES
 	packihx <application.ihx >bins/application.hex
 
+chronostestusbonly.hex: usbonly.c cc1111usb.rc global.relc
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DCHRONOSDONGLE
+	packihx <usbonly.ihx >bins/usbonly.hex
+
+donstestusbonly.hex: usbonly.c cc1111usb.rc global.reld
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DDONSDONGLES
+	packihx <usbonly.ihx >bins/usbonly.hex
+
 #	may be helpful when we actually have one...
 #immedongleapplication.hex: application.c $(libsusbi)
 #	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DIMMEDONGLE -DIMME
@@ -64,9 +72,17 @@ chronosNIC.hex: appNIC.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
 	packihx <appNIC.ihx >bins/chronosNIC.hex
 
+chronosFHSS.hex: appFHSSNIC.c $(libsusbc)
+	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DCHRONOSDONGLE
+	packihx <appFHSSNIC.ihx >bins/chronosFHSS.hex
+
 donsNIC.hex: appNIC.c $(libsusbd)
-	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DCHRONOSDONGLE
+	sdcc $(CFLAGS) $(LFLAGS) appNIC.c $(libsusb) -DDONSDONGLES
 	packihx <appNIC.ihx >bins/donsNIC.hex
+
+donsFHSS.hex: appFHSSNIC.c $(libsusbd)
+	sdcc $(CFLAGS) $(LFLAGS) appFHSSNIC.c $(libsusb) -DDONSDONGLES
+	packihx <appFHSSNIC.ihx >bins/donsFHSS.hex
 
 chronosSniff.hex: appSniff.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) -DCHRONOSDONGLE
@@ -80,12 +96,20 @@ immeSniff.hex: appSniff.c $(libsimme)
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsi) -DIMME
 	packihx <appSniff.ihx >bins/immeSniff.hex
 
-testxmitusb.hex: appNetworkTest.c $(libsusbc)
+chronostestxmitusb.hex: appNetworkTest.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DCHRONOSDONGLE -DTRANSMIT_TEST 
 	packihx <appNetworkTest.ihx >bins/testxmit.hex
 
-testrecvusb.hex: appNetworkTest.c $(libsusbc)
+donstestxmitusb.hex: appNetworkTest.c $(libsusbd)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DDONSDONGLES -DTRANSMIT_TEST 
+	packihx <appNetworkTest.ihx >bins/testxmit.hex
+
+chronostestrecvusb.hex: appNetworkTest.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DCHRONOSDONGLE -DRECEIVE_TEST
+	packihx <appNetworkTest.ihx >bins/testrecv.hex
+
+donstestrecvusb.hex: appNetworkTest.c $(libsusbd)
+	sdcc $(CFLAGS) $(LFLAGS) appNetworkTest.c $(libsusb) -DDONSDONGLES -DRECEIVE_TEST
 	packihx <appNetworkTest.ihx >bins/testrecv.hex
 
 testxmitapplication.hex: appNetworkTest.c $(libsvcomc)
@@ -118,9 +142,19 @@ installchronosnicfw: chronosNIC.hex
 	goodfet.cc flash bins/chronosNIC.hex
 	goodfet.cc info
 
+installchronosfhssnicfw: chronosFHSS.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/chronosFHSS.hex
+	goodfet.cc info
+
 installdonsnicfw: donsNIC.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/donsNIC.hex
+	goodfet.cc info
+
+installdonsfhssnicfw: donsFHSS.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/donsFHSS.hex
 	goodfet.cc info
 
 installchronossnifffw: chronosSniff.hex
@@ -138,12 +172,22 @@ installimmesnifffw: immeSniff.hex
 	goodfet.cc flash bins/immeSniff.hex
 	goodfet.cc info
 
-installtestrecvusbfw: testrecvusb.hex
+installchronostestrecvusbfw: chronostestrecvusb.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/testrecv.hex
 	goodfet.cc info
 
-installtestxmitusbfw: testxmitusb.hex
+installdonstestrecvusbfw: donstestrecvusb.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/testrecv.hex
+	goodfet.cc info
+
+installchronostestxmitusbfw: chronostestxmitusb.hex
+	goodfet.cc erase
+	goodfet.cc flash bins/testxmit.hex
+	goodfet.cc info
+
+installdonstestxmitusbfw: donstestxmitusb.hex
 	goodfet.cc erase
 	goodfet.cc flash bins/testxmit.hex
 	goodfet.cc info
@@ -159,7 +203,7 @@ installtestxmitfw: testxmitapplication.hex
 	goodfet.cc info
 
 
-testall: chronosapplication.hex donsapplication.hex testrecvusb.hex testxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+testall: chronosapplication.hex donsapplication.hex chronostestrecvusb.hex donstestrecvusb.hex chronostestxmitusb.hex donstestxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
 ##immedongleapplication.hex 
 
 # testing should see that each enumerates correctly in linux

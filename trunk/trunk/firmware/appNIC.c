@@ -346,6 +346,15 @@ void clock_init(void){
     while (CLKCON & CLKCON_OSC);
     SLEEP |= SLEEP_OSC_PD;
     while (!IS_XOSC_STABLE());
+
+    // setup TIMER 1 to freerun
+    T1CTL |= T1CTL_DIV_128;
+    T1CTL |= T1CTL_MODE_FREERUN;
+
+    // setup TIMER 2
+    T2PR = 0;
+    T2CTL |= T2CTL_TIP_64;  // 64, 128, 256, 1024
+    T2CTL |= T2CTL_TIG;
 }
 
 /*************************************************************************************************

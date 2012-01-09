@@ -32,6 +32,7 @@ FHSS_LAST_NONHOPPING_STATE =    FHSS_STATE_SYNCHING
 FHSS_STATE_SYNCHED =            3
 FHSS_STATE_SYNC_MASTER =        4
 FHSS_STATE_SYNCINGMASTER =      5
+FHSS_LAST_STATE =               5       # used for testing
 
 
 FHSS_STATES = {}
@@ -177,7 +178,7 @@ u16 synched_chans           %x
     def getFHSSstate(self):
         state = self.send(APP_NIC, FHSS_GET_STATE, '')
         print repr(state)
-        state = ord(state[4])
+        state = ord(state[0])
         return FHSS_STATES[state], state
                                 
     def mac_SyncCell(self, CellID=0x0000):
@@ -186,6 +187,19 @@ u16 synched_chans           %x
         
         return 1
 
+
+def unittest(dongle):
+    import cc1111client
+    cc1111client.unittest(dongle)
+
+    print "\nTesting FHSS State set/get"
+    fhssstate = dongle.getFHSSstate()
+    print repr(fhssstate)
+    for stateidx in range(FHSS_LAST_STATE):
+        print repr(dongle.setFHSSstate(stateidx))
+        print repr(dongle.getFHSSstate())
+
+    print repr(dongle.setFHSSstate(fhssstate[1] ))
 
 if __name__ == "__main__":
     idx = 0
