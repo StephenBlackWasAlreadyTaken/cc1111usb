@@ -658,7 +658,7 @@
           <bool>true</bool>
          </property>
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <widget class="QWidget" name="transmitTab">
           <attribute name="title">
@@ -732,7 +732,7 @@
                <widget class="QWidget" name="widget_3" native="true">
                 <layout class="QGridLayout" name="gridLayout">
                  <item row="0" column="0">
-                  <widget class="QRadioButton" name="radioButton">
+                  <widget class="QRadioButton" name="plainButton">
                    <property name="text">
                     <string>Plain text</string>
                    </property>
@@ -742,14 +742,14 @@
                   </widget>
                  </item>
                  <item row="0" column="1">
-                  <widget class="QRadioButton" name="radioButton_2">
+                  <widget class="QRadioButton" name="hexButton">
                    <property name="text">
                     <string>Hexadecimal</string>
                    </property>
                   </widget>
                  </item>
                  <item row="1" column="0" colspan="2">
-                  <widget class="QPlainTextEdit" name="plainTextEdit"/>
+                  <widget class="QPlainTextEdit" name="dataText"/>
                  </item>
                 </layout>
                </widget>

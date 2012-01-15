@@ -21,6 +21,8 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
         self.connect(self.stopSendButton,SIGNAL("clicked()"),self.handle_sendstop)
         self.connect(self.actionLoad,SIGNAL("triggered()"),self.load_configuration)
         self.connect(self.actionSave,SIGNAL("triggered()"),self.write_configuration)
+        self.connect(self.plainButton,SIGNAL("clicked()"),self.handle_sendhex)
+        self.connect(self.hexButton,SIGNAL("clicked()"),self.handle_sendhex)
     
     def load_configuration(self):
         xmlFile = QFileDialog.getOpenFileName(self,"Load configuration","/home/gerard", "*.xml *.XML")
@@ -107,6 +109,16 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
     def handle_sendstop(self):
         self.stopSendButton.setEnabled(0)
         self.startSendButton.setEnabled(1)
+
+    def handle_sendhex(self):
+        if self.hexButton.isChecked():
+            self.connect(self.dataText,SIGNAL("textChanged()"),self.handle_checkhex)
+        else:
+            self.disconnect(self.dataText,SIGNAL("textChanged()"),self.handle_checkhex)
+
+    def handle_checkhex(self):
+        lastChar = self.dataText[self.dataText.length()]
+        print lastChar
 
 app = QApplication(sys.argv)
 form = CC1111UsbGui()
