@@ -1,9 +1,11 @@
 #!/usr/bin/python
 import re
 import sys
+from PyQt4 import QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from PyQt4.QtXml import *
+from cc1111serial import *
 import ui_cc1111usbgui
 
 class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
@@ -105,6 +107,16 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
     def handle_sendstart(self):
         self.startSendButton.setEnabled(0)
         self.stopSendButton.setEnabled(1)
+        sendData = ""
+        sendData += chr(0x02)
+        sendData += chr(0x00)
+        sendData += chr(0x0b)
+        sendData += str(self.dataText.toPlainText())
+        sendData += chr(0x0a) # Append \n
+	
+        print sendData
+        ccSerial = cc1111serial()
+        ccSerial.write(sendData)
 
     def handle_sendstop(self):
         self.stopSendButton.setEnabled(0)
