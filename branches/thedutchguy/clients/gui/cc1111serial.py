@@ -9,3 +9,6 @@ class cc1111serial():
 
 	def write(self,message):
 		self.serialport.write(message)
+
+	def close(self):
+		self.serialport.close()

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import re
 import sys
+import time
 from PyQt4 import QtCore
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
@@ -109,14 +110,23 @@ class CC1111UsbGui(QMainWindow, ui_cc1111usbgui.Ui_MainWindow):
         self.stopSendButton.setEnabled(1)
         sendData = ""
         sendData += chr(0x02)
-        sendData += chr(0x00)
-        sendData += chr(0x0b)
+        sendData += chr(0x00) # TODO this should be the length
+        sendData += chr(self.dataText.toPlainText().length())
         sendData += str(self.dataText.toPlainText())
         sendData += chr(0x0a) # Append \n
 	
         print sendData
         ccSerial = cc1111serial()
-        ccSerial.write(sendData)
+        if(self.continiousSendBox.isChecked()):
+            while self.stopSendButton.isEnabled():
+                ccSerial.write(sendData)
+                time.sleep(0.5)
+        else:
+            for i in range(0,self.countSendBox.value()+1):
+                ccSerial.write(sendData)
+                time.sleep(0.5)
+        
+        self.handle_sendstop()
 
     def handle_sendstop(self):
         self.stopSendButton.setEnabled(0)
