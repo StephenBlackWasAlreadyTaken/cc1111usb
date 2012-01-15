@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'cc1111usbgui.ui'
 #
-# Created: Mon Nov 21 21:04:03 2011
+# Created: Mon Nov 21 21:19:01 2011
 #      by: PyQt4 UI code generator 4.7.3
 #
 # WARNING! All changes made in this file will be lost!
@@ -319,16 +319,16 @@ class Ui_MainWindow(object):
         self.widget_3.setObjectName("widget_3")
         self.gridLayout = QtGui.QGridLayout(self.widget_3)
         self.gridLayout.setObjectName("gridLayout")
-        self.radioButton = QtGui.QRadioButton(self.widget_3)
-        self.radioButton.setChecked(True)
-        self.radioButton.setObjectName("radioButton")
-        self.gridLayout.addWidget(self.radioButton, 0, 0, 1, 1)
-        self.radioButton_2 = QtGui.QRadioButton(self.widget_3)
-        self.radioButton_2.setObjectName("radioButton_2")
-        self.gridLayout.addWidget(self.radioButton_2, 0, 1, 1, 1)
-        self.plainTextEdit = QtGui.QPlainTextEdit(self.widget_3)
-        self.plainTextEdit.setObjectName("plainTextEdit")
-        self.gridLayout.addWidget(self.plainTextEdit, 1, 0, 1, 2)
+        self.plainButton = QtGui.QRadioButton(self.widget_3)
+        self.plainButton.setChecked(True)
+        self.plainButton.setObjectName("plainButton")
+        self.gridLayout.addWidget(self.plainButton, 0, 0, 1, 1)
+        self.hexButton = QtGui.QRadioButton(self.widget_3)
+        self.hexButton.setObjectName("hexButton")
+        self.gridLayout.addWidget(self.hexButton, 0, 1, 1, 1)
+        self.dataText = QtGui.QPlainTextEdit(self.widget_3)
+        self.dataText.setObjectName("dataText")
+        self.gridLayout.addWidget(self.dataText, 1, 0, 1, 2)
         self.horizontalLayout_4.addWidget(self.widget_3)
         self.groupBox_2 = QtGui.QGroupBox(self.widget_2)
         self.groupBox_2.setObjectName("groupBox_2")
@@ -476,7 +476,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuDongle.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.functionsTab.setCurrentIndex(1)
+        self.functionsTab.setCurrentIndex(0)
         QtCore.QObject.connect(self.actionExit, QtCore.SIGNAL("triggered()"), MainWindow.close)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -610,8 +610,8 @@ class Ui_MainWindow(object):
         self.continiousSendBox.setText(QtGui.QApplication.translate("MainWindow", "Continious", None, QtGui.QApplication.UnicodeUTF8))
         self.startSendButton.setText(QtGui.QApplication.translate("MainWindow", "Start", None, QtGui.QApplication.UnicodeUTF8))
         self.stopSendButton.setText(QtGui.QApplication.translate("MainWindow", "Stop", None, QtGui.QApplication.UnicodeUTF8))
-        self.radioButton.setText(QtGui.QApplication.translate("MainWindow", "Plain text", None, QtGui.QApplication.UnicodeUTF8))
-        self.radioButton_2.setText(QtGui.QApplication.translate("MainWindow", "Hexadecimal", None, QtGui.QApplication.UnicodeUTF8))
+        self.plainButton.setText(QtGui.QApplication.translate("MainWindow", "Plain text", None, QtGui.QApplication.UnicodeUTF8))
+        self.hexButton.setText(QtGui.QApplication.translate("MainWindow", "Hexadecimal", None, QtGui.QApplication.UnicodeUTF8))
         self.groupBox_2.setTitle(QtGui.QApplication.translate("MainWindow", "Status", None, QtGui.QApplication.UnicodeUTF8))
         self.functionsTab.setTabText(self.functionsTab.indexOf(self.transmitTab), QtGui.QApplication.translate("MainWindow", "Transmit", None, QtGui.QApplication.UnicodeUTF8))
         self.parameterRecvBox.setTitle(QtGui.QApplication.translate("MainWindow", "Parameters", None, QtGui.QApplication.UnicodeUTF8))
