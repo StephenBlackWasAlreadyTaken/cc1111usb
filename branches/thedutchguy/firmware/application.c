@@ -6,6 +6,28 @@
 #ifdef VIRTUAL_COM
 	#include "cc1111.h"
 	#include "cc1111_vcom.h"
+
+    #define STATUS_TAG 0
+    #define STATUS_LEN 1
+    #define STATUS_VAL 2
+    
+    #define TAG_MODE    0x01 /* Value is mode, IDLE,RX,TX */
+    #define TAG_SEND    0x02 /* Value is what to send */
+    #define TAG_STATUS  0x03 /* Value is the status value want to know, for example RSSI */
+    #define TAG_REG     0x04 /* Register values, value as register=value */
+
+    #define TLV_MAX_DATA 50    
+
+    typedef struct
+    {
+        u8 uiTag;
+        u8 uiLength;
+        u8 uiData[TLV_MAX_DATA];
+    } tlv_t;
+
+    static __xdata tlv_t tlv;
+    static __xdata uiDataPtr = 0;
+    static __xdata u8 uiStatus = STATUS_TAG;
 #else
 	#include "cc1111usb.h"
 #endif
@@ -30,7 +52,86 @@
  * */
 
 
+#ifdef VIRTUAL_COM
+void processTLV()
+{
+    vcom_putstr("process");
+	#pragma disable_warning 110
+    if(tlv.uiTag == TAG_MODE)
+    {
+        if(tlv.uiData[0] == 'I' & tlv.uiData[1] == 'D' & tlv.uiData[2] == 'L' & tlv.uiData[3] == 'E')
+        {
+            setRFIdle();
+        }
+        else if(tlv.uiData[0] == 'R' & tlv.uiData[1] == 'X')
+        {
+            RxOn();
+        }
+        else if(tlv.uiData[0] == 'T' & tlv.uiData[1] == 'X')
+        {
+            /* future purposes */
+        }       
+    }
+    else if(tlv.uiTag == TAG_SEND)
+    {
+        vcom_putstr(tlv.uiData);
+        vcom_putchar(tlv.uiLength);
+        transmit(tlv.uiData,tlv.uiLength,0); 
+    }
+    else if(tlv.uiTag == TAG_STATUS)
+    {
 
+    }
+    else if(tlv.uiTag == TAG_REG)
+    {
+
+    }
+}
+
+void fetchTLV()
+{
+    __xdata char ucValue;
+
+	#pragma disable_warning 110
+    switch(uiStatus)
+    {
+        case STATUS_TAG:
+            vcom_putstr("tag");
+            uiDataPtr = 0;
+            tlv.uiTag = vcom_getchar(); 
+            /* if valid TLV continue */
+            if(tlv.uiTag == TAG_MODE | tlv.uiTag == TAG_SEND | tlv.uiTag == TAG_STATUS | tlv.uiTag == TAG_REG)
+            {
+                uiStatus = STATUS_LEN;
+            }
+            break;
+        case STATUS_LEN:
+            vcom_putstr("len");
+            tlv.uiLength = vcom_getchar();
+            uiStatus = STATUS_VAL;
+            break;
+        case STATUS_VAL:
+            vcom_putstr("val");
+            ucValue = vcom_getchar();
+            if(ucValue == '\n')
+            {
+                /* Receive done, process */
+                processTLV();
+                uiStatus = STATUS_TAG;
+            }
+            else
+            {
+                tlv.uiData[uiDataPtr] = ucValue;
+                tlv.uiData[uiDataPtr+1] = '\0';
+                uiDataPtr++;
+            }
+            break;
+        default:
+            uiStatus = STATUS_TAG;
+            break;
+    }
+}
+#endif
 
 /*************************************************************************************************
  * Application Code - these first few functions are what should get overwritten for your app     *
@@ -49,8 +150,7 @@ void appMainLoop(void)
 #ifdef TRANSMIT_TEST
 	__xdata u8 u8Packet[13];
 
-	 /* Send a packet */
-	u8Packet[0] = 0x0B;
+	/*u8Packet[0] = 0x0B;
 	u8Packet[1] = 0x48;
 	u8Packet[2] = 0x41;
 	u8Packet[3] = 0x4C;
@@ -64,7 +164,9 @@ void appMainLoop(void)
 	u8Packet[11] = 0x31;
 	u8Packet[12] = 0x00;
     transmit(u8Packet,0,1);
-    sleepMillis(800);
+    sleepMillis(800);*/
+
+    fetchTLV();
 #endif
 
     if(rfif)
