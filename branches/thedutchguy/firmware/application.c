@@ -25,7 +25,7 @@
         u8 uiData[TLV_MAX_DATA];
     } tlv_t;
 
-    static __xdata tlv_t tlv;
+    static __xdata tlv_t tlv_recv,tlv_send;
     static __xdata uiDataPtr = 0;
     static __xdata u8 uiStatus = STATUS_TAG;
 #else
@@ -53,36 +53,70 @@
 
 
 #ifdef VIRTUAL_COM
+void sendTLV()
+{
+    __xdata u8 sendData[TLV_MAX_DATA+2];
+    __xdata u8 i = 0;
+
+    vcom_putstr("sendtlv");
+
+    sendData[0] = tlv_send.uiTag;
+    sendData[1] = tlv_send.uiLength;
+    for(i = 2; i < TLV_MAX_DATA; i++)
+    {
+        if(tlv_send.uiData[i-2] == '\0')
+        {
+            break;
+        }
+        else
+        {
+            sendData[i] = tlv_send.uiData[i - 2];
+        }
+    }
+
+    vcom_putstr(sendData);
+}
+
 void processTLV()
 {
     vcom_putstr("process");
 	#pragma disable_warning 110
-    if(tlv.uiTag == TAG_MODE)
+    if(tlv_recv.uiTag == TAG_MODE)
     {
-        if(tlv.uiData[0] == 'I' & tlv.uiData[1] == 'D' & tlv.uiData[2] == 'L' & tlv.uiData[3] == 'E')
+        if(tlv_recv.uiData[0] == 'I' & tlv_recv.uiData[1] == 'D' & tlv_recv.uiData[2] == 'L' & tlv_recv.uiData[3] == 'E')
         {
             setRFIdle();
         }
-        else if(tlv.uiData[0] == 'R' & tlv.uiData[1] == 'X')
+        else if(tlv_recv.uiData[0] == 'R' & tlv_recv.uiData[1] == 'X')
         {
             RxOn();
         }
-        else if(tlv.uiData[0] == 'T' & tlv.uiData[1] == 'X')
+        else if(tlv_recv.uiData[0] == 'T' & tlv_recv.uiData[1] == 'X')
         {
             /* future purposes */
         }       
     }
-    else if(tlv.uiTag == TAG_SEND)
+    else if(tlv_recv.uiTag == TAG_SEND)
     {
-        vcom_putstr(tlv.uiData);
-        vcom_putchar(tlv.uiLength);
-        transmit(tlv.uiData,tlv.uiLength,0); 
+        vcom_putstr(tlv_recv.uiData);
+        vcom_putchar(tlv_recv.uiLength);
+        transmit(tlv_recv.uiData,tlv_recv.uiLength,0); 
     }
-    else if(tlv.uiTag == TAG_STATUS)
+    else if(tlv_recv.uiTag == TAG_STATUS)
     {
-
+        if(tlv_recv.uiData[0] == 'R' & tlv_recv.uiData[1] == 'S' & tlv_recv.uiData[2] == 'S' & tlv_recv.uiData[3] == 'I')
+        {
+            vcom_putstr("RSSI");
+            //RxOn();
+            tlv_send.uiTag = tlv_recv.uiTag;
+            tlv_send.uiLength = 1;
+            tlv_send.uiData[0] = RSSI;
+            tlv_send.uiData[1] = '\0';
+            sendTLV();
+            //setRFIdle();
+        }
     }
-    else if(tlv.uiTag == TAG_REG)
+    else if(tlv_recv.uiTag == TAG_REG)
     {
 
     }
@@ -98,16 +132,16 @@ void fetchTLV()
         case STATUS_TAG:
             vcom_putstr("tag");
             uiDataPtr = 0;
-            tlv.uiTag = vcom_getchar(); 
+            tlv_recv.uiTag = vcom_getchar(); 
             /* if valid TLV continue */
-            if(tlv.uiTag == TAG_MODE | tlv.uiTag == TAG_SEND | tlv.uiTag == TAG_STATUS | tlv.uiTag == TAG_REG)
+            if(tlv_recv.uiTag == TAG_MODE | tlv_recv.uiTag == TAG_SEND | tlv_recv.uiTag == TAG_STATUS | tlv_recv.uiTag == TAG_REG)
             {
                 uiStatus = STATUS_LEN;
             }
             break;
         case STATUS_LEN:
             vcom_putstr("len");
-            tlv.uiLength = vcom_getchar();
+            tlv_recv.uiLength = vcom_getchar();
             uiStatus = STATUS_VAL;
             break;
         case STATUS_VAL:
@@ -121,8 +155,8 @@ void fetchTLV()
             }
             else
             {
-                tlv.uiData[uiDataPtr] = ucValue;
-                tlv.uiData[uiDataPtr+1] = '\0';
+                tlv_recv.uiData[uiDataPtr] = ucValue;
+                tlv_recv.uiData[uiDataPtr+1] = '\0';
                 uiDataPtr++;
             }
             break;
@@ -148,9 +182,9 @@ void appMainLoop(void)
 	__xdata u8 processbuffer;
 
 #ifdef TRANSMIT_TEST
-	__xdata u8 u8Packet[13];
+	/*__xdata u8 u8Packet[13];
 
-	/*u8Packet[0] = 0x0B;
+	u8Packet[0] = 0x0B;
 	u8Packet[1] = 0x48;
 	u8Packet[2] = 0x41;
 	u8Packet[3] = 0x4C;
