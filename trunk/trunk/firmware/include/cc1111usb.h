@@ -155,13 +155,6 @@ void registerCb_ep0Vendor(void (*callback)(USB_Setup_Header* pReq));
 void registerCb_ep5(void (*callback)(void));
 
 
-// provided by user application
-void appHandleEP0OUTdone(void);
-void appHandleEP0OUT(void);
-int appHandleEP0(USB_Setup_Header* pReq);
-int appHandleEP5();
-
-
 
 #define EP_INBUF_WRITTEN        1
 #define EP_OUTBUF_WRITTEN       2

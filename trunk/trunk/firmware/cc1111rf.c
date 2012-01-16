@@ -271,7 +271,7 @@ void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should
     if(MARCSTATE == MARC_STATE_RX)
     {   // Receive Byte
         rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
-        if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
+        if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE || rfRxCounter[rfRxCurrentBuffer] == 0)
         {
             rfRxCounter[rfRxCurrentBuffer] = BUFFER_SIZE-1;
         }

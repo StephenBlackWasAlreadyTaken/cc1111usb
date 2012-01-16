@@ -166,6 +166,22 @@ typedef struct DMA_DESC_S {
     uint8 srcInc    : 2;
 } DMA_DESC;
 
+#define DMA_LEN_HIGH_VLEN_MASK     (7 << 5)
+#define DMA_LEN_HIGH_VLEN_LEN      (0 << 5)
+#define DMA_LEN_HIGH_VLEN_PLUS_1   (1 << 5)
+#define DMA_LEN_HIGH_VLEN      (2 << 5)
+#define DMA_LEN_HIGH_VLEN_PLUS_2   (3 << 5)
+#define DMA_LEN_HIGH_VLEN_PLUS_3   (4 << 5)
+#define DMA_LEN_HIGH_MASK      (0x1f)
+
+#define DMA_CFG0_WORDSIZE_8        (0 << 7)
+#define DMA_CFG0_WORDSIZE_16       (1 << 7)
+#define DMA_CFG0_TMODE_MASK        (3 << 5)
+#define DMA_CFG0_TMODE_SINGLE      (0 << 5)
+#define DMA_CFG0_TMODE_BLOCK       (1 << 5)
+#define DMA_CFG0_TMODE_REPEATED_SINGLE (2 << 5)
+#define DMA_CFG0_TMODE_REPEATED_BLOCK  (3 << 5)
+
 // Request Types (bmRequestType)
 #define USB_BM_REQTYPE_TGTMASK          0x1f
 #define USB_BM_REQTYPE_TGT_DEV          0x00

@@ -4,7 +4,7 @@
 #include "cc1111.h"
 
 #define DMA_CFG_SIZE 8
-#define BUFFER_SIZE 65
+#define BUFFER_SIZE 256
 #define BUFFER_AMOUNT 2
 
 #define RSSI_TIMEOUT_US 1500
@@ -18,8 +18,8 @@
 #define RF_DMA_VLEN_1       1<<5
 #define RF_DMA_VLEN_3       4<<5
 #define RF_DMA_LEN          0xfe
-//#define RF_DMA_WORDSIZE     1<<7            // FIXME: gerarg's and my code differ here
-#define RF_DMA_WORDSIZE     0<<7            // FIXME: gerarg's and my code differ here
+#define RF_DMA_WORDSIZE16   1<<7
+#define RF_DMA_WORDSIZE8    0<<7
 #define RF_DMA_TMODE        0
 #define RF_DMA_TRIGGER      19
 #define RF_DMA_DST_INC      1<<4

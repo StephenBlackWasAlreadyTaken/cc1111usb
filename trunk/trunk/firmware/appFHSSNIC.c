@@ -29,9 +29,11 @@ xdata u16 g_NIC_ID;
 
 xdata u8 g_txMsgQueue[MAX_TX_MSGS][MAX_TX_MSGLEN];
 
+////////// internal functions /////////
 void t1IntHandler(void) interrupt T1_VECTOR;
 void t2IntHandler(void) interrupt T2_VECTOR;
 void t3IntHandler(void) interrupt T3_VECTOR;
+int appHandleEP5();
 
 /**************************** PHY LAYER *****************************/
 
@@ -489,10 +491,12 @@ void appMainLoop(void)
                     if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
                     {   
                         // we've received a packet.  deliver it.
-                        if (PKTCTRL0&1)
-                            txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
-                        else
-                            txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
+                        //if (PKTCTRL0&1)
+                        //    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                        //else
+                        //    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
+   
+                        txdata(APP_NIC, NIC_RECV, rfRxCounter[processbuffer], (u8*)&rfrxbuf[processbuffer]);
 
                         /* Set receive buffer to processed so it can be used again */
                         rfRxProcessed[processbuffer] = RX_PROCESSED;

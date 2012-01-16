@@ -1,3 +1,6 @@
+#ifndef __GLOBALH__
+#define __GLOBALH__
+
 #include "global.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
@@ -122,3 +125,5 @@ __code u8 sernum[] = {
     'S','D','C','C','v',
     LE_WORD(SDCC)
 };
+
+#endif
