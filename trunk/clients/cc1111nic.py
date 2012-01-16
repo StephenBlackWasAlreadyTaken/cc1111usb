@@ -195,11 +195,12 @@ def unittest(dongle):
     print "\nTesting FHSS State set/get"
     fhssstate = dongle.getFHSSstate()
     print repr(fhssstate)
-    for stateidx in range(FHSS_LAST_STATE):
+    for stateidx in range(FHSS_LAST_STATE+1):
         print repr(dongle.setFHSSstate(stateidx))
         print repr(dongle.getFHSSstate())
 
     print repr(dongle.setFHSSstate(fhssstate[1] ))
+    print repr(dongle.getFHSSstate())
 
 if __name__ == "__main__":
     idx = 0
