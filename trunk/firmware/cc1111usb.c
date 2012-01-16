@@ -523,10 +523,6 @@ void usbGetDescriptor(USB_Setup_Header* pReq)
         length = pReq->wLength;
 
     setup_send_ep0(buffer, length);
-    if ((pReq->wValue>>8) == USB_DESC_CONFIG){
-        REALLYFASTBLINK();
-        appstatus |= 1;                                         //  hack to trigger "waitForUSBsetup()"
-    }
     
 }
 
@@ -987,15 +983,11 @@ void usbProcessEvents(void)
         lastCode[0] = LC_USB_DATA_RESET_RESUME;
         usb_data.usbstatus = USB_STATE_RESUME;
         usb_data.event    &= ~(USBD_CIF_RESUME);
-        //}
-        //// FIXME:   WHAT ARE WE REALLY TRYING TO DO HERE?  CONSOLIDATE UNLESS ABSOLUTELY NECESSARY TO HAVE TWO RESUME HANDLERS BACK TO BACK....
-        //if (usb_data.usbstatus == USB_STATE_RESUME)
-        //{
         USBPOW |= USBPOW_RESUME;
         sleepMillis(8);
         USBPOW &= ~USBPOW_RESUME;
 
-        usb_data.usbstatus = USB_STATE_IDLE;        // does this want to be USB_STATE_UNCONFIGURED??
+        usb_data.usbstatus = USB_STATE_IDLE;
     }
 
     USBINDEX = 0;
@@ -1255,8 +1247,8 @@ __code u8 USBDESCBEGIN [] = {
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
               '0', 0,
-              '0', 0,
-              '6', 0,
+              '1', 0,
+              '4', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff
