@@ -38,6 +38,8 @@ xdata u32 loopCnt;
 xdata u8 xmitCnt;
 xdata u8 platform_clock_freq;
 
+int appHandleEP5(void);
+
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
