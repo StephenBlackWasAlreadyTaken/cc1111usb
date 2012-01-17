@@ -695,11 +695,13 @@ class USBDongle:
         self.radiocfg.vsParse(bytedef)
         return bytedef
 
-    def setRadioConfig(self):
-        bytedef = self.radiocfg.vsEmit()
+    def setRadioConfig(self, bytedef = None):
+        if bytedef is None:
+            bytedef = self.radiocfg.vsEmit()
+        origMode = self.getMARCSTATE()
         self.setModeIDLE()
         self.poke(0xdf00, bytedef)
-        self.setModeRX()
+        self.poke(X_RFST, chr(origMode[1]))
         return bytedef
 
     def setFreq(self, freq=902000000, mhz=24, radiocfg=None):
@@ -1312,9 +1314,7 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
-        self.setModeIDLE()
         self.setRadioConfig()
-        self.setModeRX()
 
     def setup900MHzHopTrans(self):
         self.getRadioConfig()
@@ -1353,9 +1353,7 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
-        self.setModeIDLE()
         self.setRadioConfig()
-        self.setModeRX()
 
     def setup900MHzContTrans(self):
         self.getRadioConfig()
@@ -1397,9 +1395,7 @@ class USBDongle:
         rc.test1      = 0x31
         rc.test0      = 0x09
         rc.pa_table0  = 0xc0
-        self.setModeIDLE()
         self.setRadioConfig()
-        self.setModeRX()
 
     def setup_rfstudio_902PktTx(self):
         self.getRadioConfig()
@@ -1451,9 +1447,7 @@ class USBDongle:
         rc.pa_table1  = 0x00
         #rc.pa_table0  = 0x8e
         rc.pa_table0  = 0xc0
-        self.setModeIDLE()
         self.setRadioConfig()
-        self.setModeRX()
 
     def testTX(self, data="XYZABCDEFGHIJKL"):
         while (sys.stdin not in select.select([sys.stdin],[],[],0)[0]):
@@ -1476,6 +1470,8 @@ class USBDongle:
         self.setEnablePktCRC(False)
         self.setEnableMdmFEC(False)
         self.setEnableDataWhitening(False)
+        self.setMdmSyncWord(0xaaaa)
+        self.setPktPQT(0)
         
         if (level):
             self.setMdmSyncMode(SYNCM_CARRIER)
@@ -1486,10 +1482,7 @@ class USBDongle:
     def lowballRestore(self):
         if not hasattr(self, '_last_radiocfg'):
             raise(Exception("lowballRestore requires that lowball have been executed first (it saves radio config state!)"))
-        origMode = self.getMARCSTATE()
-        self.setModeIdle()
         self.setRadioConfig(self._last_radiocfg)
-        self.poke(X_RFST, chr(origMode[1]))
         self._last_radiocfg = ''
 
     def checkRepr(self, matchstr, checkval, maxdiff=0):
