@@ -983,7 +983,7 @@ class USBDongle:
 
         DR:250kb Dev:129khz Mod:GFSK RXBW:600kHz sensitive    fsctrl1:0c mdmcfg:1d 55 13 23 11 dev:63 foc/bscfg:1d/1c agctrl:c7 00 b0 frend:b6 10    (IF_changes, Deviation)
 
-        DR:500kb            Mod:MSK  RXBW:750kHz sensitive    fsctrl1:0e mdmcfg:0e 55 73 43 11 dev:00 foc/bscfg:1d/1c agctrl:c7 00 b0 frend:b6 10    (IF_changes, Deviation doesn't exist
+        DR:500kb            Mod:MSK  RXBW:750kHz sensitive    fsctrl1:0e mdmcfg:0e 55 73 43 11 dev:00 foc/bscfg:1d/1c agctrl:c7 00 b0 frend:b6 10    (IF_changes, Modulation of course, Deviation has different meaning with MSK)
         '''
         if radiocfg==None:
             self.getRadioConfig()
@@ -1461,6 +1461,37 @@ class USBDongle:
             print "transmitting %s" % repr(data)
             self.RFxmit(data)
         sys.stdin.read(1)
+
+    def lowball(self, level=1):
+        '''
+        this configures the radio to the lowest possible level of filtering, potentially allowing complete radio noise to come through as data.  very useful in some circumstances.
+        level == 0 changes the Sync Mode to SYNCM_NONE (wayyy more garbage)
+        level == 1 (default) sets the Sync Mode to SYNCM_CARRIER (requires a valid carrier detection for the data to be considered a packet)
+        '''
+        if hasattr(self, '_last_radiocfg') and len(self._last_radiocfg):
+            raise(Exception('i simply will not allow you to run lowball() twice in a row!  lowballRestore() to restore the radio config from before last time you ran lowball'))
+        self._last_radiocfg = self.getRadioConfig()
+
+        self.makePktFLEN(250)
+        self.setEnablePktCRC(False)
+        self.setEnableMdmFEC(False)
+        self.setEnableDataWhitening(False)
+        
+        if (level):
+            self.setMdmSyncMode(SYNCM_CARRIER)
+        else:
+            self.setMdmSyncMode(SYNCM_NONE)
+
+
+    def lowballRestore(self):
+        if not hasattr(self, '_last_radiocfg'):
+            raise(Exception("lowballRestore requires that lowball have been executed first (it saves radio config state!)"))
+        origMode = self.getMARCSTATE()
+        self.setModeIdle()
+        self.setRadioConfig(self._last_radiocfg)
+        self.poke(X_RFST, chr(origMode[1]))
+        self._last_radiocfg = ''
+
     def checkRepr(self, matchstr, checkval, maxdiff=0):
         starry = self.reprRadioConfig().split('\n')
         line,val = getValueFromReprString(starry, matchstr)
