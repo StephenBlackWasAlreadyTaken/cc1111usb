@@ -386,12 +386,15 @@ class USBDongle:
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-
+                errstr = repr(e)
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
-                if ('No such device' in repr(e)):
+                if ('No such device' in errstr):
                     self._threadGo = False
                     self.resetup(False)
-                self._usberrorcnt += 1
+                if ('No error' in errstr):
+                    pass
+                else:
+                    self._usberrorcnt += 1
                 pass
 
 
@@ -715,9 +718,6 @@ class USBDongle:
             self.getRadioConfig()
             radiocfg = self.radiocfg
             
-            if (len(bytedef) != 3):
-                raise(Exception("unknown data returned for getFreq(): %s"%repr(bytedef)))
-
         num = (self.radiocfg.freq2<<16) + (self.radiocfg.freq1<<8) + self.radiocfg.freq0
         freq = num / freqmult
         return freq, hex(num)
@@ -777,11 +777,11 @@ class USBDongle:
 
         chanspc_m = radiocfg.mdmcfg0
         chanspc_e = radiocfg.mdmcfg1 & 3
-        chanspc_khz = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
-        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f khz" % (chanspc_e, chanspc_m, chanspc_khz)
-        return (chanspc_khz)
+        chanspc = 1000000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
+        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f hz" % (chanspc_e, chanspc_m, chanspc)
+        return (chanspc)
 
-    def setMdmChanSpc(self, chanspc_khz=None, chanspc_m=None, chanspc_e=None, mhz=24, radiocfg=None):
+    def setMdmChanSpc(self, chanspc=None, chanspc_m=None, chanspc_e=None, mhz=24, radiocfg=None):
         '''
         calculates the appropriate exponent and mantissa and updates the correct registers
         chanspc is in kHz.  if you prefer, you may set the chanspc_m and chanspc_e settings 
@@ -795,9 +795,9 @@ class USBDongle:
             self.getRadioConfig()
             radiocfg = self.radiocfg
 
-        if (chanspc_khz != None):
+        if (chanspc != None):
             for e in range(4):
-                m = int(((chanspc_khz * pow(2,18) / (1000.0 * mhz * pow(2,e)))-256) +.5)    # rounded evenly
+                m = int(((chanspc * pow(2,18) / (1000000.0 * mhz * pow(2,e)))-256) +.5)    # rounded evenly
                 if m < 256:
                     chanspc_e = e
                     chanspc_m = m
@@ -805,8 +805,8 @@ class USBDongle:
         if chanspc_e is None or chanspc_m is None:
             raise(Exception("ChanSpc does not translate into acceptable parameters.  Should you be changing this?"))
 
-        chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
-        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f khz" % (chanspc_e, chanspc_m, chanspc)
+        chanspc = 1000000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
+        print "chanspc_e: %x   chanspc_m: %x   chanspc: %f hz" % (chanspc_e, chanspc_m, chanspc)
         
         radiocfg.mdmcfg1 &= 0xfc            # clear out old exponent value
         radiocfg.mdmcfg1 |= chanspc_e
@@ -974,6 +974,16 @@ class USBDongle:
             maximum 400 kHz - 2*37 kHz, which is 326
             kHz.
 
+        DR:1.2kb Dev:5.1khz Mod:GFSK RXBW:63kHz sensitive     fsctrl1:06 mdmcfg:e5 a3 13 23 11 dev:16 foc/bscfg:17/6c agctrl:03 40 91 frend:56 10
+        DR:1.2kb Dev:5.1khz Mod:GFSK RXBW:63kHz lowpower      fsctrl1:06 mdmcfg:e5 a3 93 23 11 dev:16 foc/bscfg:17/6c agctrl:03 40 91 frend:56 10    (DEM_DCFILT_OFF)
+        DR:2.4kb Dev:5.1khz Mod:GFSK RXBW:63kHz sensitive     fsctrl1:06 mdmcfg:e6 a3 13 23 11 dev:16 foc/bscfg:17/6c agctrl:03 40 91 frend:56 10
+        DR:2.4kb Dev:5.1khz Mod:GFSK RXBW:63kHz lowpower      fsctrl1:06 mdmcfg:e6 a3 93 23 11 dev:16 foc/bscfg:17/6c agctrl:03 40 91 frend:56 10    (DEM_DCFILT_OFF)
+        DR:38.4kb Dev:20khz Mod:GFSK RXBW:94kHz sensitive     fsctrl1:08 mdmcfg:ca a3 13 23 11 dev:36 foc/bscfg:16/6c agctrl:43 40 91 frend:56 10    (IF changes, Deviation)
+        DR:38.4kb Dev:20khz Mod:GFSK RXBW:94kHz lowpower      fsctrl1:08 mdmcfg:ca a3 93 23 11 dev:36 foc/bscfg:16/6c agctrl:43 40 91 frend:56 10    (.. DEM_DCFILT_OFF)
+
+        DR:250kb Dev:129khz Mod:GFSK RXBW:600kHz sensitive    fsctrl1:0c mdmcfg:1d 55 13 23 11 dev:63 foc/bscfg:1d/1c agctrl:c7 00 b0 frend:b6 10    (IF_changes, Deviation)
+
+        DR:500kb            Mod:MSK  RXBW:750kHz sensitive    fsctrl1:0e mdmcfg:0e 55 73 43 11 dev:00 foc/bscfg:1d/1c agctrl:c7 00 b0 frend:b6 10    (IF_changes, Deviation doesn't exist
         '''
         if radiocfg==None:
             self.getRadioConfig()
@@ -1015,7 +1025,7 @@ class USBDongle:
         print "drate_e: %x   drate_m: %x   drate: %f kHz" % (drate_e, drate_m, drate)
         
         
-    def setMdmDRate(self, drate_khz, mhz=24, radiocfg=None):
+    def setMdmDRate(self, drate, mhz=24, radiocfg=None):
         ''' 
         set the baud of data being modulated through the radio
         '''
@@ -1026,7 +1036,7 @@ class USBDongle:
         drate_e = None
         drate_m = None
         for e in range(16):
-            m = int((drate_khz * pow(2,28) / (pow(2,e)* (mhz*1000.0))-256) + .5)        # rounded evenly
+            m = int((drate * pow(2,28) / (pow(2,e)* (mhz*1000000.0))-256) + .5)        # rounded evenly
             if m < 256:
                 drate_e = e
                 drate_m = m
@@ -1085,13 +1095,13 @@ class USBDongle:
 
         chanbw_e = radiocfg.mdmcfg4>>6
         chanbw_m = (radiocfg.mdmcfg4>>4) & 0x3
-        bw = 1000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
-        output.append("ChanBW:              %f khz"%bw)
+        bw = 1000000.0*mhz / (8.0*(4+chanbw_m) * pow(2,chanbw_e))
+        output.append("ChanBW:              %f hz"%bw)
 
         drate_e = radiocfg.mdmcfg4 & 0xf
         drate_m = radiocfg.mdmcfg3
-        drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
-        output.append("DRate:               %f khz"%drate)
+        drate = 1000000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
+        output.append("DRate:               %f hz"%drate)
 
         output.append("DC Filter:           %s" % (("enabled", "disabled")[radiocfg.mdmcfg2>>7]))
 
@@ -1107,8 +1117,8 @@ class USBDongle:
 
         chanspc_e = radiocfg.mdmcfg1&3
         chanspc_m = radiocfg.mdmcfg0
-        chanspc = 1000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
-        output.append("Chan Spacing:        %f khz" % chanspc)
+        chanspc = 1000000.0 * mhz/pow(2,18) * (256 + chanspc_m) * pow(2, chanspc_e)
+        output.append("Chan Spacing:        %f hz" % chanspc)
 
 
         return "\n".join(output)
@@ -1483,7 +1493,7 @@ def unittest(self):
 
     print "\nTesting getValueFromReprString()"
     starry = self.reprRadioConfig().split('\n')
-    print repr(getValueFromReprString(starry, 'khz'))
+    print repr(getValueFromReprString(starry, 'hz'))
 
     print "\nTesting reprRadioConfig()"
     print self.reprRadioConfig()
