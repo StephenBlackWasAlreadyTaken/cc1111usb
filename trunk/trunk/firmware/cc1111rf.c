@@ -35,6 +35,8 @@ void init_RF(void)
     // time freq:
     //
     // TICKSPD = Fref (24mhz for cc1111, 26mhz for cc1110)
+    //
+    // ********************* ALSO IN appFHSSNIC.c: init_FHSS()  **************************
     CLKCON &= 0xc7;
 
     T2PR = 0;

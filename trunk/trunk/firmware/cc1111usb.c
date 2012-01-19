@@ -925,7 +925,18 @@ void processOUTEP5(void)
                 case CMD_PING:
                     txdata(app,cmd,len,ptr);
                     break;
+
                 case CMD_STATUS:
+                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
+                    // unimplemented
+                    break;
+
+                case CMD_GET_CLOCK:
+                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
+                    // unimplemented
+                    break;
+
+                case CMD_BUILDTYPE:
                     txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
                     // unimplemented
                     break;
@@ -1247,8 +1258,8 @@ __code u8 USBDESCBEGIN [] = {
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
               '0', 0,
-              '2', 0,
-              '3', 0,
+              '5', 0,
+              '0', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff

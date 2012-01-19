@@ -7,6 +7,7 @@
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
 extern xdata u8 lastCode[2];
+extern xdata u32 clock;
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
@@ -73,6 +74,9 @@ extern xdata u8 lastCode[2];
 /* function declarations */
 void sleepMillis(int ms);
 void sleepMicros(int us);
+void t1IntHandler(void) interrupt T1_VECTOR;  // interrupt handler should trigger on T1 overflow
+void clock_init(void);
+void io_init(void);
 //void blink(u16 on_cycles, u16 off_cycles);
 void blink_binary_baby_lsb(u16 num, char bits);
 int strncmp(const char *s1, const char *s2, u16 n);

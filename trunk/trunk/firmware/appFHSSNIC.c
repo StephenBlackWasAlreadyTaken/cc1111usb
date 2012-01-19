@@ -18,8 +18,6 @@
 ////  turn this on to enable TX of CARRIER at each hop instead of normal RX/TX
 //#define DEBUG_HOPPING 1
 
-xdata u32 clock;
-
 
 xdata MAC_DATA_t macdata;
 xdata u8 g_Channels[MAX_CHANNELS];
@@ -30,7 +28,6 @@ xdata u16 g_NIC_ID;
 xdata u8 g_txMsgQueue[MAX_TX_MSGS][MAX_TX_MSGLEN];
 
 ////////// internal functions /////////
-void t1IntHandler(void) interrupt T1_VECTOR;
 void t2IntHandler(void) interrupt T2_VECTOR;
 void t3IntHandler(void) interrupt T3_VECTOR;
 int appHandleEP5();
@@ -198,11 +195,6 @@ u8 MAC_getNextChannel()
 
 
 /************************** Timer Interrupt Vectors **************************/
-void t1IntHandler(void) interrupt T1_VECTOR  // interrupt handler should trigger on T2 overflow
-{   
-    clock ++;
-}
-
 void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger on T2 overflow
 {
     xdata u8 packet[28];
@@ -297,18 +289,16 @@ void init_FHSS(void)
     macdata.mac_state = FHSS_STATE_NONHOPPING;   // this is basic NIC functionality
 
 
-    // FIXME: MAKE TIMERS TUNE TO factors of 50ms cycles
-    //
     // Timer Setup:
-    // T1 (main clock):  1.465khz
-    // T2 (MAC clock):   1
 // FIXME: this should be defined so it works with 24/26mhz
     // setup TIMER 1
     // free running mode
     // time freq:
-    CLKCON &= 0xc7;          //( ~ 0b111000);
-    T1CTL |= T1CTL_DIV_128;
-    T1CTL |= T1CTL_MODE_FREERUN;
+    //   ******************** NOW IN GLOBAL.C ************************
+    //CLKCON &= 0xc7;          //( ~ 0b111000);
+    //T1CTL |= T1CTL_DIV_128;
+    //T1CTL |= T1CTL_MODE_FREERUN;
+    //   *************************************************************
 // FIXME: turn on timer interrupts for t1 and t2
     // (TIMER2 is initially setup in cc1111rf.c in init_RF())
     // setup TIMER 2
@@ -848,64 +838,12 @@ static void appInitRf(void)
 
 }
 
-/* initialize the IO subsystems for the appropriate dongles */
-static void io_init(void)
-{
-#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
-    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
-    // to it's own Cypress USB chip
-    P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
-    P0DIR |= BIT4 | BIT6;       // SSEL and LED as output
-    P0 &= ~(BIT4 | BIT2);       // Drive SSEL and MISO low
-
-    P1IF = 0;                   // clear P1 interrupt flag
-    IEN2 |= IEN2_P1IE;          // enable P1 interrupt
-    P1IEN |= BIT1;              // enable interrupt for P1.1
-
-    P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
-    P1 &= ~BIT0;                // not ready to receive
-    
-#else       // CC1111
-#ifdef DONSDONGLES
-    // CC1111 USB Dongle
-    // turn on LED and BUTTON
-    P1DIR |= 3;
-    // Activate BUTTON - Do we need this?
-    //CC1111EM_BUTTON = 1;
-
-#else
-    // CC1111 USB (ala Chronos watch dongle), we just need LED
-    P1DIR |= 3;
-
-#endif      // CC1111
-
-#endif      // conditional config
-
-
-#ifndef VIRTUAL_COM
-    // Turn off LED
-    LED = 0;
-#endif
-}
-
-
-void clock_init(void){
-    //  SET UP CPU SPEED!  USE 26MHz for CC1110 and 24MHz for CC1111
-    // Set the system clock source to HS XOSC and max CPU speed,
-    // ref. [clk]=>[clk_xosc.c]
-    SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_S) );
-    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
-    while (CLKCON & CLKCON_OSC);
-    SLEEP |= SLEEP_OSC_PD;
-    while (!IS_XOSC_STABLE());
-}
-
 /*************************************************************************************************
  * main startup code                                                                             *
  *************************************************************************************************/
 void initBoard(void)
 {
+    // in global.c
     clock_init();
     io_init();
 }

@@ -186,7 +186,8 @@ void registerCb_ep5(void (*callback)(void));
 #define     CMD_PING        0x82
 #define     CMD_STATUS      0x83
 #define     CMD_POKE_REG    0x84
-#define     CMD_RFMODE      0x85
+#define     CMD_GET_CLOCK   0x85
+#define     CMD_BUILDTYPE   0x86
 #define     CMD_RESET       0x8f
 
 #define     EP0_CMD_GET_DEBUG_CODES         0x00
