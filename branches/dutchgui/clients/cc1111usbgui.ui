@@ -1,0 +1,1064 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1129</width>
+    <height>635</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>CC1111USB Client</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,4">
+    <item>
+     <widget class="QWidget" name="registerWidget" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QLabel" name="registerLabel">
+         <property name="font">
+          <font>
+           <pointsize>11</pointsize>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Registers</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="registerTable">
+         <property name="horizontalScrollBarPolicy">
+          <enum>Qt::ScrollBarAlwaysOff</enum>
+         </property>
+         <attribute name="horizontalHeaderVisible">
+          <bool>true</bool>
+         </attribute>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <attribute name="horizontalHeaderVisible">
+          <bool>true</bool>
+         </attribute>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <row>
+          <property name="text">
+           <string>New Row</string>
+          </property>
+         </row>
+         <column>
+          <property name="text">
+           <string>Reg.</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Val.</string>
+          </property>
+         </column>
+         <item row="0" column="0">
+          <property name="text">
+           <string>IOCFG2</string>
+          </property>
+         </item>
+         <item row="0" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="1" column="0">
+          <property name="text">
+           <string>IOCFG1</string>
+          </property>
+         </item>
+         <item row="1" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="2" column="0">
+          <property name="text">
+           <string>IOCFG0</string>
+          </property>
+         </item>
+         <item row="2" column="1">
+          <property name="text">
+           <string>0x06</string>
+          </property>
+         </item>
+         <item row="3" column="0">
+          <property name="text">
+           <string>SYNC1</string>
+          </property>
+         </item>
+         <item row="3" column="1">
+          <property name="text">
+           <string>0xD3</string>
+          </property>
+         </item>
+         <item row="4" column="0">
+          <property name="text">
+           <string>SYNC0</string>
+          </property>
+         </item>
+         <item row="4" column="1">
+          <property name="text">
+           <string>0x91</string>
+          </property>
+         </item>
+         <item row="5" column="0">
+          <property name="text">
+           <string>PKTLEN</string>
+          </property>
+         </item>
+         <item row="5" column="1">
+          <property name="text">
+           <string>0xFF</string>
+          </property>
+         </item>
+         <item row="6" column="0">
+          <property name="text">
+           <string>PKTCTRL1</string>
+          </property>
+         </item>
+         <item row="6" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="7" column="0">
+          <property name="text">
+           <string>PKTCTRL0</string>
+          </property>
+         </item>
+         <item row="7" column="1">
+          <property name="text">
+           <string>0x05</string>
+          </property>
+         </item>
+         <item row="8" column="0">
+          <property name="text">
+           <string>ADDR</string>
+          </property>
+         </item>
+         <item row="8" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="9" column="0">
+          <property name="text">
+           <string>CHANNR</string>
+          </property>
+         </item>
+         <item row="9" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="10" column="0">
+          <property name="text">
+           <string>FSCTRL1</string>
+          </property>
+         </item>
+         <item row="10" column="1">
+          <property name="text">
+           <string>0x08</string>
+          </property>
+         </item>
+         <item row="11" column="0">
+          <property name="text">
+           <string>FSCTRL0</string>
+          </property>
+         </item>
+         <item row="11" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="12" column="0">
+          <property name="text">
+           <string>FREQ2</string>
+          </property>
+         </item>
+         <item row="12" column="1">
+          <property name="text">
+           <string>0x24</string>
+          </property>
+         </item>
+         <item row="13" column="0">
+          <property name="text">
+           <string>FREQ1</string>
+          </property>
+         </item>
+         <item row="13" column="1">
+          <property name="text">
+           <string>0x2D</string>
+          </property>
+         </item>
+         <item row="14" column="0">
+          <property name="text">
+           <string>FREQ0</string>
+          </property>
+         </item>
+         <item row="14" column="1">
+          <property name="text">
+           <string>0xDD</string>
+          </property>
+         </item>
+         <item row="15" column="0">
+          <property name="text">
+           <string>MDMCFG4</string>
+          </property>
+         </item>
+         <item row="15" column="1">
+          <property name="text">
+           <string>0xCA</string>
+          </property>
+         </item>
+         <item row="16" column="0">
+          <property name="text">
+           <string>MDMCFG3</string>
+          </property>
+         </item>
+         <item row="16" column="1">
+          <property name="text">
+           <string>0xA3</string>
+          </property>
+         </item>
+         <item row="17" column="0">
+          <property name="text">
+           <string>MDMCFG2</string>
+          </property>
+         </item>
+         <item row="17" column="1">
+          <property name="text">
+           <string>0x93</string>
+          </property>
+         </item>
+         <item row="18" column="0">
+          <property name="text">
+           <string>MDMCFG1</string>
+          </property>
+         </item>
+         <item row="18" column="1">
+          <property name="text">
+           <string>0x23</string>
+          </property>
+         </item>
+         <item row="19" column="0">
+          <property name="text">
+           <string>MDMCFG0</string>
+          </property>
+         </item>
+         <item row="19" column="1">
+          <property name="text">
+           <string>0x11</string>
+          </property>
+         </item>
+         <item row="20" column="0">
+          <property name="text">
+           <string>DEVIATN</string>
+          </property>
+         </item>
+         <item row="20" column="1">
+          <property name="text">
+           <string>0x36</string>
+          </property>
+         </item>
+         <item row="21" column="0">
+          <property name="text">
+           <string>MCSM2</string>
+          </property>
+         </item>
+         <item row="21" column="1">
+          <property name="text">
+           <string>0x07</string>
+          </property>
+         </item>
+         <item row="22" column="0">
+          <property name="text">
+           <string>MCSM1</string>
+          </property>
+         </item>
+         <item row="22" column="1">
+          <property name="text">
+           <string>0x30</string>
+          </property>
+         </item>
+         <item row="23" column="0">
+          <property name="text">
+           <string>MCSM0</string>
+          </property>
+         </item>
+         <item row="23" column="1">
+          <property name="text">
+           <string>0x18</string>
+          </property>
+         </item>
+         <item row="24" column="0">
+          <property name="text">
+           <string>FOCCFG</string>
+          </property>
+         </item>
+         <item row="24" column="1">
+          <property name="text">
+           <string>0x16</string>
+          </property>
+         </item>
+         <item row="25" column="0">
+          <property name="text">
+           <string>BSCFG</string>
+          </property>
+         </item>
+         <item row="25" column="1">
+          <property name="text">
+           <string>0x6C</string>
+          </property>
+         </item>
+         <item row="26" column="0">
+          <property name="text">
+           <string>AGCCTRL2</string>
+          </property>
+         </item>
+         <item row="26" column="1">
+          <property name="text">
+           <string>0x43</string>
+          </property>
+         </item>
+         <item row="27" column="0">
+          <property name="text">
+           <string>AGCCTRL1</string>
+          </property>
+         </item>
+         <item row="27" column="1">
+          <property name="text">
+           <string>0x40</string>
+          </property>
+         </item>
+         <item row="28" column="0">
+          <property name="text">
+           <string>AGCCTRL0</string>
+          </property>
+         </item>
+         <item row="28" column="1">
+          <property name="text">
+           <string>0x91</string>
+          </property>
+         </item>
+         <item row="29" column="0">
+          <property name="text">
+           <string>FREND1</string>
+          </property>
+         </item>
+         <item row="29" column="1">
+          <property name="text">
+           <string>0x56</string>
+          </property>
+         </item>
+         <item row="30" column="0">
+          <property name="text">
+           <string>FREND0</string>
+          </property>
+         </item>
+         <item row="30" column="1">
+          <property name="text">
+           <string>0x10</string>
+          </property>
+         </item>
+         <item row="31" column="0">
+          <property name="text">
+           <string>FSCAL3</string>
+          </property>
+         </item>
+         <item row="31" column="1">
+          <property name="text">
+           <string>0xE9</string>
+          </property>
+         </item>
+         <item row="32" column="0">
+          <property name="text">
+           <string>FCSAL2</string>
+          </property>
+         </item>
+         <item row="32" column="1">
+          <property name="text">
+           <string>0x2A</string>
+          </property>
+         </item>
+         <item row="33" column="0">
+          <property name="text">
+           <string>FSCAL1</string>
+          </property>
+         </item>
+         <item row="33" column="1">
+          <property name="text">
+           <string>0x00</string>
+          </property>
+         </item>
+         <item row="34" column="0">
+          <property name="text">
+           <string>FSCAL0</string>
+          </property>
+         </item>
+         <item row="34" column="1">
+          <property name="text">
+           <string>0x1F</string>
+          </property>
+         </item>
+         <item row="35" column="0">
+          <property name="text">
+           <string>TEST2</string>
+          </property>
+         </item>
+         <item row="35" column="1">
+          <property name="text">
+           <string>0x88</string>
+          </property>
+         </item>
+         <item row="36" column="0">
+          <property name="text">
+           <string>TEST1</string>
+          </property>
+         </item>
+         <item row="36" column="1">
+          <property name="text">
+           <string>0x31</string>
+          </property>
+         </item>
+         <item row="37" column="0">
+          <property name="text">
+           <string>TEST0</string>
+          </property>
+         </item>
+         <item row="37" column="1">
+          <property name="text">
+           <string>0x09</string>
+          </property>
+         </item>
+         <item row="38" column="0">
+          <property name="text">
+           <string>PA_TABLE0</string>
+          </property>
+         </item>
+         <item row="38" column="1">
+          <property name="text">
+           <string>0x50</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item>
+     <widget class="QWidget" name="contentWidget" native="true">
+      <layout class="QVBoxLayout" name="verticalLayout_2" stretch="2,1">
+       <item>
+        <widget class="QTabWidget" name="functionsTab">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="currentIndex">
+          <number>0</number>
+         </property>
+         <widget class="QWidget" name="transmitTab">
+          <attribute name="title">
+           <string>Transmit</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,4">
+           <item>
+            <widget class="QGroupBox" name="parameterSendBox">
+             <property name="title">
+              <string>Parameters</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_5">
+              <item>
+               <widget class="QLabel" name="sendcountLabel">
+                <property name="text">
+                 <string>Send count</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="countSendBox">
+                <property name="minimum">
+                 <number>1</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="continiousSendBox">
+                <property name="text">
+                 <string>Continious</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="sendspacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="startSendButton">
+                <property name="text">
+                 <string>Start</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="stopSendButton">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Stop</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widget_2" native="true">
+             <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="3,1">
+              <item>
+               <widget class="QWidget" name="widget_3" native="true">
+                <layout class="QGridLayout" name="gridLayout">
+                 <item row="0" column="0">
+                  <widget class="QRadioButton" name="plainButton">
+                   <property name="text">
+                    <string>Plain text</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="0" column="1">
+                  <widget class="QRadioButton" name="hexButton">
+                   <property name="text">
+                    <string>Hexadecimal</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="1" column="0" colspan="2">
+                  <widget class="QPlainTextEdit" name="dataText"/>
+                 </item>
+                </layout>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="groupBox_2">
+                <property name="title">
+                 <string>Status</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="receiveTab">
+          <attribute name="title">
+           <string>Receive</string>
+          </attribute>
+          <layout class="QVBoxLayout" name="verticalLayout_3" stretch="1,4">
+           <item>
+            <widget class="QGroupBox" name="parameterRecvBox">
+             <property name="title">
+              <string>Parameters</string>
+             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_3">
+              <item>
+               <widget class="QLabel" name="receiveLabel">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Receive count</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="countRecvBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimum">
+                 <number>1</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QCheckBox" name="continiousRecvBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="text">
+                 <string>Continious</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="horizontalSpacer">
+                <property name="orientation">
+                 <enum>Qt::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+              <item>
+               <widget class="QPushButton" name="startRecvButton">
+                <property name="text">
+                 <string>Start</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="stopRecvButton">
+                <property name="enabled">
+                 <bool>false</bool>
+                </property>
+                <property name="text">
+                 <string>Stop</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+           <item>
+            <widget class="QWidget" name="widget" native="true">
+             <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="3,1">
+              <item>
+               <widget class="QTableWidget" name="receiveTable">
+                <attribute name="horizontalHeaderStretchLastSection">
+                 <bool>true</bool>
+                </attribute>
+                <attribute name="horizontalHeaderStretchLastSection">
+                 <bool>true</bool>
+                </attribute>
+                <column>
+                 <property name="text">
+                  <string>Type</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Length</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Value</string>
+                 </property>
+                </column>
+               </widget>
+              </item>
+              <item>
+               <widget class="QGroupBox" name="statusBox">
+                <property name="title">
+                 <string>Status</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="detectionTab">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="title">
+           <string>Detection</string>
+          </attribute>
+          <widget class="QLabel" name="label_2">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>10</y>
+             <width>59</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>TBD</string>
+           </property>
+          </widget>
+         </widget>
+         <widget class="QWidget" name="snifferTab">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="title">
+           <string>Sniffer</string>
+          </attribute>
+          <widget class="QLabel" name="label_3">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>10</y>
+             <width>59</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>TBD</string>
+           </property>
+          </widget>
+         </widget>
+         <widget class="QWidget" name="relayTab">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="title">
+           <string>Relay</string>
+          </attribute>
+          <widget class="QLabel" name="label_4">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>10</y>
+             <width>59</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>TBD</string>
+           </property>
+          </widget>
+         </widget>
+         <widget class="QWidget" name="jammingTab">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <attribute name="title">
+           <string>Jamming</string>
+          </attribute>
+          <widget class="QLabel" name="label_5">
+           <property name="geometry">
+            <rect>
+             <x>10</x>
+             <y>10</y>
+             <width>59</width>
+             <height>16</height>
+            </rect>
+           </property>
+           <property name="text">
+            <string>TBD</string>
+           </property>
+          </widget>
+         </widget>
+        </widget>
+       </item>
+       <item>
+        <widget class="QGroupBox" name="registerGroup">
+         <property name="title">
+          <string>Register description</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1129</width>
+     <height>24</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionLoad"/>
+    <addaction name="actionSave"/>
+    <addaction name="separator"/>
+    <addaction name="actionExit"/>
+   </widget>
+   <widget class="QMenu" name="menuDongle">
+    <property name="title">
+     <string>Dongle</string>
+    </property>
+    <addaction name="actionConnect"/>
+    <addaction name="actionStatus"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuDongle"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionLoad">
+   <property name="text">
+    <string>Load</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="text">
+    <string>Save</string>
+   </property>
+  </action>
+  <action name="actionExit">
+   <property name="text">
+    <string>Exit</string>
+   </property>
+  </action>
+  <action name="actionConnect">
+   <property name="text">
+    <string>Connect</string>
+   </property>
+  </action>
+  <action name="actionStatus">
+   <property name="text">
+    <string>Status</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actionExit</sender>
+   <signal>triggered()</signal>
+   <receiver>MainWindow</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>564</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>
