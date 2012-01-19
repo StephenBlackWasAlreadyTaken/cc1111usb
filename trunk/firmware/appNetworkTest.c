@@ -144,79 +144,6 @@ int appHandleEP5()
     return 0;
 }
 
-/* in case your application cares when an OUT packet has been completely received on EP0.       */
-void appHandleEP0OUTdone(void)
-{
-#ifndef VIRTUAL_COM
-    //code here
-#endif
-}
-
-/* called each time a usb OUT packet is received */
-void appHandleEP0OUT(void)
-{
-#ifndef VIRTUAL_COM
-    u16 loop;
-    xdata u8* dst;
-    xdata u8* src;
-
-    // we are not called with the Request header as is appHandleEP0.  this function is only called after an OUT packet has been received,
-    // which triggers another usb interrupt.  the important variables from the EP0 request are stored in ep0req, ep0len, and ep0value, as
-    // well as ep0iobuf.OUTlen (the actual length of ep0iobuf.OUTbuf, not just some value handed in).
-
-    // for our purposes, we only pay attention to single-packet transfers.  in more complex firmwares, this may not be sufficient.
-    switch (ep0req)
-    {
-        case 1:     // poke
-            
-            src = (xdata u8*) &ep0iobuf.OUTbuf[0];
-            dst = (xdata u8*) ep0value;
-
-            for (loop=ep0iobuf.OUTlen; loop>0; loop--)
-            {
-                *dst++ = *src++;
-            }
-            break;
-    }
-
-    // must be done with the buffer by now...
-    ep0iobuf.flags &= ~EP_OUTBUF_WRITTEN;
-#endif
-}
-
-/* this function is the application handler for endpoint 0.  it is called for all VENDOR type    *
- * messages.  currently it implements a simple debug, ping, and peek functionality.              *
- * data is sent back through calls to either setup_send_ep0 or setup_sendx_ep0 for xdata vars    *
- * theoretically you can process stuff without the IN-direction bit, but we've found it is better*
- * to handle OUT packets in appHandleEP0OUTdone, which is called when the last packet is complete*/
-#ifndef VIRTUAL_COM
-int appHandleEP0(USB_Setup_Header* pReq)
-{
-    if (pReq->bmRequestType & USB_BM_REQTYPE_DIRMASK)       // IN to host
-    {
-        switch (pReq->bRequest)
-        {
-            case 0:
-                setup_send_ep0(&lastCode[0], 2);
-                break;
-            case 1:
-                setup_sendx_ep0((xdata u8*)USBADDR, 40);
-                break;
-            case 2:
-                setup_sendx_ep0((xdata u8*)pReq->wValue, pReq->wLength);
-                break;
-            case 3:     // ping
-                setup_send_ep0((u8*)pReq, pReq->wLength);
-                break;
-            case 4:     // ping
-                setup_sendx_ep0((xdata u8*)&ep0iobuf.OUTbuf[0], 16);//ep0iobuf.OUTlen);
-                break;
-        }
-    }
-    return 0;
-}
-#endif
-
 
 /*************************************************************************************************
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
@@ -303,59 +230,6 @@ static void appInitRf(void)
     //PA_TABLE0   = 0x83;
 #endif
 
-}
-
-/* initialize the IO subsystems for the appropriate dongles */
-static void io_init(void)
-{
-#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
-    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
-    // to it's own Cypress USB chip
-    P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
-    P0DIR |= BIT4 | BIT6;       // SSEL and LED as output
-    P0 &= ~(BIT4 | BIT2);       // Drive SSEL and MISO low
-
-    P1IF = 0;                   // clear P1 interrupt flag
-    IEN2 |= IEN2_P1IE;          // enable P1 interrupt
-    P1IEN |= BIT1;              // enable interrupt for P1.1
-
-    P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
-    P1 &= ~BIT0;                // not ready to receive
-    
-#else       // CC1111
-#ifdef DONSDONGLES
-    // CC1111 USB Dongle
-    // turn on LED and BUTTON
-    P1DIR |= 3;
-    // Activate BUTTON - Do we need this?
-    //CC1111EM_BUTTON = 1;
-
-#else
-    // CC1111 USB (ala Chronos watch dongle), we just need LED
-    P1DIR |= 3;
-
-#endif      // CC1111
-
-#endif      // conditional config
-
-
-#ifndef VIRTUAL_COM
-    // Turn off LED
-    LED = 0;
-#endif
-}
-
-
-void clock_init(void){
-    //  SET UP CPU SPEED!  USE 26MHz for CC1110 and 24MHz for CC1111
-    // Set the system clock source to HS XOSC and max CPU speed,
-    // ref. [clk]=>[clk_xosc.c]
-    SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_S) );
-    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
-    while (CLKCON & CLKCON_OSC);
-    SLEEP |= SLEEP_OSC_PD;
-    while (!IS_XOSC_STABLE());
 }
 
 /*************************************************************************************************
