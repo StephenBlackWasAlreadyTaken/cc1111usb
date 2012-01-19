@@ -215,24 +215,26 @@ class USBDongle:
                     dongles.append((sn, dev, do))
 
         dongles.sort()
+        if len(dongles) == 0:
+            raise(Exception("No Dongle Found.  Please insert a RFCAT dongle."))
 
         self.rsema = threading.Lock()
         self.xsema = threading.Lock()
 
         # claim that interface!
         do = dongles[idx][2]
-        do.claimInterface(0)
+        try:
+            do.claimInterface(0)
+        except:
+            if console or self._debug: print >>sys.stderr,("Error claiming usb interface:" + repr(e))
+
 
         self.serialnum, self._d, self._do = dongles[idx]
+        self._threadGo = True
 
     def resetup(self, console=True):
-        '''try:
-            self._do.releaseInterface()
-        except:
-            pass
-        '''
         self._do=None
-        self._threadGo = True
+        #self._threadGo = True
         if console or self._debug: print >>sys.stderr,("waiting (resetup)")
         while (self._do==None):
             try:
@@ -241,9 +243,8 @@ class USBDongle:
 
             except Exception, e:
                 if console: sys.stderr.write('.')
-                if console or self._debug: print >>sys.stderr,(repr(e))
+                if console or self._debug: print >>sys.stderr,("Error in resetup():" + repr(e))
                 time.sleep(1)
-        self._threadGo = True
 
 
 
@@ -280,7 +281,7 @@ class USBDongle:
             #return retary
         return ''
 
-    def _clear_buffers(self, clear_recv_mbox=True):
+    def _clear_buffers(self, clear_recv_mbox=False):
         threadGo = self._threadGo
         self._threadGo = False
         if self._debug:
@@ -388,13 +389,17 @@ class USBDongle:
                 #sys.stderr.write(repr(e))
                 errstr = repr(e)
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
-                if ('No such device' in errstr):
-                    self._threadGo = False
-                    self.resetup(False)
                 if ('No error' in errstr):
                     pass
                 else:
+                    if ('could not release intf' in errstr):
+                        pass
+                    elif ('No such device' in errstr):
+                        self._threadGo = False
+                        self.resetup(False)
                     self._usberrorcnt += 1
+                    if self._debug: print "Error in runEP5() (receiving): %s" % errstr
+                    if self._debug>2: sys.excepthook(*sys.exc_info())
                 pass
 
 
@@ -477,7 +482,7 @@ class USBDongle:
 
     ######## APPLICATION API ########
     def recv(self, app, cmd=None, wait=100):
-        for x in xrange(wait):
+        for x in xrange(wait+1):
             try:
                 b = self.recv_mbox.get(app)
                 if cmd is None:
@@ -688,6 +693,17 @@ class USBDongle:
     def setModeCAL(self):
         self.poke(X_RFST, "%c"%RFST_SCAL)
 
+
+    def setRFRegister(self, regaddr, value):
+        statestr, marcstate = self.getMARCSTATE()
+
+        self.setModeIDLE()
+        self.poke(regaddr, chr(value))
+        if (marcstate == MARC_STATE_RX):
+            self.setModeRX()
+        elif (marcstate == MARC_STATE_TX):
+            self.setModeTX()
+        # if other than these, we can stay in IDLE
 
     ### radio config
     def getRadioConfig(self):
@@ -994,7 +1010,7 @@ class USBDongle:
         chanbw_e = None
         chanbw_m = None
         for e in range(4):
-            m = int(((mhz*1000.0 / (bw *pow(2,e) * 8.0 )) - 4) + .5)        # rounded evenly
+            m = int(((mhz*1000000.0 / (bw *pow(2,e) * 8.0 )) - 4) + .5)        # rounded evenly
             if m < 4:
                 chanbw_e = e
                 chanbw_m = m
@@ -1046,8 +1062,8 @@ class USBDongle:
         if drate_e is None:
             raise(Exception("DRate does not translate into acceptable parameters.  Should you be changing this?"))
 
-        drate = 1000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
-        print "drate_e: %x   drate_m: %x   drate: %f kHz" % (e, m, drate)
+        drate = 1000000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
+        print "drate_e: %x   drate_m: %x   drate: %f Hz" % (e, m, drate)
         
         self.radiocfg.mdmcfg3 = drate_m
         self.radiocfg.mdmcfg4 &= 0xf0
@@ -1057,8 +1073,41 @@ class USBDongle:
         self.poke(MDMCFG4, chr(self.radiocfg.mdmcfg4))
         self.setModeRX()
 
-    def setMdmDeviatn(self, dev_m, dev_e):
-        raise(Exception("Not Implemented!"))
+    def setMdmDeviatn(self, deviatn, mhz=24, radiocfg=None):
+        ''' 
+        configure the deviation settings for the given modulation scheme
+        '''
+        if radiocfg==None:
+            self.getRadioConfig()
+            radiocfg = self.radiocfg
+
+        dev_e = None
+        dev_m = None
+        for e in range(8):
+            m = int((deviatn * pow(2,17) / (pow(2,e)* (mhz*1000000.0))-8) + .5)        # rounded evenly
+            if m < 8:
+                dev_e = e
+                dev_m = m
+                break
+        if dev_e is None:
+            raise(Exception("Deviation does not translate into acceptable parameters.  Should you be changing this?"))
+
+        dev = 1000000.0 * mhz * (8+dev_m) * pow(2,dev_e) / pow(2,17)
+        print "dev_e: %x   dev_m: %x   deviatn: %f Hz" % (e, m, dev)
+        
+        self.radiocfg.deviatn = (dev_e << 4) | dev_m
+        self.setRFRegister(DEVIATN, self.radiocfg.deviatn)
+
+    def getMdmDeviatn(self, mhz=24, radiocfg=None):
+        if radiocfg==None:
+            self.getRadioConfig()
+            radiocfg = self.radiocfg
+
+        dev_e = radiocfg.deviatn >> 4
+        dev_m = radiocfg.deviatn & 0x7 
+        dev = 1000000.0 * mhz * (8+dev_m) * pow(2,dev_e) / pow(2,17)
+        return dev
+
 
     def setMdmSyncWord(self, word, radiocfg=None):
         self.setModeIDLE()
@@ -1089,11 +1138,9 @@ class USBDongle:
         if radiocfg==None:
             self.getRadioConfig()
             radiocfg = self.radiocfg
-            reprMdmModulation = self.reprMdmModulation()
-            syncmode = self.getMdmSyncMode()
-        else:
-            reprMdmModulation = self.reprMdmModulation(radiocfg)
-            syncmode = self.getMdmSyncMode(radiocfg)
+
+        reprMdmModulation = self.reprMdmModulation(radiocfg)
+        syncmode = self.getMdmSyncMode(radiocfg)
 
         chanbw_e = radiocfg.mdmcfg4>>6
         chanbw_m = (radiocfg.mdmcfg4>>4) & 0x3
@@ -1108,6 +1155,7 @@ class USBDongle:
         output.append("DC Filter:           %s" % (("enabled", "disabled")[radiocfg.mdmcfg2>>7]))
 
         output.append(reprMdmModulation)
+        output.append("DEVIATION:           %f hz" % self.getMdmDeviatn(mhz, radiocfg))
 
         output.append("Sync Mode:           %s" % SYNCMODES[syncmode])
 
