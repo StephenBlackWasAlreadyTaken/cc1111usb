@@ -687,7 +687,7 @@ class USBDongle:
     def setModeIDLE(self):
         self.poke(X_RFST, "%c"%RFST_SIDLE)
 
-    def setModeTXRXON(self):
+    def setModeFSTXON(self):
         self.poke(X_RFST, "%c"%RFST_SFSTXON)
 
     def setModeCAL(self):
@@ -695,7 +695,7 @@ class USBDongle:
 
 
     def setRFRegister(self, regaddr, value):
-        statestr, marcstate = self.getMARCSTATE()
+        marcstate = self.radiocfg.marcstate
 
         self.setModeIDLE()
         self.poke(regaddr, chr(value))
@@ -875,7 +875,7 @@ class USBDongle:
 
         return (radiocfg.pktctrl0 >>2) & 0x1
 
-    def setEnableDataWhitening(self, enable=True, radiocfg=None):
+    def setEnablePktDataWhitening(self, enable=True, radiocfg=None):
         if radiocfg==None:
             self.getRadioConfig()
             radiocfg = self.radiocfg
@@ -1116,13 +1116,13 @@ class USBDongle:
             raise(Exception("DRate does not translate into acceptable parameters.  Should you be changing this?"))
 
         drate = 1000000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
-        print "drate_e: %x   drate_m: %x   drate: %f Hz" % (e, m, drate)
+        print "drate_e: %x   drate_m: %x   drate: %f Hz" % (drate_e, drate_m, drate)
         
-        self.radiocfg.mdmcfg3 = drate_m
-        self.radiocfg.mdmcfg4 &= 0xf0
-        self.radiocfg.mdmcfg4 |= drate_e
-        self.setRFRegister(MDMCFG3, (self.radiocfg.mdmcfg3))
-        self.setRFRegister(MDMCFG4, (self.radiocfg.mdmcfg4))
+        radiocfg.mdmcfg3 = drate_m
+        radiocfg.mdmcfg4 &= 0xf0
+        radiocfg.mdmcfg4 |= drate_e
+        self.setRFRegister(MDMCFG3, (radiocfg.mdmcfg3))
+        self.setRFRegister(MDMCFG4, (radiocfg.mdmcfg4))
 
     def getMdmDRate(self, mhz=24, radiocfg=None):
         ''' 
@@ -1201,6 +1201,64 @@ class USBDongle:
         radiocfg.mdmcfg2 &= 0xf8
         radiocfg.mdmcfg2 |= syncmode
         self.setRFRegister(MDMCFG2, (self.radiocfg.mdmcfg2))
+
+    def calculateMdmDeviatn(self, mhz=24, radiocfg=None):
+        ''' calculates the optimal DEVIATN setting for the current freq/baud
+        * totally experimental *
+        from Smart RF Studio:
+        1.2 kbaud 5.1khz dev
+        2.4 kbaud 5.1khz dev
+        38.4 kbaud 20khz dev
+        250 kbaud 129khz dev
+        '''
+        baud = self.getMdmDRate(mhz, radiocfg)
+        if baud <= 2400:
+            deviatn = 5100
+        elif baud <= 38400:
+            deviatn = 20000 * ((baud-2400)/36000)
+        else:
+            deviatn = 129000 * ((baud-38400)/211600)
+        self.setMdmDeviatn(deviatn)
+
+    def calculatePktChanBW(self, mhz=24, radiocfg=None):
+        ''' calculates the optimal ChanBW setting for the current freq/baud
+        * totally experimental *
+        from Smart RF Studio:
+        1.2 kbaud BW: 63khz
+        2.4 kbaud BW: 63khz
+        38.4kbaud BW: 94khz
+        250 kbaud BW: 600khz
+        '''
+        freq, freqhex = self.getFreq()
+        center_freq = freq + 14000000
+        freq_uncertainty =  20e-6 * freq  # +-20ppm
+        freq_uncertainty *= 2          # both xmitter and receiver
+        #minbw = (2 * freq_uncertainty) + self.getMdmDRate() # uncertainty for both sender/receiver
+        minbw = (self.getMdmDRate() + freq_uncertainty) 
+
+        possibles = [ 53e3,63e3,75e3,93e3,107e3,125e3,150e3,188e3,214e3,250e3,300e3,375e3,428e3,500e3,600e3,750e3, ]
+        for bw in possibles:
+            #if (.8 * bw)  > minbw:      # can't occupy more the 80% of BW
+            if (bw)  > minbw:
+                break
+        self.setMdmChanBW(bw, mhz, radiocfg)
+
+    def calculateFsIF(self, mhz=24, radiocfg=None):
+        ''' calculates the optimal IF setting for the current freq/baud
+        * totally experimental *
+        1.2 kbaud IF: 140khz
+        2.4 kbaud IF: 140khz
+        38.4kbaud IF: 164khz (140khz for "sensitive" version)
+        250 kbaud IF: 281khz
+        500 kbaud IF: 328khz
+        '''
+        pass
+    def calculateFsOffset(self, mhz=24, radiocfg=None):
+        ''' calculates the optimal FreqOffset setting for the current freq/baud
+        * totally experimental *
+        '''
+
+        pass
 
     def reprModemConfig(self, mhz=24, radiocfg=None):
         output = []
@@ -1600,7 +1658,7 @@ class USBDongle:
         self.makePktFLEN(250)
         self.setEnablePktCRC(False)
         self.setEnableMdmFEC(False)
-        self.setEnableDataWhitening(False)
+        self.setEnablePktDataWhitening(False)
         self.setMdmSyncWord(0xaaaa)
         self.setPktPQT(0)
         

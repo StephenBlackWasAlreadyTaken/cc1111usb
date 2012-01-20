@@ -1,3 +1,4 @@
+import re
 import os
 import sys
 import cmd
@@ -19,6 +20,17 @@ RX = RFST_SRX
 TX = RFST_STX
 IDLE = RFST_SIDLE
 CAL = RFST_SCAL
+
+
+SYNC_MODES = { 
+            "NONE" : SYNCM_NONE, 
+            "15/16" : SYNCM_15_of_16, 
+            "16/16" : SYNCM_16_of_16, 
+            "CS" : SYNCM_CARRIER, 
+            "CS15/16" : SYNCM_CARRIER_15_of_16, 
+            "CS16/16" : SYNCM_CARRIER_16_of_16, 
+            "CS30/32" : SYNCM_CARRIER_30_of_32,
+            }
 
 READLINE_MAX_READ_LEN = 1000
 
@@ -56,7 +68,14 @@ class FileSocket(socket.socket):
         pass
 
 
+class KillCfgLoop(Exception):
+    pass
+
 class CC1111NIC_Server(cmd.Cmd):
+    intro = """
+        welcome to the cc1111usb interactive config tool.  hack fun!
+"""
+
     def __init__(self, nicidx=0, ip='0.0.0.0', nicport=900, cfgport=899, go=True):
         cmd.Cmd.__init__(self)
         self.use_rawinput = False
@@ -68,6 +87,7 @@ class CC1111NIC_Server(cmd.Cmd):
         self._cfgport = cfgport
         self._cfgsock = None
         self._cfgthread = None
+        self._pause = False
 
         self.startConfigThread()
 
@@ -90,19 +110,23 @@ class CC1111NIC_Server(cmd.Cmd):
                         print >>sys.stderr,("Listening for NIC connection on port %d" % self._nicport)
                         self._nicsock = s.accept()
                         rs, addr = self._nicsock
+                        rs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                        print "== received DATA connection from %s:%d ==" % (addr)
 
                         while True:
                             x,y,z = select.select([rs, ], [], [], .1)
-                            #FIXME: need to make the NIC object play nice :)
+                            if self._pause:
+                                continue
+
                             if rs in x:
                                 data = rs.recv(MAX_PACKET_SIZE)
                                 if not len(data):       # terminated socket
                                     break
 
-                                self.nic.send(APP_NIC, NIC_XMIT, data)
+                                self.nic.RFxmit(data)
 
                             try:
-                                data = self.nic.recv(APP_NIC, NIC_RECV, 0)
+                                data = self.nic.RFrecv(0)
                                 rs.sendall(data[DATA_START_IDX:])
                             except CC111xTimeoutException:
                                 pass
@@ -137,29 +161,43 @@ class CC1111NIC_Server(cmd.Cmd):
             try:
                 self._cfgsock = s.accept()
                 rs,addr = self._cfgsock
-                print "== received cfg connection from %s:%d ==" % (addr)
+                rs.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                print "== received CONFIG connection from %s:%d ==" % (addr)
 
                 self.stdin = FileSocket(rs)
                 self.stdout = self.stdin
                 self.stderr = self.stdin
 
-                self.cmdloop()
+                while True:
+                    try:
+                        self.cmdloop()
+                    except KillCfgLoop:
+                        break
+                    except:
+                        sys.excepthook(*sys.exc_info())
             except:
                 sys.excepthook(*sys.exc_info())
 
-    intro = """
-        welcome to the cc1111usb interactive config tool.  hack fun!
-        """
-
     def do_EOF(self, line):
-        print >>self.stdout, "stopping the command loop now.."
+        self.Print("stopping the command loop now..")
+        #ok so just kill the connection :)
+
+    def Print(self, info):
+        print >>self.stdout,(info)
 
 
     def do_stop(self, line):
         """ 
         stop the nic
         """
-        pass
+        self._pause = True
+        
+
+    def do_start(self, line):
+        """ 
+        start the nic
+        """
+        self._pause = False
 
     #### configuration ####
     def do_rfmode(self, line):
@@ -167,408 +205,495 @@ class CC1111NIC_Server(cmd.Cmd):
         * RFMODE - set the radio in RX/IDLE/TX/CAL  (CAL returns to IDLE)
         '''
         if len(line):
-            self.poke(X_RFST, eval(line))
+            try:
+                self.nic.poke(X_RFST, eval(line))
+            except:
+                sys.excepthook(*sys.exc_info())
         else:
-            print >>self.stdout, self.getMARCSTATE()
+            self.Print(repr(self.getMARCSTATE()))
 
     def do_calibrate(self, line):
         '''
         * CALIBRATE - force the radio to recalibrate.  VCO characteristics will change with temperature and supply voltage changes
         '''
-        print >>self.stdout, "Calibrating radio..."
-        self.setModeCAL()
+        self.Print("Calibrating radio...")
+        self.nic.setModeCAL()
         while (self.getMARCSTATE()[1] not in (MARC_STATE_IDLE, MARC_STATE_RX, MARC_STATE_TX)):
             sys.stdout.write('.')
-        print >>self.stdout, "done calibrating."
+        self.Print("done calibrating.")
+
+    def do_modeTX(self, line):
+        '''
+        * modeTX - force the radio to the TX state.  this should transmit a CARRIER only, 
+        since there is no data which follows quickly.  when the radio is placed in TX mode, 
+        no TX_UNF timeouts occur unless at least some data is sent
+        '''
+        self.Print("Calibrating radio...")
+        self.nic.setModeTX()
+        while (self.getMARCSTATE()[1] not in (MARC_STATE_TX)):
+            sys.stdout.write('.')
+        self.Print("Radio has reached the TX state.")
+
+    def do_modeRX(self, line):
+        '''
+        * modeRX - force the radio to the RX state.  this will allow the radio to receive
+        transmitted data and handle it.  if an RX-timeout has been configured (not default)
+        then the radio should return to Idle state if the RX timeout is reached without 
+        receiving a packet.  if a packet is received, the radio returns to whatever state
+        it is configured to in MCSM1
+        '''
+        self.Print("Radio entering RX state...")
+        self.nic.setModeTX()
+        while (self.getMARCSTATE()[1] not in (MARC_STATE_RX)):
+            sys.stdout.write('.')
+        self.Print("Radio has reached the RX state.")
+
+    def do_modeIDLE(self, line):
+        '''
+        * modeIDLE - force the radio to the Idle state.  no packets will be received or sent.
+        when exceptions occur in the radio, it must always be placed in the Idle state before
+        entering RX or TX.  this is done automatically in the firmware (default for RX_OVF 
+        and TX_UNF)
+        '''
+        self.Print("Radio entering IDLE state...")
+        self.nic.setModeIDLE()
+        while (self.getMARCSTATE()[1] not in (MARC_STATE_IDLE)):
+            sys.stdout.write('.')
+        self.Print("Radio has reached the IDLE state.")
+
+    def do_modeFSTXON(self, line):
+        '''
+        * modeFSTXON
+        '''
+        self.Print("Radio entering FSTXON state...")
+        self.nic.setModeFSTXON()
+        while (self.getMARCSTATE()[1] not in (MARC_STATE_FSTXON)):
+            sys.stdout.write('.')
+        self.Print("Radio has reached the FSTXON state.")
 
     def do_modulation(self, line):
         '''
         * MODULATION - set the RF modulation scheme.  values include "2FSK", "GFSK", "MSK", "ASK_OOK".  note: GFSK/OOK/ASK only up to 250kbaud, MSK only above 26kbaud and no manchester encoding.
         '''
         if len(line) or line not in ("2FSK", "GFSK", "MSK", "ASK_OOK"):
-            print >>self.stdout, 'need to give me one of the values "2FSK", "GFSK", "MSK", "ASK_OOK"'
+            self.Print('need to give me one of the values "2FSK", "GFSK", "MSK", "ASK_OOK"')
 
         mod = eval("MOD_"+line.strip())
-        self.setModeIDLE()
-        self.setMdmModulation(mod)
-        self.setModeRX()
+        self.nic.setModeIDLE()
+        self.nic.setMdmModulation(mod)
+        self.nic.setModeRX()
 
 
     def complete_modulation(self, text, line, begidx, endidx):
-        print >>self.stdout, "complete_modulation:  %s %s %s %s" % (repr(text), repr(line), repr(begidx), repr(endidx))
+        self.Print("complete_modulation:  %s %s %s %s") % (repr(text), repr(line), repr(begidx), repr(endidx))
 
     def do_baud(self, line):
         '''
-        * BAUD - set the baud to one of the big bauds (or calculate the DRATE_M/_E. also, set BW settings from this
+        * baud <BAUDRATE> - set the datarate, then recalculate channel bandwidth, intermediate frequency, deviation, and offset
         '''
-        pass
-        self.setModeIDLE()
-
-        self.setModeRX()
+        baud = int(line)
+        self.nic.setMdmDRate(baud)
+        self.nic.calculateMdmDeviatn()
+        self.nic.calculatePktChanBW()
+        self.nic.calculateFsIF()
+        self.nic.calculateFsOffset()
 
     def do_bw(self, line):
         '''
-        * BW <CHANBW_M> <CHANBW_E> - allow the setting of bandwidth settings separately from "baud"
+        * bw [channel_bandwidth] - allow the setting of bandwidth settings separately from "baud"
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
-        
+        if len(line):
+            bw = int(line)
+            self.nic.setMdmChanBW(bw)
+        else:
+            self.Print(self.nic.getMdmChanBW())
 
     def do_drate(self, line):
         '''
-        * DRATE - allow the setting of datarate settings separately from "baud"
+        * drate [datarate hz] - allow the setting of datarate settings separately from "baud"
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            baud = int(line)
+            self.nic.setMdmDRate(baud)
+        else:
+            self.Print(self.nic.getMdmDRate())
 
     def do_chanspc(self, line):
         '''
-        * CHANSPC - set channel spacing
+        * chanspc [spacing hz] - set channel spacing
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            chanspc = int(line)
+            self.nic.setMdmChanSpc(chanspc)
+        else:
+            self.Print(self.nic.getMdmChanSpc()) 
 
     def do_channel(self, line):
         '''
-        * CHANNEL - set the channel
-
+        * channel [chan_num] - set the channel
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            channr = int(line)
+            self.nic.setChannel(channr)
+        else:
+            self.Print(self.nic.getChannel())
 
     def do_freq(self, line):
         '''
-        * FREQ - set the base frequency.  CHANNL and CHAN_SPC are used to calculate positive offset from this.
+        * freq [frequency hz] - set the base frequency.  CHANNL and CHAN_SPC are used to calculate positive offset from this.
         '''
-        self.setModeIDLE()
+        if len(line):
+            freq = int(line)
+            self.nic.setFreq(freq)
+        else:
+            self.Print(self.nic.getFreq())
 
-        self.setModeRX()
+    def do_intfreq(self, line):
+        '''
+        * intfreq [IF] - allow the setting of Intermediate Frequency separately from "baud"
+        '''
+        if len(line):
+            IF = int(line)
+            self.nic.setFsIF(IF)
+        else:
+            self.Print(self.nic.getFsIF())
+
+    def do_freqoff(self, line):
+        '''
+        * freqoff [IF] - allow the setting of Frequency Offset separately from "baud"
+        '''
+        if len(line):
+            fo = int(line)
+            self.nic.setFsOffset(fo)
+        else:
+            self.Print(self.nic.getFsOffset())
 
     def do_vlen(self, line):
         '''
         * VLEN - configure the NIC for variable-length packets.  provide max packet size (FLEN to switch to Fixed)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        maxlen = int(line)
+        self.nic.makePktVLEN(maxlen)
 
     def do_flen(self, line):
         '''
         * FLEN # - configure the NIC for fixed-length packets.  provide packet size (VLEN to switch to Variable)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        length = int(line)
+        self.nic.makePktFLEN(length)
 
     def do_syncword(self, line):
         '''
         * SYNCWORD #### [double]- set the SYNC word (SYNC1 and SYNC0)  (double tells the radio to repeat SYNCWORD twice)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            syncword = int(line)
+            self.setMdmSyncWord(syncword)
+        else:
+            self.Print(self.getMdmSyncWord())
 
     def do_syncmode(self, line):
         '''
         * SYNCMODE - set the SYNCMODE.  values include "NONE", "15/16", "16/16", "CS", "CS15/16", "CS16/16", "CS30/32"
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            syncmode = SYNC_MODES.get(line)
+            if syncmode is None:
+                self.Print("please provide a *valid* sync-mode.  see the help.")
+            self.Print(self.nic.setMdmSyncMode(syncmode))
+        else:
+            self.Print(self.nic.getMdmSyncMode())
 
     def do_pqt(self, line):
         '''
         * PQT - set the Preamble Quality Threshold.  provide the number of bits (multiple of 4) for PQT.  values will be rounded down.  0-3 disables PQT checking.
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pqt = int(line)
+            self.setPktPQT(pqt)
+        else:
+            self.Print(self.getPktPQT())
 
     def do_addr(self, line):
         '''
         * ADDR - configure the NIC's ADDRESS
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            addr = int(line)
+            self.nic.setPktAddr(addr)
+        else:
+            self.Print(self.nic.getPktAddr())
 
     def do_addr_chk(self, line):
         '''
         * ADDR_CHK - filter based on the optional address byte.  values include "NOCHK", "FULL", "BCAST", indicating no filtering, full filtering, and filtering with broadcasts
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            addr = int(line)
+            self.nic.setAddr(addr)
+        else:
+            self.Print(self.nic.getAddr())
 
     def do_datawhiten(self, line):
         '''
         * DATAWHITEN - configure data whitening, include 9-bit PN9 xor sequence in command
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            if line.startswith("off") or line.startswith("OFF"):
+                self.nic.setEnablePktDataWhitening(False)
+            else:
+                self.nic.setEnablePktDataWhitening(True)
+        else:
+            self.Print(self.nic.getPktDataWhitening())
 
     def do_manchester(self, line):
         '''
-        * MANCHESTER - configure Manchester encoding to enhance successful transmission.  cannot use with MSK modulation or the FEC/Interleaver.
+        * MANCHESTER [ON | OFF] - configure Manchester encoding to enhance successful transmission.  cannot use with MSK modulation or the FEC/Interleaver.
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            if line.startswith("off") or line.startswith("OFF"):
+                self.nic.setEnableMdmManchester(False)
+            else:
+                self.nic.setEnableMdmManchester(True)
+        else:
+            self.Print(self.nic.getEnableMdmManchester())
 
     def do_fec(self, line):
         '''
         * FEC - enable/disable Forward Error Correction.  only works with FIXED LENGTH packets.
         '''
-        self.setModeIDLE()
+        if len(line):
+            if line.startswith("off") or line.startswith("OFF"):
+                self.nic.setEnableMdmFEC(False)
+            else:
+                self.nic.setEnableMdmFEC(True)
+        else:
+            self.Print(self.nic.getEnableMdmFEC())
 
-        self.setModeRX()
+    def do_crc(self, line):
+        '''
+        * CRC - enable/disable Cyclic Redundancy Check.  the last two bytes of a packet will be 
+        considered CRC16 bytes, helpful for determining bad packets.
+        '''
+        if len(line):
+            if line.startswith("off") or line.startswith("OFF"):
+                self.nic.setEnablePktCRC(False)
+            else:
+                self.nic.setEnablePktCRC(True)
+        else:
+            self.Print(self.nic.getEnablePktCRC())
 
     def do_DEM_DCFILT(self, line):
         '''
         * DEM_DCFILT - enable/disable digital DC blocking filter before demodulator.  typically not good to muck with.
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            if line.startswith("off") or line.startswith("OFF"):
+                self.nic.setEnableMdmDCFilter(False)
+            else:
+                self.nic.setEnableMdmDCFilter(True)
+        else:
+            self.Print(self.nic.getEnableMdmDCFilter())
 
     def do_MAGN_TARGET(self, line):
         '''
         * MAGN_TARGET - configure Carrier Sense
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_MAC_LNA_GAIN(self, line):
         '''
         * MAX_LNA_GAIN - configure Carrier Sense Threshold
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_MAX_DVGA_GAIN(self, line):
         '''
         * MAX_DVGA_GAIN - configure Carrier Sense Threshold (use 
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_CARRIER_SENSE_ABS_THR (self, line):
         '''
         * CARRIER_SENSE_ABS_THR - configure Carrier Sense Absolute Threshold - values include "6", "10", "14" indicating the dB increase in RSSI
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_CARRIER_SENSE_REL_THR (self, line):
         '''
         * CARRIER_SENSE_REL_THR - configure Carrier Sense Relative Threshold - values include "DISABLE", and -7 thru +7 to indicate dB from MAGN_TARGET setting 
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_cca_mode (self, line):
         '''
         * CCA_MODE - select the Clear Channel Assessment mode.  values include "DISABLE", "RSSI", "RECVING", "BOTH".
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_PA_POWER (self, line):
         '''
         * PA_POWER - select which PATABLE to use for power settings (0-7) (see CC1110/CC1111 manual SWRS033G section 13.15 and 13.16)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_FS_AUTOCAL (self, line):
         '''
         * FS_AUTOCAL - select mode of auto-VCO-calibration.  values include "ON", "OFF", "MANUAL", indicating that calibration should be done when turning the synthesizer ON/OFF or manually
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        if len(line):
+            pass
+        else:
+            pass
 
     def do_REGS_TEST(self, line):
         '''
         * set register:  TEST2/TEST1/TEST0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_AGCCTRL(self, line):
         '''
         * set register:  AGCCTRL2/1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REG_PKTCTRL(self, line):
         '''
         * set register:  PKTCTRL1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REG_PKTLEN(self, line):
         '''
         * set register:  PKTLEN
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REG_PKTSTATUS(self, line):
         '''
         * view register:  PKTSTATUS
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_MDMCFG(self, line):
         '''
         * set registers:  MDMCFG4/3/2/1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_MCSM(self, line):
         '''
         * set register:  MCSM2/1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REG_DEVIATN(self, line):
         '''
         * set register:  DEVIATN
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_BSCFG_F0CCFG(self, line):
         '''
         * set register:  BSCFG / FOCCFG
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_FSCTRL(self, line):
         '''
         * set register:  FSCTRL1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_FREQ(self, line):
         '''
         * set register:  FREQ2/1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_FREND(self, line):
         '''
         * set register:  FREND1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_REGS_PATABLE(self, line):
         '''
         * set register:  PATABLE7/6/5/4/3/2/1/0
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_show_config(self, line):
         '''
-        * show_config - print >>self.stdout, a represented string of the radio configuration
+        * show_config - Print a represented string of the radio configuration
         '''
-        print >>self.stdout, self.reprRadioConfig()
+        self.Print(self.reprRadioConfig())
 
     def do_dump_config(self, line):
         '''
-        * dump_config - print >>self.stdout, a hex representation of the radio configuration registers
+        * dump_config - Print a hex representation of the radio configuration registers
         '''
-        print >>self.stdout, repr(self.getRadioConfig())
-
-    def do_config_902_250k_gfsk(self, line):
-        '''
-        * 902_250k_gfsk - canned configuration (can be used as a base)
-        '''
-        self.setup_rfstudio_902PktTx()
+        self.Print(repr(self.getRadioConfig()))
 
     def do_hack_loose_settings(self, line):
         '''
         * loose - no CRC, no FEC, no Data Whitening, no sync-word, carrier based receive, etc...
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
 
     def do_upload_config(self, line):
         '''
         * upload_config - configure the radio using a python repr string provided to the command
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        self.nic.setModeIDLE()
+        print "loading config from bytes: %s" % repr(line)
+        self.setRadioConfig(line)
+        self.nic.setModeRX()
 
     def do_download_config(self, line):
         '''
         * download_config - pull current config bytes from radio and dump them in a python repr string
         '''
+        self.Print(repr(self.nic.getRadioConfig()))
 
     def do_save_config(self, line):
         '''
         * save_config <filename> - save the radio configuration to a file you specify
         '''
+        file(line, "wb").write(repr(self.nic.getRadioConfig()))
+
 
     def do_load_config(self, line):
         '''
         * load_config
         (be very cautious!  the firmware expects certain things like return-to-RX, and no RX-timeout, etc..)
         '''
-        self.setModeIDLE()
-
-        self.setModeRX()
+        config = file(line, "rb").read()
+        self.nic.setModeIDLE()
+        print "loading config from bytes: %s" % repr(config)
+        self.setRadioConfig(config)
+        self.nic.setModeRX()
 
     def do_peek(self, line):
         '''
@@ -578,9 +703,9 @@ class CC1111NIC_Server(cmd.Cmd):
         if 0 < len(args) < 3:
             if len(args) == 1:
                 args.append('1')
-            print >>self.stdout, self.peek(int(args[0])), int(args[1]).encode('hex')
+            self.Print(self.peek(int(args[0])), int(args[1]).encode('hex'))
         else:
-            print >>self.stdout, "please provide exactly one xdata address and an optional length!"
+            self.Print("please provide exactly one xdata address and an optional length!")
 
     def do_poke(self, line):
         '''
@@ -588,41 +713,72 @@ class CC1111NIC_Server(cmd.Cmd):
         '''
         args = splitargs(line)
         try:
-            self.poke(int(args[0]), args[1].decode('hex'))
+            self.nic.poke(int(args[0]), args[1].decode('hex'))
         except:
-            print >>self.stdout, "please provide exactly one xdata address and hex data"
+            self.Print("please provide exactly one xdata address and hex data")
 
 
     def do_ping(self, line):
         '''
         * ping - hello?  is the dongle still responding?
         '''
-        print >>self.stdout, "Successful: %d, Failed: %d, Time: %f" % self.ping()
+        self.Print("Successful: %d, Failed: %d, Time: %f") % self.ping()
 
     def do_debug_codes(self, line):
         '''
         * debugcodes - see what the firmware has stored in it's lastCode[] array
         '''
-        print >>self.stdout, "lastcode:  [%x, %x]" % (self.getDebugCodes())
+        self.Print("lastcode:  [%x, %x]") % (self.getDebugCodes())
 
     def do_RESET(self, line):
         '''
         * reset the dongle
         '''
-        print >>self.stdout, "Sending the RESET command.  Please be patient...."
-        self.RESET()
+        self.Print("Sending the RESET command.  Please be patient....")
+        self.nic.RESET()
 
     def do_rssi(self, line):
         '''
         * get the last RSSI value
         '''
-        print >>self.stdout, "RSSI: %x" % (ord(self.getRSSI()) & 0x7f)
+        self.Print("RSSI: %x") % (ord(self.getRSSI()) & 0x7f)
 
-    def do_(self, line):
+    def do_lqi(self, line):
         '''
         * get the last LQI value
         '''
-        print >>self.stdout, "%x" % (ord(self.getLQI()))
+        self.Print("%x") % (ord(self.getLQI()))
+
+    def do_rfregister(self, line):
+        '''
+        rfregister <reg> [value] - set or read a RF register
+        '''
+        if len(line):
+            args = splitargs(line)
+            val = eval(args[0])
+            try:
+                if len(args) > 1:
+                    self.nic.setRFRegister(val)
+                else:
+                    self.Print("%s : %x" % (args[0], ord(self.nic.peek(val))))
+            except:
+                self.Print(sys.exc_info())
+
+        else:
+            self.Print("must include the register to get/set")
+
+
+    ''' 
+    def getInterruptRegisters(self):
+    def testTX(self, data="XYZABCDEFGHIJKL"):
+    def lowball(self, level=1):
+    def lowballRestore(self):
+    def getMACthreshold(self):
+    def setMACthreshold(self, value):
+    def setFHSSstate(self, state):
+    def getFHSSstate(self):
+    def mac_SyncCell(self, CellID=0x0000):
+'''                
 
 
 

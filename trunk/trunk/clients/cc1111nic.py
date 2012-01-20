@@ -184,8 +184,11 @@ u16 synched_chans           %x
     def mac_SyncCell(self, CellID=0x0000):
         return self.send(APP_NIC, FHSS_START_SYNC, struct.pack("<H",CellID))
                 
-        
-        return 1
+    def setPktAddr(self, addr):
+        return self.poke(ADDR, chr(addr))
+
+    def getPktAddr(self):
+        return self.peek(ADDR)
 
 
 def unittest(dongle):
