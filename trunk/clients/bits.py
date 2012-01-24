@@ -10,7 +10,7 @@ def shiftString(string, bits):
     news.append("%c"%newc)
     return "".join(news)
 
-def findDword(byts):
+def findDwordDoubled(byts):
         possDwords = []
         # find the preamble (if any)
         bitoff = 0
