@@ -17,13 +17,11 @@
  * next, put code as follows:
  * * any initialization code that should happen at power up goes in appMainInit()
  * * the main application loop code should go in appMainLoop()
- * * usb interface code should go into appHandleEP5.  this includes a switch statement for any 
- *      verbs you want to create between the client on this firmware.
+ * * usb interface code: register a callback using register_Cb_ep5() as demonstrated in appMainInit()
  *
  * if you should need to change anything about the USB descriptors, do your homework!  particularly
  * keep in mind, if you change the IN or OUT max packetsize, you *must* change it in the 
- * EPx_MAX_PACKET_SIZE define, the desciptor definition (be sure to get the right one!) and should 
- * correspond to the setting of MAXI and MAXO.
+ * EPx_MAX_PACKET_SIZE define, and should correspond to the setting of MAXI and MAXO.
  * 
  * */
 

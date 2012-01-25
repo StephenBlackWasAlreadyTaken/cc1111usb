@@ -42,6 +42,21 @@ __xdata void (*cb_ep0outdone)(void);
 __xdata void (*cb_ep0out)(void);
 __xdata void (*cb_ep0vendor)(USB_Setup_Header*);
 __xdata void (*cb_ep5)(void);
+
+__code u8 sdccver[] = {
+    'S','D','C','C','v',
+    LE_WORD(SDCC)
+};
+__code u8 buildname[] = {
+#ifdef DONSDONGLES
+    "DONSDONGLE\x00",
+#elif defined CHRONOSDONGLE
+    "CHRONOS   \x00",
+#else
+    "IMME      \x00",
+#endif
+};
+
 int _usb_internal_handle_vendor(USB_Setup_Header* pReq);
 // state tracking:
 // * appstatus
@@ -932,13 +947,11 @@ void processOUTEP5(void)
                     break;
 
                 case CMD_GET_CLOCK:
-                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
-                    // unimplemented
+                    txdata(app, cmd, 4, (xdata u8*)clock);
                     break;
 
                 case CMD_BUILDTYPE:
-                    txdata(app, cmd, 13, (xdata u8*)"UNIMPLEMENTED");
-                    // unimplemented
+                    txdata(app, cmd, sizeof(buildname), (xdata u8*)&buildname[0]);
                     break;
 
                 case CMD_RESET:
@@ -1259,7 +1272,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '0', 0,
               '5', 0,
-              '0', 0,
+              '7', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff
