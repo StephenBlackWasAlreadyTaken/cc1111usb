@@ -164,21 +164,23 @@ static void io_init(void)
     P1 &= ~BIT0;                // not ready to receive
  #else              // full blown IMME with screen and keyboard
     
-  //Disable WDT
-  IEN2&=~IEN2_WDTIE;
-  IEN0&=~EA;
+    //Disable WDT
+    IEN2&=~IEN2_WDTIE;
+    IEN0&=~EA;
 	setIOPorts();
 	configureSPI();
 	LCDReset();
   
-  //Startup display.
-  setDisplayStart(0);
-  SSN = LOW;
-  setNormalReverse(0);
-  erasescreen();
-  drawstr(0,0, "IMME SNIFF v0.1");
-  SSN = HIGH;
-  //sleepMillis(100);
+    //Startup display.
+    setDisplayStart(0);
+    SSN = LOW;
+    setNormalReverse(0);
+    erasescreen();
+    drawstr(0,0, "IMME SNIFF v0.1");
+    SSN = HIGH;
+
+    //immeLCDInitScreen();
+    //sleepMillis(100);
   
  #endif 
 #else       // CC1111
@@ -210,17 +212,4 @@ void t1IntHandler(void) interrupt T1_VECTOR  // interrupt handler should trigger
 }
 
 
-__code u8 sdccver[] = {
-    'S','D','C','C','v',
-    LE_WORD(SDCC)
-};
-__code u8 buildname[] = {
-#ifdef DONSDONGLES
-    "DONSDONGLE\x00",
-#elif defined CHRONOSDONGLE
-    "CHRONOS   \x00",
-#else
-    "IMME      \x00",
-#endif
-};
 #endif
