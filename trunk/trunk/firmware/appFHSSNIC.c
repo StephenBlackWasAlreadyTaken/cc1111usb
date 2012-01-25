@@ -473,7 +473,6 @@ void appMainLoop(void)
             {
                 //LED = !LED;
                 lastCode[0] = 0xd;
-                //IEN2 &= ~IEN2_RFIE;
 
                 if(rfif & RFIF_IRQ_DONE)
                 {
@@ -494,7 +493,6 @@ void appMainLoop(void)
                     rfif &= ~RFIF_IRQ_DONE;           // FIXME: rfif is way too easily tossed aside here...
                 }
 
-                //IEN2 |= IEN2_RFIE;
                 //LED = !LED;
             }
             break;
