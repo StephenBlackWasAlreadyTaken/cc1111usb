@@ -43,6 +43,8 @@ SYS_CMD_POKE                    = 0x81
 SYS_CMD_PING                    = 0x82
 SYS_CMD_STATUS                  = 0x83
 SYS_CMD_POKE_REG                = 0x84
+SYS_CMD_GET_CLOCK               = 0x85
+SYS_CMD_BUILDTYPE               = 0x86
 SYS_CMD_RESET                   = 0x8f
 
 EP0_CMD_GET_DEBUG_CODES         = 0x00
@@ -185,6 +187,7 @@ class USBDongle:
         self.cleanup()
         self._debug = debug
         self._threadGo = False
+        self._recv_time = 0
         self.radiocfg = RadioConfig()
         self.recv_thread = threading.Thread(target=self.runEP5)
         self.recv_thread.setDaemon(True)
@@ -417,16 +420,20 @@ class USBDongle:
                             self.trash.append(self.recv_queue[:idx])
                             self.recv_queue = self.recv_queue[idx:]
                    
-                        msg = self.recv_queue[1:]                           # pop off the leading "@"   really?  here?  before we know we're done?
+                        # recv_queue is vulnerable here, but it's ok because we only modify it earlier in this same thread
+                        # DON'T CHANGE recv_queue from other threads!
+                        msg = self.recv_queue
                         msglen = len(msg)
-                        if (msglen>=4):                                      # if not enough to parse length... we'll wait.
-                            app = ord(msg[0])
-                            cmd = ord(msg[1])
-                            length, = struct.unpack("<H", msg[2:4])
+                        while (msglen>=5):                                      # if not enough to parse length... we'll wait.
+                            if not self._recv_time:                             # should be 0 to start and when done with a packet
+                                self._recv_time = time.time()
+                            app = ord(msg[1])
+                            cmd = ord(msg[2])
+                            length, = struct.unpack("<H", msg[3:5])
 
                             if self._debug>1: print>>sys.stderr,("app=%x  cmd=%x  len=%x"%(app,cmd,length))
 
-                            if (msglen >= length+4):
+                            if (msglen >= length+5):
                                 #### if the queue has enough characters to handle the next message... chop it and put it in the appropriate recv_mbox
                                 msg = self.recv_queue[1:length+5]                   # drop the initial '@' and chop out the right number of chars
                                 self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
@@ -452,7 +459,8 @@ class USBDongle:
                                             q = []
                                             b[cmd] = q
 
-                                        q.append(msg)
+                                        q.append((msg, self._recv_time))
+                                        self._recv_time = 0                         # we've delivered the current message
                                     except:
                                         sys.excepthook(*sys.exc_info())
                                     finally:
@@ -461,8 +469,12 @@ class USBDongle:
                                
                             else:            
                                 if self._debug:     sys.stderr.write('=')
-                        else:
-                            if self._debug:     sys.stderr.write('.')
+
+                            msg = self.recv_queue
+                            msglen = len(msg)
+                            # end of while loop
+                        #else:
+                        #    if self._debug:     sys.stderr.write('.')
             except:
                 sys.excepthook(*sys.exc_info())
 
@@ -495,10 +507,10 @@ class USBDongle:
                     if q is not None and self.rsema.acquire(False):
                         #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],2
                         try:
-                            resp = q.pop(0)
+                            resp, rt = q.pop(0)
                             self.rsema.release()
                             #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],2
-                            return resp[4:]
+                            return resp[4:], rt
                         except IndexError:
                             pass
                             #sys.excepthook(*sys.exc_info())
@@ -614,7 +626,7 @@ class USBDongle:
             except CC111xTimeoutException, e:
                 r = None
                 pass #print e
-                
+            r,rt = r
             istop = time.time()
             print "PING: %d bytes transmitted, received: %s (%f seconds)"%(len(buf), repr(r), istop-istart)
             if r==None:
@@ -631,15 +643,19 @@ class USBDongle:
             pass
         
     def peek(self, addr, bytecount=1):
-        r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
+        r, t = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
         return r
 
     def poke(self, addr, data):
-        r = self.send(APP_SYSTEM, SYS_CMD_POKE, struct.pack("<H", addr) + data)
+        r, t = self.send(APP_SYSTEM, SYS_CMD_POKE, struct.pack("<H", addr) + data)
         return r
     
     def pokeReg(self, addr, data):
-        r = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
+        r, t = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
+        return r
+
+    def getBuildInfo(self):
+        r, t = self.send(APP_SYSTEM, SYS_CMD_BUILDTYPE, '')
         return r
             
     def getInterruptRegisters(self):
