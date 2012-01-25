@@ -10,6 +10,51 @@ def shiftString(string, bits):
     news.append("%c"%newc)
     return "".join(news)
 
+def findDword(byts):
+        possDwords = []
+        # find the preamble (if any)
+        bitoff = 0
+        while True:
+            sbyts = byts
+            pidx = byts.find("\xaa\xaa")
+            if pidx == -1:
+                pidx = byts.find("\x55\x55")
+                bitoff = 1
+            if pidx == -1:
+                return possDwords
+            
+            # chop off the nonsense before the preamble
+            sbyts = byts[pidx:]
+            
+            # find the definite end of the preamble (ie. it may be sooner, but we know this is the end)
+            while (sbyts[0] == ('\xaa', '\x55')[bitoff] and len(sbyts)>2):
+                sbyts = sbyts[1:]
+            
+            # now we look at the next 16 bits to narrow the possibilities to 8
+            # at this point we have no hints at bit-alignment
+            dwbits, = struct.unpack(">H", sbyts[:2])
+            if len(sbyts)>=3:
+                bitcnt = 0
+                #  bits1 =      aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb
+                #  bits2 =                      bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+                bits1, = struct.unpack(">H", sbyts[:2])
+                bits1 = bits1 | (ord(('\xaa','\x55')[bitoff]) << 16)
+                bits1 = bits1 | (ord(('\xaa','\x55')[bitoff]) << 24)
+                bits1 <<= 8
+                bits1 |= (ord(sbyts[2]) )
+                bits1 >>= bitoff            # now we should be aligned correctly
+
+                while (bits1 & 0xf00 != 0xa00): # now we align the end of the 101010 pattern with the beginning of the dword
+                    bits1 >>= 2
+                
+                for frontbits in xrange(0, 16, 2):
+                    poss = (bits1 >> frontbits) & 0xffff
+                    if not poss in possDwords:
+                        possDwords.append(poss)
+            byts = byts[pidx+1:]
+        
+        return possDwords
+
 def findDwordDoubled(byts):
         possDwords = []
         # find the preamble (if any)
