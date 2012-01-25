@@ -23,6 +23,15 @@ u8 keyscan();
 u8 getkey();
 
 //Special keys.
+//#define KPWR 0x01
+//#define KMNU 0x03
+//#define KCAP 0x82
+//#define KSPK 0x83
+//#define KALT 0x84
+//#define KONL 0x85
+//#define KBACK 0x86
+//#define KDWN 0x87
+//#define KBYE 0x02
 #define KPWR 0x01
 #define KMNU 0x03
 #define KCAP 0x82
@@ -30,5 +39,10 @@ u8 getkey();
 #define KALT 0x84
 #define KONL 0x85
 #define KBACK 0x86
-#define KDWN 0x87
+#define KUP  0x87
+#define KDWN 0x5e
 #define KBYE 0x02
+#define KRIGHT 0x3e
+#define KLEFT  0x3c
+#define KENTER 0xa
+
