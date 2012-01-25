@@ -7,6 +7,7 @@ apps = cc1111rf.rel global.rel
 appsc = cc1111rf.relc global.relc
 appsd = cc1111rf.reld global.reld
 appsi = cc1111rf.reli global.reli
+appsid = cc1111rf.relid global.relid
 
 libsvcom = $(apps) cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usbdebug.rel #cc1111usb.rel
 libsvcomc = $(appsc) cc1111_vcom.relc cc1111_vcomdesc.relc cc1111usbdebug.relc #cc1111usb.rel
@@ -19,6 +20,7 @@ libsusbd  = $(appsd) cc1111usb.rd cc1111usbdebug.reld
 libsusbi  = $(appsi) immeusb.reli immeusbdebug.reli
 
 libsimme  = $(appsi) immeio.reli immekeys.reli immefont.reli   #  immedisplay.rel immeterm.rel
+libsimmed  = $(appsid) immeio.relid immekeys.relid immefont.relid   #  immedisplay.rel immeterm.rel
 libsi  = $(apps) immeio.rel immekeys.rel immefont.rel   #  immedisplay.rel immeterm.rel
 #srcs = $(libs,.rel=.c) 
 
@@ -45,7 +47,10 @@ cc1111usb.rd : cc1111usb.c
 	$(CC) $(CFLAGS) -DDONSDONGLES -c $<
 
 %.reli : %.c
-	$(CC) $(CFLAGS) -DIMMEDONGLE -DIMME -c $<
+	$(CC) $(CFLAGS) -DIMME -c $<
+
+%.relid : %.c
+	$(CC) $(CFLAGS) -DIMME -DIMMEDONGLE -c $<
 
 chronosapplication.hex: application.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE

@@ -60,10 +60,11 @@ void appMainLoop(void)
     xdata u8 processbuffer;
 
 #ifdef IMME
-    SSN=LOW;
-    drawhex(6, 0, MARCSTATE);
-    drawhex(6,10, rfif);
-    SSN=HIGH;
+    immeLCDUpdateState();
+    //SSN=LOW;
+    //drawhex(6, 0, MARCSTATE);
+    //drawhex(6,10, rfif);
+    //SSN=HIGH;
 
 #endif
     if (rfif)
@@ -77,67 +78,55 @@ void appMainLoop(void)
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {   // we've received a packet.  deliver it.
 #ifdef IMME
-                /* couple things for poll_keyboard:
-                 * Sleep (off)
-                 * pause (wow, the packets fly by!
-                 * slow... perhaps a settable delay that we can increment by kb
-                 * freq +-
-                 * channel +-
-                 * chanspc +-
-                 * baud +-
-                 * modulation +-
-                 * PQT mode +-
-                 * set sync word
-                 *
-                 */
-                xdata u8 *pval = &rfrxbuf[processbuffer][0];
-                u8 len   = *pval++;
-                u16 nibble;
+                immeLCDShowPacket();
+                //xdata u8 *pval = &rfrxbuf[processbuffer][0];
+                //u8 len   = *pval++;
+                //u16 nibble;
+//
+                //SSN=LOW;
+                //LED_RED = !LED_RED;
+                //drawstr(3,0, "                                ");
+                //drawstr(3,0, "                                ");
+                ////blink_binary_baby_lsb(len, 8);
+                //drawstr(1,0, "Length: ");
+                //drawhex(1,9, len);
+                //drawstr(2,0, "Curr: ");
+                //drawhex(2,6, rfRxCurrentBuffer);
+                //drawstr(2,12, "Cnt: ");
+                //drawhex(2,17, ++recvCnt);
+                //if (len>50)
+                    //len = 50;
+//
+                //// not print the packet data, one byte if "printable" or two bytes if hex-representation makes more sense
+                //setCursor(3, 0);
+                //while (len--)
+                //{
+                    //if (*pval > 0x1f && *pval < 0x7f)
+                    //{
+                        //putch(' ');
+                        //putch(*pval);
+                    //} else
+                    //{
+//
+                        //// high nibble
+                        //nibble=(*(pval) & 0xF0)>>4;
+                        //if(nibble<10)
+                            //putch('0'+nibble);
+                        //else
+                            //putch('A'+nibble-0xA);
+//
+                        //// low nibble
+                        //nibble=((*pval)&0x0F);
+                        //if(nibble<10)
+                            //putch('0'+nibble);
+                        //else
+                            //putch('A'+nibble-0xA);
+                    //}
+//
+                    //pval ++;
+                //}
 
-                SSN=LOW;
-                LED_RED = !LED_RED;
-                drawstr(3,0, "                                ");
-                drawstr(3,0, "                                ");
-                //blink_binary_baby_lsb(len, 8);
-                drawstr(1,0, "Length: ");
-                drawhex(1,9, len);
-                drawstr(2,0, "Curr: ");
-                drawhex(2,6, rfRxCurrentBuffer);
-                drawstr(2,12, "Cnt: ");
-                drawhex(2,17, ++recvCnt);
-                if (len>50)
-                    len = 50;
-
-                setCursor(3, 0);
-                while (len--)
-                {
-                    if (*pval > 0x1f && *pval < 0x7f)
-                    {
-                        putch(' ');
-                        putch(*pval);
-                    } else
-                    {
-
-                        // high nibble
-                        nibble=(*(pval) & 0xF0)>>4;
-                        if(nibble<10)
-                            putch('0'+nibble);
-                        else
-                            putch('A'+nibble-0xA);
-
-                        // low nibble
-                        nibble=((*pval)&0x0F);
-                        if(nibble<10)
-                            putch('0'+nibble);
-                        else
-                            putch('A'+nibble-0xA);
-                    }
-
-                    pval ++;
-                }
-
-                //drawstr(2,0, rfrxbuf[processbuffer]+1);
-                SSN=HIGH;
+                //SSN=HIGH;
 #else
                 txdata(APP_NIC, SNIFF_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 #endif  // imme
@@ -349,7 +338,9 @@ void main (void)
 {
 start:
     initBoard();
-#ifndef IMME
+#ifdef IMME
+    initIMME();
+#else
     initUSB();
 #endif
     blink(300,300);

@@ -27,6 +27,11 @@ void init_RF(void)
     // MAC variables
     rf_tLastRecv = 0;
 
+    // PHY variables
+    rfRxCounter[FIRST_BUFFER] = 0;
+    rfRxCounter[SECOND_BUFFER] = 0;
+
+
     // setup TIMER 2  (MAC timer)
     // NOTE:
     // !!! any changes to TICKSPD will change the calculation of MAC timer speed !!!
@@ -311,6 +316,45 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         RFIF &= ~RFIF_IRQ_SFD;
     }
 
+    if(RFIF & ( RFIF_IRQ_DONE | RFIF_IRQ_RXOVF | RFIF_IRQ_TIMEOUT ))
+    {
+        // we want *all zee bytezen!*
+        if(rf_status == RF_STATE_TX)
+        {
+            // rearm the DMA?  not sure this is a good thing.
+            DMAARM |= 0x81;
+        }
+        else
+        {
+
+            // FIXME: rfRxCurrentBuffer is used for both recv and sending on.... this should be separate.
+            if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
+            {
+                // EXPECTED RESULT - RX complete.
+                //
+                /* Clear processed buffer */
+                //memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);      // FIXME: do we want to waste cycles on this?
+                /* Switch current buffer */
+                rfRxCurrentBuffer ^= 1;
+                rfRxCounter[rfRxCurrentBuffer] = 0;
+                /* Set both buffers to unprocessed */
+                rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
+                rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
+            }
+            else
+            {
+                // contingency - Packet Not Handled!
+                /* Main app didn't process previous packet yet, drop this one */
+                LED = !LED;
+                //REALLYFASTBLINK();
+                //memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
+                rfRxCounter[rfRxCurrentBuffer] = 0;
+                LED = !LED;
+            }
+        }
+        RFIF &= ~(RFIF_IRQ_DONE | RFIF_IRQ_TIMEOUT);        // OVF needs to be handled next...
+    }
+
     // contingency - RX Overflow
     if(RFIF & RFIF_IRQ_RXOVF)
     {
@@ -346,44 +390,6 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         RFIF &= ~RFIF_IRQ_TXUNF;
     }
 
-
-    if(RFIF & RFIF_IRQ_DONE)
-    {
-        if(rf_status == RF_STATE_TX)
-        {
-            // rearm the DMA?  not sure this is a good thing.
-            DMAARM |= 0x81;
-        }
-        else
-        {
-
-            // FIXME: rfRxCurrentBuffer is used for both recv and sending on.... this should be separate.
-            if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
-            {
-                // EXPECTED RESULT - RX complete.
-                //
-                /* Clear processed buffer */
-                memset(rfrxbuf[!rfRxCurrentBuffer],0,BUFFER_SIZE);      // FIXME: do we want to waste cycles on this?
-                /* Switch current buffer */
-                rfRxCurrentBuffer ^= 1;
-                rfRxCounter[rfRxCurrentBuffer] = 0;
-                /* Set both buffers to unprocessed */
-                rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
-                rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
-            }
-            else
-            {
-                // contingency - Packet Not Handled!
-                /* Main app didn't process previous packet yet, drop this one */
-                LED = !LED;
-                //REALLYFASTBLINK();
-                //memset(rfrxbuf[rfRxCurrentBuffer],0,BUFFER_SIZE);
-                rfRxCounter[rfRxCurrentBuffer] = 0;
-                LED = !LED;
-            }
-        }
-        RFIF &= ~RFIF_IRQ_DONE;
-    }
 
     //RFIF = 0;    // FIXME: RFIF handling is awfully simple, and should be fixed... this could be the cause of various state bugs
 }

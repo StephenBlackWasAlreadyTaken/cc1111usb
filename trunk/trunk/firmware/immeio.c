@@ -5,6 +5,33 @@
 #include "immeio.h"
 #include "imme5x7.h"
 #include "immekeys.h"
+#include "cc1111rf.h"
+
+extern xdata u32 recvCnt;
+
+xdata u8 imme_state;
+xdata u16 imme_state_counter;
+
+char xdata rxbuf[30];
+u8 modulations[] = {MOD_2FSK, MOD_GFSK, MOD_ASKOOK, MOD_MSK};
+
+u8 current_modulation;
+char code fsk2[] = "2FSK";
+char code gfsk[] = "GFSK";
+char code ask[] = "ASK ";
+char code msk[] = "MSK ";
+char* code modstrings[] = {fsk2, gfsk, ask, msk};
+
+
+
+void initIMME(void)
+{
+    imme_state_counter = 0;
+}
+
+void reset (void){
+    ((void (__code *) (void)) 0x0000) ();
+}
 
 void setIOPorts() {
   //No need to set PERCFG or P2DIR as default values on reset are fine
@@ -146,27 +173,583 @@ void usb_up(void)
 #endif
 }
 
+void setModulation(u8 mod_format){
+    MDMCFG2 = (MDMCFG2 & 0x8f) | (mod_format<<4);
+}
+
+char* getModulationStr(){
+    return modstrings[current_modulation];
+    //return modstrings[(((MDMCFG2>>4)&7)+1)>>1];
+}
+
+void setSyncMode(u8 sync_mode)
+{
+    MDMCFG2 = (MDMCFG2 & 0xf8) | (sync_mode&7);
+}
+
+void setChanBW(u32 chanbw)
+{
+    u8 chanbw_e = 0;
+    u8 chanbw_m = 0;
+
+    for (;chanbw_e<4; chanbw_e++)
+    {
+        chanbw_m = (((26000000 / (chanbw * (1<<chanbw_e) * 8.0 )) - 4) + .5);        // rounded evenly
+        if (chanbw_m < 4)
+            break;
+    }
+
+    MDMCFG4 = (MDMCFG4&0xf) | (chanbw_e<<6) | (chanbw_m<<4);
+}
+
+u32 getChanBW(void)
+{
+    u8 chanbw_e, chanbw_m;
+    u32 bw;
+
+    chanbw_e = (MDMCFG4 >> 6) & 0x3;
+    chanbw_m = (MDMCFG4 >> 4) & 0x3;
+    bw = 26000000 / (8.0*(4+chanbw_m) * (1<<chanbw_e));
+    return bw;
+}
+
+void setBaud(u32 baud)
+{
+    u8 drate_e = 0;
+    u32 drate_m = 0;
+
+    for (;drate_e<16; drate_e++)
+    {
+        drate_m = ((baud / (1<<drate_e))* 10.324440615384615)-256 + .5;        // rounded evenly
+        if (drate_m < 256)
+            break;
+    }
+
+    //drate = 1000000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
+    //print "drate_e: %x   drate_m: %x   drate: %f Hz" % (drate_e, drate_m, drate)
+    
+    MDMCFG4 = (MDMCFG4&0xf0) | drate_e;
+    MDMCFG3 = (u8)drate_m;
+}
+
+u32 getBaud(void)
+{
+    u32 drate;
+    u8 drate_m, drate_e;
+    
+    drate_e = MDMCFG4 & 0xf;
+    drate_m = MDMCFG3;
+
+    drate = (256+drate_m) * (1<<drate_e) / 10.324440615384615;
+    return drate;
+}
+
+void incModulation(){
+    current_modulation ++;
+    if (current_modulation > 3)
+        current_modulation = 0;
+    setModulation(modulations[current_modulation]);
+}
+
+void decModulation(){
+    if (current_modulation == 0)
+        current_modulation = 3;
+    else
+        current_modulation --;
+    setModulation(modulations[current_modulation]);
+}
+
+/* set the radio frequency in Hz */
+void setRadioFrequency(u32 freq) {
+    /* the frequency setting is in units of 396.728515625 Hz */
+    u32 setting = (u32) (freq * .0025206154);
+    FREQ2 = (setting >> 16) & 0xff;
+    FREQ1 = (setting >> 8) & 0xff;
+    FREQ0 = setting & 0xff;
+}
+
+u32 getRadioFrequency(void)
+{
+    u32 freq;
+    freq = FREQ2;
+    freq <<= 8;
+    freq |= FREQ1;
+    freq <<= 8;
+    freq |= FREQ0;
+    freq /= .0025206154;
+    return freq;
+}
+
+
+
+void immeLCDUpdateState(void)
+{
+    SSN=LOW;
+    drawhex(7, 0, MARCSTATE);
+    drawhex(7,10, rfif);
+    SSN=HIGH;
+}
+
+void immeLCDShowRFConfig(void)
+{
+    u32 dummy32;
+    u16 syncw;
+    SSN = LOW;
+    erasescreen();
+    drawstr(1,0,"FRQ"); 
+    drawstr(2,0,"CH");
+    drawstr(3,0,"MOD"); 
+    drawstr(4,0,"BAUD");
+    drawstr(5,0,"CHANBW");
+    drawstr(6,0,"SYNCW");
+    drawint(1,6,(u16)((u32)getRadioFrequency()/10000));
+    drawhex(2,6,CHANNR);
+    drawstr(3,6,getModulationStr());
+    dummy32 = getBaud() / 1000;
+    drawint(4,6,(u16)dummy32);
+    drawint(5,8,(u16)((u32)getChanBW()/1000));
+    drawhex(4,15, MDMCFG4);
+    drawhex(5,15, MDMCFG3);
+    drawhex(6,15, MDMCFG2);
+    if (MDMCFG2 & 3)
+    {
+        syncw = SYNC1;
+        syncw <<= 8;
+        syncw |= SYNC0;
+        drawhex(6,6,syncw);
+    }
+    else
+        drawstr(6,6,"----");
+
+    SSN = HIGH;
+}
+
+void immeLCDInitScreen(void)
+{
+    SSN = LOW;
+    erasescreen();
+    drawstr(0,0, "IMME SNIFF v0.1");
+    SSN = HIGH;
+}
+
+void immeLCDShowPacket(void)
+{
+    xdata u8 *pval = &rfrxbuf[!rfRxCurrentBuffer][0];
+    u8 len   = *pval++;
+    u16 nibble;
+
+    SSN=LOW;
+    LED_RED = !LED_RED;
+    drawstr(3,0, "                                ");
+    drawstr(3,0, "                                ");
+    //blink_binary_baby_lsb(len, 8);
+    drawstr(1,0, "Length: ");
+    drawhex(1,9, len);
+    drawstr(2,0, "Curr: ");
+    drawhex(2,6, rfRxCurrentBuffer);
+    drawstr(2,12, "Cnt: ");
+    drawhex(2,17, ++recvCnt);
+    if (len>50)
+        len = 50;
+
+    // not print the packet data, one byte if "printable" or two bytes if hex-representation makes more sense
+    setCursor(3, 0);
+    while (len--)
+    {
+        if (*pval > 0x1f && *pval < 0x7f)
+        {
+            putch(' ');
+            putch(*pval);
+        } else
+        {
+
+            // high nibble
+            nibble=(*(pval) & 0xF0)>>4;
+            if(nibble<10)
+                putch('0'+nibble);
+            else
+                putch('A'+nibble-0xA);
+
+            // low nibble
+            nibble=((*pval)&0x0F);
+            if(nibble<10)
+                putch('0'+nibble);
+            else
+                putch('A'+nibble-0xA);
+        }
+
+        pval ++;
+    }
+
+    //drawstr(2,0, rfrxbuf[processbuffer]+1);
+    SSN=HIGH;
+}
 
 /* just a little keyboard poller */
+                /* couple things for poll_keyboard:
+                 * Sleep (off)
+                 * pause (wow, the packets fly by!
+                 * slow... perhaps a settable delay that we can increment by kb
+                 * freq +-
+                 * channel +-
+                 * chanspc +-
+                 * baud +-
+                 * modulation +-
+                 * PQT mode +-
+                 * set sync word
+                 *
+                 */
 void poll_keyboard() {
+    switch (imme_state)
+    {
+        case IMME_STATE_CONFIG_SCREEN:
+            if (imme_state_counter >= 300)
+            {
+                imme_state_counter = 0;
+                imme_state = IMME_STATE_SNIFF;
+                immeLCDInitScreen();
+                immeLCDShowPacket();
+            }
+            else
+                imme_state_counter ++;
+        default:
+            imme_state_counter = 0;
+    }
 
 	switch (getkey()) {
-	case 'W':
-	case 'N':
-	case 'U':
-	case KMNU:
-	case 'T':
-	case 'S':
-	case KBYE:
-	case '>':
-	case '<':
-	case '^':
-	case 'Q':
-	case KDWN:
-	case 'A':
-	case 'M':
+        // frequency/channel
+        // modulation - KMNU/KBYE
+        // baud - KRIGHT/KLFT
+        // syncword - qawsedrfg
+	case 'Q':   // highest nibble incr
+        LED_GREEN != LED_GREEN;
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        SYNC1 += 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'A':   // highest nibble decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        SYNC1 -= 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'W':   // highbyte, lower nibble incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        if ((SYNC1 & 0xf) != 0xf)
+            SYNC1 ++;
+        else
+            SYNC1 = (SYNC1 & 0xf0);
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'S':   // highbyte, lower nibble decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        if (SYNC1&0xf)
+            SYNC1 --;
+        else
+            SYNC1 = (SYNC1&0xf0) + 9;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'E':   // lowbyte, upper nibble incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        SYNC0 += 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+        
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'D':   // lowbyte, upper nibble decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        SYNC0 -= 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+        
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'R':   // lowest nibble incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        if (SYNC0&0xf == 9)
+            SYNC0 = (SYNC0&0xf0);
+        else
+            SYNC0 ++;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'F':   // lowest nibble decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x05;
+        if (SYNC0&0xf == 0)
+            SYNC0 = (SYNC0&0xf0) + 9;
+        else
+            SYNC0 --;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case 'G':   // no sync word
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        MDMCFG2 &= 0xf8;
+        MDMCFG2 |= 0x04;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KMNU:  // modulation
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        incModulation();
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KBYE:  // modulation
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        decModulation();
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KUP:   // bandwidth
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        //
+        if ((MDMCFG4 >> 4))
+            MDMCFG4 -= 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KDWN:  // bandwidth
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        //
+        if ((MDMCFG4 >> 4) != 0xf)
+            MDMCFG4 += 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KRIGHT:// baud incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        //
+        //if (getBaud()>=2200)
+        //    setBaud(getBaud()>>1);
+        if ((MDMCFG3 >> 4) == 0xf)
+        {
+            if ((MDMCFG4 & 0xf) < 0xf)
+            {
+                MDMCFG4 += 1;
+                MDMCFG3 += 0x10;
+            }
+        }
+        else
+        {
+            MDMCFG3 += 0x10;
+        }
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+	case KLEFT: // baud decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        //
+        //if (getBaud() <=250000)
+        //    setBaud(getBaud()<<1);
+        if ((MDMCFG3 >> 4) == 0x0)
+        {
+            if ((MDMCFG4 & 0xf) > 0x0)
+            {
+                MDMCFG4 -= 1;
+                MDMCFG3 -= 0x10;
+            }
+        }
+        else
+        {
+            MDMCFG3 -= 0x10;
+        }
+
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+        sleepMillis(50);
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
 	case KPWR:
+        LCDPowerSave();
+        //TODO power down CC1110 here.
+        while(keyscan()!=KPWR);
+        reset();
+  
+        break;
+
+    case ' ':
+    case 'M':
+        if (imme_state == IMME_STATE_SNIFF)
+        {
+            imme_state = IMME_STATE_CONFIG_SCREEN;
+            immeLCDShowRFConfig();
+        }
+        else if (imme_state == IMME_STATE_CONFIG_SCREEN)
+        {
+            imme_state = IMME_STATE_SNIFF;
+            immeLCDInitScreen();
+            immeLCDShowPacket();
+        }
+        break;
 	default:
 		break;
 	}
 }
+
