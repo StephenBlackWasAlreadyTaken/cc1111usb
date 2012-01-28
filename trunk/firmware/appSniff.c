@@ -78,6 +78,8 @@ void appMainLoop(void)
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {   // we've received a packet.  deliver it.
 #ifdef IMME
+                LED_RED = !LED_RED;
+                ++recvCnt;
                 immeLCDShowPacket();
                 //xdata u8 *pval = &rfrxbuf[processbuffer][0];
                 //u8 len   = *pval++;
