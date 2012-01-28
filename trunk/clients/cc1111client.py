@@ -1,6 +1,9 @@
 #!/usr/bin/env ipython
 import sys, usb, threading, time, struct, select
+
+import bits
 from chipcondefs import *
+
 
 EP_TIMEOUT_IDLE     = 400
 EP_TIMEOUT_ACTIVE   = 10
@@ -204,7 +207,6 @@ class USBDongle:
     def setup(self, console=True):
         global dongles
 
-        idx = self.idx
         dongles = []
         self.ep5timeout = EP_TIMEOUT_ACTIVE
 
@@ -214,8 +216,8 @@ class USBDongle:
                     if console: print >>sys.stderr,(dev)
                     do = dev.open()
                     iSN = do.getDescriptor(1,0,50)[16]
-                    sn = do.getString(iSN, 50)
-                    dongles.append((sn, dev, do))
+                    devnum = dev.devnum
+                    dongles.append((devnum, dev, do))
 
         dongles.sort()
         if len(dongles) == 0:
@@ -225,20 +227,20 @@ class USBDongle:
         self.xsema = threading.Lock()
 
         # claim that interface!
-        do = dongles[idx][2]
+        do = dongles[self.idx][2]
         try:
             do.claimInterface(0)
-        except:
+        except Exception,e:
             if console or self._debug: print >>sys.stderr,("Error claiming usb interface:" + repr(e))
 
 
-        self.serialnum, self._d, self._do = dongles[idx]
+        self.devnum, self._d, self._do = dongles[self.idx]
         self._threadGo = True
 
     def resetup(self, console=True):
         self._do=None
         #self._threadGo = True
-        if console or self._debug: print >>sys.stderr,("waiting (resetup)")
+        if console or self._debug: print >>sys.stderr,("waiting (resetup) %x" % self.idx)
         while (self._do==None):
             try:
                 self.setup(console)
@@ -536,6 +538,8 @@ class USBDongle:
                     try:
                         retval = b.get(cmd)
                         b[cmd]=[]
+                        if len(data):
+                            retval = [ (d[4:],t) for d,t in retval ] 
                     except:
                         sys.excepthook(*sys.exc_info())
                     finally:
@@ -1678,7 +1682,11 @@ class USBDongle:
         self.setMdmSyncWord(0xaaaa)
         self.setPktPQT(0)
         
-        if (level):
+        if (level == 3):
+            self.setMdmSyncMode(SYNCM_CARRIER_16_of_16)
+        elif (level == 2):
+            self.setMdmSyncMode(SYNCM_16_of_16)
+        elif (level == 1):
             self.setMdmSyncMode(SYNCM_CARRIER)
         else:
             self.setMdmSyncMode(SYNCM_NONE)
@@ -1689,6 +1697,36 @@ class USBDongle:
             raise(Exception("lowballRestore requires that lowball have been executed first (it saves radio config state!)"))
         self.setRadioConfig(self._last_radiocfg)
         self._last_radiocfg = ''
+
+   
+    def discover(self, debug=None, lowball=1, SyncWordMatchList=None):
+        oldebug = self._debug
+        print "Entering Lowball mode and searching for possible SyncWords"
+        self.lowball()
+        self.makePktFLEN(30)
+        if debug is not None:
+            self._debug = debug
+        while not len(select.select([sys.stdin],[],[],0)[0]):
+
+            try:
+                y, t = self.RFrecv()
+                print "(%5.3f) Received:  %s" % (t, y.encode('hex'))
+                poss = bits.findDword(y)
+                if len(poss):
+                    print "  possible Sync Dwords: %s" % repr([hex(x) for x in poss])
+
+                if SyncWordMatchList is not None:
+                    for x in poss:
+                        if x in SyncWordMatchList:
+                            print "MATCH WITH KNOWN SYNC WORD:" + hex(x)
+            except CC111xTimeoutException:
+                pass
+
+        sys.stdin.read(1)
+        self._debug = oldebug
+        self.lowballRestore()
+        print "Exiting..."
+
 
     def checkRepr(self, matchstr, checkval, maxdiff=0):
         starry = self.reprRadioConfig().split('\n')
