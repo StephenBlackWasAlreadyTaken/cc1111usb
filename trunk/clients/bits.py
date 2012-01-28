@@ -25,11 +25,13 @@ def findDword(byts):
             
             # chop off the nonsense before the preamble
             sbyts = byts[pidx:]
+            #print "sbyts: %s" % repr(sbyts)
             
             # find the definite end of the preamble (ie. it may be sooner, but we know this is the end)
             while (sbyts[0] == ('\xaa', '\x55')[bitoff] and len(sbyts)>2):
                 sbyts = sbyts[1:]
             
+            #print "sbyts: %s" % repr(sbyts)
             # now we look at the next 16 bits to narrow the possibilities to 8
             # at this point we have no hints at bit-alignment
             dwbits, = struct.unpack(">H", sbyts[:2])
@@ -43,9 +45,16 @@ def findDword(byts):
                 bits1 <<= 8
                 bits1 |= (ord(sbyts[2]) )
                 bits1 >>= bitoff            # now we should be aligned correctly
+                #print "bits: %x" % (bits1)
 
-                while (bits1 & 0xf00 != 0xa00): # now we align the end of the 101010 pattern with the beginning of the dword
-                    bits1 >>= 2
+                bit = (5 * 8) - 2  # bytes times bits/byte
+                while (bits1 & (3<<bit) == (2<<bit)):
+                    bit -= 2
+                #print "bit = %d" % bit
+                bits1 >>= (bit-14)
+                #while (bits1 & 0x30000 != 0x20000): # now we align the end of the 101010 pattern with the beginning of the dword
+                #    bits1 >>= 2
+                #print "bits: %x" % (bits1)
                 
                 for frontbits in xrange(0, 16, 2):
                     poss = (bits1 >> frontbits) & 0xffff
@@ -85,41 +94,47 @@ def findDwordDoubled(byts):
             bits1 = bits1 | (ord(('\xaa','\x55')[bitoff]) << 24)
             bits1 <<= 8
             bits1 |= (ord(byts[2]) )
+            bits1 >>= bitoff
+
             bits2, = struct.unpack(">L", byts[:4])
             bits2 <<= 8
             bits2 |= (ord(byts[4]) )
+            bits2 >>= bitoff
+            
+
             frontbits = 0
-            for frontbits in xrange(16, 40):    #FIXME: if this doesn't work, try 16, then 18+frontbits
-                dwb1 = (bits1 >> (frontbits)) & 1
-                dwb2 = (bits2 >> (frontbits)) & 1
+            for frontbits in xrange(16, 40, 2):    #FIXME: if this doesn't work, try 16, then 18+frontbits
+                dwb1 = (bits1 >> (frontbits)) & 3
+                dwb2 = (bits2 >> (frontbits)) & 3
                 print "\tfrontbits: %d \t\t dwb1: %s dwb2: %s" % (frontbits, bin(bits1 >> (frontbits)), bin(bits2 >> (frontbits)))
                 if dwb2 != dwb1:
                     break
 
             # frontbits now represents our unknowns...  let's go from the other side now
-            for tailbits in xrange(16, -1, -1):
-                dwb1 = (bits1 >> (tailbits)) & 1
-                dwb2 = (bits2 >> (tailbits)) & 1
+            for tailbits in xrange(16, -1, -2):
+                dwb1 = (bits1 >> (tailbits)) & 3
+                dwb2 = (bits2 >> (tailbits)) & 3
                 print "\ttailbits: %d\t\t dwb1: %s dwb2: %s" % (tailbits, bin(bits1 >> (tailbits)), bin(bits2 >> (tailbits)))
                 if dwb2 != dwb1:
-                    tailbits += 1
+                    tailbits += 2
                     break
 
             # now, if we have a double syncword, iinm, tailbits + frontbits >= 16
-            print "frontbits: %d\t\t tailbits: %d, bits: %s %s " % (frontbits, tailbits, bin(bits1), bin(bits2))
+            print "frontbits: %d\t\t tailbits: %d, bits: %s " % (frontbits, tailbits, bin((bits2>>tailbits & 0xffffffff)))
             if (frontbits + tailbits >= 16):
-                tbits = bits1 >> (tailbits&0xfffe)
-                tbits >>= bitoff # yay, we get to use this!
-                tbits &= ((1<<(16+frontbits))-1)
+                tbits = bits2 >> (tailbits&0xffff)
+                tbits &= (0xffffffff)
                 print "tbits: %x" % tbits
 
-                for bs in xrange(tailbits, frontbits-16, 2):
-                    poss = tbits&0xffff
-                    if poss not in possDwords:
-                        possDwords.append(tbits&0xffff)
-                    tbits>>=2       # because we know the bit offset from the preamble
-                possDwords.reverse()
+                poss = tbits&0xffffffff
+                if poss not in possDwords:
+                    possDwords.append(poss)
             else:
                 pass
                 # FIXME: what if we *don't* have a double-sync word?  then we stop at AAblah or 55blah and take the next word?
+
+            possDwords.reverse()
         return possDwords
+
+#def test():
+
