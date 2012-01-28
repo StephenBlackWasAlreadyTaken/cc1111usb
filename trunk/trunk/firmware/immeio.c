@@ -207,8 +207,12 @@ u32 getChanBW(void)
     u8 chanbw_e, chanbw_m;
     u32 bw;
 
-    chanbw_e = (MDMCFG4 >> 6) & 0x3;
-    chanbw_m = (MDMCFG4 >> 4) & 0x3;
+    chanbw_e = MDMCFG4;
+    chanbw_e >>= 6;
+    chanbw_e &= 0x3;
+    chanbw_m = MDMCFG4;
+    chanbw_m >>= 4;
+    chanbw_m &= 0x3;
     bw = 26000000 / (8.0*(4+chanbw_m) * (1<<chanbw_e));
     return bw;
 }
@@ -237,10 +241,13 @@ u32 getBaud(void)
     u32 drate;
     u8 drate_m, drate_e;
     
-    drate_e = MDMCFG4 & 0xf;
+    drate_e = MDMCFG4;
+    drate_e &= 0xf;
     drate_m = MDMCFG3;
 
-    drate = (256+drate_m) * (1<<drate_e) / 10.324440615384615;
+    drate = (1<<drate_e);
+    drate *= (256+drate_m);
+    drate *= 0.09685754776000977;
     return drate;
 }
 
@@ -276,7 +283,7 @@ u32 getRadioFrequency(void)
     freq |= FREQ1;
     freq <<= 8;
     freq |= FREQ0;
-    freq /= .0025206154;
+    freq *= 396.7285132035613;
     return freq;
 }
 
@@ -294,6 +301,9 @@ void immeLCDShowRFConfig(void)
 {
     u32 dummy32;
     u16 syncw;
+    //u8 len, nibble;
+    //u8* pval;
+
     SSN = LOW;
     erasescreen();
     drawstr(1,0,"FRQ"); 
@@ -305,9 +315,33 @@ void immeLCDShowRFConfig(void)
     drawint(1,6,(u16)((u32)getRadioFrequency()/10000));
     drawhex(2,6,CHANNR);
     drawstr(3,6,getModulationStr());
-    dummy32 = getBaud() / 1000;
+    dummy32 = getBaud() / 100;
+    /*setCursor(4, 6);
+    len = 4;
+    pval = (u8*)&dummy32;
+    while (len--)
+    {
+            // high nibble
+            nibble=(*(pval) & 0xF0)>>4;
+            if(nibble<10)
+                putch('0'+nibble);
+            else
+                putch('A'+nibble-0xA);
+
+            // low nibble
+            nibble=((*pval)&0x0F);
+            if(nibble<10)
+                putch('0'+nibble);
+            else
+                putch('A'+nibble-0xA);
+        pval ++;
+    }
+    */
+
+    drawstr(4,6,"        ");
     drawint(4,6,(u16)dummy32);
-    drawint(5,8,(u16)((u32)getChanBW()/1000));
+    drawstr(5,8,"        ");
+    drawint(5,8,(u16)((u32)getChanBW()/100));
     drawhex(4,15, MDMCFG4);
     drawhex(5,15, MDMCFG3);
     drawhex(6,15, MDMCFG2);
@@ -339,7 +373,6 @@ void immeLCDShowPacket(void)
     u16 nibble;
 
     SSN=LOW;
-    LED_RED = !LED_RED;
     drawstr(3,0, "                                ");
     drawstr(3,0, "                                ");
     //blink_binary_baby_lsb(len, 8);
@@ -348,7 +381,7 @@ void immeLCDShowPacket(void)
     drawstr(2,0, "Curr: ");
     drawhex(2,6, rfRxCurrentBuffer);
     drawstr(2,12, "Cnt: ");
-    drawhex(2,17, ++recvCnt);
+    drawhex(2,17, recvCnt);
     if (len>50)
         len = 50;
 
@@ -400,6 +433,8 @@ void immeLCDShowPacket(void)
                  *
                  */
 void poll_keyboard() {
+    u16 tmp;
+
     switch (imme_state)
     {
         case IMME_STATE_CONFIG_SCREEN:
@@ -632,8 +667,10 @@ void poll_keyboard() {
         RFST = RFST_SIDLE;
         while (MARCSTATE != MARC_STATE_IDLE);
         //
-        if ((MDMCFG4 >> 4))
-            MDMCFG4 -= 0x10;
+        tmp = MDMCFG4;
+        tmp >>= 4;
+        if (tmp != 0xf)
+            MDMCFG4 += 0x10;
 
         immeLCDShowRFConfig();
         imme_state = IMME_STATE_CONFIG_SCREEN;
@@ -650,8 +687,10 @@ void poll_keyboard() {
         RFST = RFST_SIDLE;
         while (MARCSTATE != MARC_STATE_IDLE);
         //
-        if ((MDMCFG4 >> 4) != 0xf)
-            MDMCFG4 += 0x10;
+        tmp = MDMCFG4;
+        tmp >>= 4;
+        if (tmp > 0)
+            MDMCFG4 -= 0x10;
 
         immeLCDShowRFConfig();
         imme_state = IMME_STATE_CONFIG_SCREEN;
@@ -726,6 +765,166 @@ void poll_keyboard() {
 
         break;
 
+	case 'P': // freq incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        FREQ0 ++;
+        if (FREQ0 == 0)
+        {
+            FREQ1++;
+            if (FREQ1 == 0)
+                FREQ2++;
+        }
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case KENTER: // freq decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        FREQ0 --;
+        if (FREQ0 == 0xff)
+        {
+            FREQ1--;
+            if (FREQ1 == 0xff)
+                FREQ2--;
+        }
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case 'O': // freq incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        if (FREQ0 >= 0xf0)
+        {
+            FREQ1++;
+            if (FREQ1 == 0)
+                FREQ2++;
+        }
+        FREQ0 += 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case ',': // freq decr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        if (FREQ0 <= 0x10)
+        {
+            if (FREQ1 == 0)
+                FREQ2--;
+            FREQ1--;
+        }
+        FREQ0 -= 0x10;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case 'L': // freq incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+
+        FREQ2       = 0x21;
+        FREQ1       = 0x65;//0x71;
+        FREQ0       = 0x6a;//0x7c;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+
+	case 'I': // channr incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+
+        CHANNR = 0;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case 'K': // channr incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+
+        CHANNR ++;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+	case 'J': // channr incr
+        RFST = RFST_SIDLE;
+        while (MARCSTATE != MARC_STATE_IDLE);
+
+        CHANNR --;
+
+        immeLCDShowRFConfig();
+        imme_state = IMME_STATE_CONFIG_SCREEN;
+        imme_state_counter = 0;
+
+        RFST = RFST_SCAL;
+        while (MARCSTATE != MARC_STATE_IDLE);
+        RFST = RFST_SRX;
+        while (MARCSTATE != MARC_STATE_RX);
+
+        break;
+
+
 	case KPWR:
         LCDPowerSave();
         //TODO power down CC1110 here.
@@ -734,8 +933,20 @@ void poll_keyboard() {
   
         break;
 
-    case ' ':
     case 'M':
+        if (MARCSTATE == MARC_STATE_RX)
+        {
+            RFOFF;
+            RFTX;
+        }
+        else
+        {
+            RFOFF;
+            RFRX;
+        }
+
+        break;
+    case ' ':
         if (imme_state == IMME_STATE_SNIFF)
         {
             imme_state = IMME_STATE_CONFIG_SCREEN;
