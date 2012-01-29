@@ -339,7 +339,7 @@ class USBDongle:
                     for cmd in b.keys():
                         q = b[cmd]
                         if len(q):
-                            buf = q.pop(0)
+                            buf,timestamp = q.pop(0)
                             #cmd = ord(buf[1])
                             if self._debug > 1: print >>sys.stderr,("buf length: %x\t\t cmd: %x\t\t(%s)"%(len(buf), cmd, repr(buf)))
                             if (cmd == DEBUG_CMD_STRING):
@@ -364,18 +364,18 @@ class USBDongle:
                                         if len(requeuebuf):
                                             if self._debug>1:  print >>sys.stderr,(" - DEBUG..requeuing %s"%repr(requeuebuf))
                                             q.insert(0,requeuebuf)
-                                        print >>sys.stderr,("DEBUG: (%.3f) %s" % (time.time(), repr(printbuf)))
+                                        print >>sys.stderr,("DEBUG: (%.3f) %s" % (timestamp, repr(printbuf)))
                             elif (cmd == DEBUG_CMD_HEX):
-                                #print >>sys.stderr, repr(buf[4:])
-                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("B", buf[4:]))
+                                #print >>sys.stderr, repr(buf)
+                                print >>sys.stderr, "DEBUG: (%.3f) %x"%(timestamp, struct.unpack("B", buf[4:5])[0])
                             elif (cmd == DEBUG_CMD_HEX16):
-                                #print >>sys.stderr, repr(buf[4:])
-                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<H", buf[4:]))
+                                #print >>sys.stderr, repr(buf)
+                                print >>sys.stderr, "DEBUG: (%.3f) %x"%(timestamp, struct.unpack("<H", buf[4:6])[0])
                             elif (cmd == DEBUG_CMD_HEX32):
-                                #print >>sys.stderr, repr(buf[4:])
-                                print >>sys.stderr, "DEBUG: %x"%(struct.unpack("<L", buf[4:]))
+                                #print >>sys.stderr, repr(buf)
+                                print >>sys.stderr, "DEBUG: (%.3f) %x"%(timestamp, struct.unpack("<L", buf[4:8])[0])
                             elif (cmd == DEBUG_CMD_INT):
-                                print >>sys.stderr, "DEBUG: %d"%(struct.unpack("<L", buf[4:]))
+                                print >>sys.stderr, "DEBUG: (%.3f) %d"%(timestamp, struct.unpack("<L", buf[4:8])[0])
                             else:
                                 print >>sys.stderr,('DEBUG COMMAND UNKNOWN: %x (buf=%s)'%(cmd,repr(buf)))
 
@@ -538,7 +538,7 @@ class USBDongle:
                     try:
                         retval = b.get(cmd)
                         b[cmd]=[]
-                        if len(data):
+                        if len(retval):
                             retval = [ (d[4:],t) for d,t in retval ] 
                     except:
                         sys.excepthook(*sys.exc_info())
