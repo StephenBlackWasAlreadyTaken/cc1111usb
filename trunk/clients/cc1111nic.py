@@ -177,7 +177,7 @@ u16 synched_chans           %x
         
     def getFHSSstate(self):
         state = self.send(APP_NIC, FHSS_GET_STATE, '')
-        print repr(state)
+        #print repr(state)
         state = ord(state[0])
         return FHSS_STATES[state], state
                                 

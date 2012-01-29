@@ -237,6 +237,27 @@ void t2IntHandler(void) interrupt T2_VECTOR  // interrupt handler should trigger
                 packet[4] = 'L';
                 packet[5] = 'A';
                 packet[6] = 'H';
+                packet[7] = 'B';
+                packet[8] = 'L';
+                packet[9] = 'A';
+                packet[10] = 'H';
+                packet[11] = 'B';
+                packet[12] = 'L';
+                packet[13] = 'A';
+                packet[14] = 'H';
+                packet[15] = 'B';
+                packet[16] = 'L';
+                packet[17] = 'A';
+                packet[18] = 'H';
+                packet[19] = 'B';
+                packet[20] = 'L';
+                packet[21] = 'A';
+                packet[22] = 'H';
+                packet[23] = 'B';
+                packet[24] = 'L';
+                packet[25] = 'A';
+                packet[26] = 'H';
+                packet[27] = ' ';
 
                 transmit((xdata u8*)&packet, packet[0]);
                 macdata.synched_chans++;
