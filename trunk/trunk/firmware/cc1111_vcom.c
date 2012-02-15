@@ -27,6 +27,9 @@ static __xdata u16 usb_out_bytes;
 volatile static __xdata u8  usb_iif;
 static __xdata u8  usb_running;
 
+__xdata __at (0xde20) volatile u8 USBFIFO[12];
+
+
 static void vcom_set_interrupts()
 {
   // IN interrupts on the control an IN endpoints

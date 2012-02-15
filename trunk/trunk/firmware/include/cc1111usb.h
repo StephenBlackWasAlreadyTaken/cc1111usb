@@ -1,8 +1,8 @@
-#ifndef CC1111USB
-#define CC1111USB
+#ifndef CC1111USB_H
+#define CC1111USB_H
 
-#include "cc1111.h"
 #include "global.h"
+#include "chipcon_usbdebug.h"
 
 #define     EP0_MAX_PACKET_SIZE     32
 #define     EP5OUT_MAX_PACKET_SIZE  256

@@ -2,7 +2,7 @@
 #include "global.h"
 
 #ifdef VIRTUAL_COM
-    #include "cc1111.h"
+    // #include "cc1111.h"
     #include "cc1111_vcom.h"
 #else
     #include "cc1111usb.h"
