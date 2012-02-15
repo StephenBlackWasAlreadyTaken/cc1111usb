@@ -1,6 +1,6 @@
 #include "global.h"
 #include "cc1111usb.h"
-#include "cc1111rf.h"
+// #include "cc1111rf.h"
 
 
 /*************************************************************************************************
@@ -1272,7 +1272,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '0', 0,
               '5', 0,
-              '9', 0,
+              '6', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff

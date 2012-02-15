@@ -1,8 +1,20 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include "cc1111.h"
-#include "cc1111usbdebug.h"
+#include "types.h"
+
+#ifdef CC1111
+  #include "cc1111.h"
+  #include "chipcon_usbdebug.h"
+#elif defined CC2531
+  #include "cc2531.h"
+  #include "chipcon_usbdebug.h"
+#elif defined IMME
+  #include <cc1110.h>
+  #include "cc1110-ext.h"
+
+#endif
+
 #include "bits.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
@@ -33,6 +45,14 @@ extern xdata u32 clock;
 #define LCE_RF_RXOVF                            0x10
 #define LCE_RF_TXUNF                            0x11
 
+// USB activities
+#define USB_ENABLE_PIN              P1_0
+//#define USB_ENABLE_PIN              P1_1
+#define NOP()                       __asm; nop; __endasm;
+
+// Checks
+#define IS_XOSC_STABLE()    (SLEEP & SLEEP_XOSC_S)
+
 
 /* board-specific defines */
 #ifdef IMME
@@ -59,6 +79,13 @@ extern xdata u32 clock;
     // CC1111 USB Chronos watch dongle - 24mhz
     #define LED_RED   P1_0
     #define LED_GREEN P1_0
+    #define SLEEPTIMER  1200
+    #define PLATFORM_CLOCK_FREQ 24
+
+#elif defined CC2531
+    // CC2531 USB 802.15.4 emk - 24mhz
+    #define LED_RED   P1_0      //??
+    #define LED_GREEN P1_0      //??
     #define SLEEPTIMER  1200
     #define PLATFORM_CLOCK_FREQ 24
 #endif

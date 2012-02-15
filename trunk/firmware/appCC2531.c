@@ -1,12 +1,7 @@
-#include "cc1111rf.h"
 #include "global.h"
+#include "cc1111usb.h"
 
-#ifdef VIRTUAL_COM
-    #include "cc1111.h"
-    #include "cc1111_vcom.h"
-#else
-    #include "cc1111usb.h"
-#endif
+//SFR(WDCTL, 0xc9);
 
 /*************************************************************************************************
  * welcome to the cc1111usb application.
@@ -17,13 +12,11 @@
  * next, put code as follows:
  * * any initialization code that should happen at power up goes in appMainInit()
  * * the main application loop code should go in appMainLoop()
- * * usb interface code should go into appHandleEP5.  this includes a switch statement for any 
- *      verbs you want to create between the client on this firmware.
+ * * usb interface code: register a callback using register_Cb_ep5() as demonstrated in appMainInit()
  *
  * if you should need to change anything about the USB descriptors, do your homework!  particularly
  * keep in mind, if you change the IN or OUT max packetsize, you *must* change it in the 
- * EPx_MAX_PACKET_SIZE define, the desciptor definition (be sure to get the right one!) and should 
- * correspond to the setting of MAXI and MAXO.
+ * EPx_MAX_PACKET_SIZE define, and should correspond to the setting of MAXI and MAXO.
  * 
  * */
 
@@ -37,59 +30,31 @@
 xdata u32 loopCnt;
 xdata u8 xmitCnt;
 
+int appHandleEP5(void);
+
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
+    //registerCb_ep0Vendor( appHandleEP0Vendor );
+    registerCb_ep5( appHandleEP5 );
+
     loopCnt = 0;
     xmitCnt = 1;
 
-#ifdef RECEIVE_TEST
-    RxMode();
-    //startRX();
-#endif
+    //RxMode();
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
  * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
+    /*
+    //  this is part of the NIC code to handle received RF packets and may be replaced/modified //
     xdata u8 processbuffer;
-#ifdef TRANSMIT_TEST
-    xdata u8 testPacket[14];
-
-
-    if (loopCnt++ == 90000)
-    {
-        /* Send a packet */
-        testPacket[0] = 0x0D;
-        testPacket[1] = xmitCnt++;
-        testPacket[2] = 0x48;
-        testPacket[3] = 0x41;
-        testPacket[4] = 0x4C;
-        testPacket[5] = 0x4C;
-        testPacket[6] = 0x4F;
-        //testPacket[6] = 0x43;
-        //testPacket[7] = 0x43;
-        testPacket[7] = lastCode[0];
-        testPacket[8] = lastCode[1];
-        testPacket[9] = 0x31;
-        testPacket[10] = 0x31;
-        testPacket[11] = 0x31;
-        testPacket[12] = 0x31;
-
-        transmit(testPacket, 14);
-        //blink(400,400);
-        REALLYFASTBLINK();
-#ifndef VIRTUAL_COM
-        debug("sent packet...");
-#endif
-        loopCnt = 0;
-    }
-#endif
 
     if (rfif)
     {
-        lastCode[0] = 0xd;
+        lastCode[0] = LC_MAIN_RFIF;
         IEN2 &= ~IEN2_RFIE;
 
         if(rfif & RFIF_IRQ_DONE)
@@ -99,14 +64,15 @@ void appMainLoop(void)
             {
                 txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
 
-                /* Set receive buffer to processed so it can be used again */
+                // Set receive buffer to processed so it can be used again //
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
             }
         }
 
         rfif = 0;
         IEN2 |= IEN2_RFIE;
-    }
+    }*/
+    //////////////////////////////////////////////////////////////////////////////////////////////
 }
 
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
@@ -138,6 +104,24 @@ int appHandleEP5()
     //   then process the data
     switch (cmd)
     {
+        /*
+        case CMD_RFMODE:
+            switch (*ptr++)
+            {
+                case RF_STATE_RX:
+
+                    RxMode();
+                    break;
+                case RF_STATE_IDLE:
+                    IdleMode();
+                    break;
+                case RF_STATE_TX:
+                    transmit(ptr, len);
+                    break;
+            }
+            txdata(app,cmd,len,ptr);
+            break;
+            */
         default:
             break;
     }
@@ -146,7 +130,6 @@ int appHandleEP5()
     return 0;
 }
 
-
 /*************************************************************************************************
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
  *  devices.                                                                                     *
@@ -154,10 +137,7 @@ int appHandleEP5()
 
 static void appInitRf(void)
 {
-    // initial radio state.  this is easily changed from the client, but
-    // most cases it's far superior to have a sane initial rf config.
-    // customize as desired, keeping in mind the impact any changes may
-    // have on the function of the firmware (assumptions abound)
+#if 0
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
     IOCFG0      = 0x00;
@@ -193,8 +173,8 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x88; // low data rates, increased sensitivity provided by 0x81- was 0x88
-    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates 0x35 provides increased sensitivity - was 0x31
+    TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
+    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
@@ -231,14 +211,17 @@ static void appInitRf(void)
     //TEST0       = 0x09;
     //PA_TABLE0   = 0x83;
 #endif
-
+#endif
 }
+
+/* initialize the IO subsystems for the appropriate dongles */
 
 /*************************************************************************************************
  * main startup code                                                                             *
  *************************************************************************************************/
 void initBoard(void)
 {
+    // in global.c
     clock_init();
     io_init();
 }
@@ -248,15 +231,17 @@ void main (void)
 {
     initBoard();
     initUSB();
-    blink(300,300);
-
-    init_RF();
+    //init_RF();
     appMainInit();
 
-    usb_up();
 
     /* Enable interrupts */
     EA = 1;
+    usb_up();
+
+
+    // wait until the host identifies the usb device (the host timeouts are awfully fast)
+    waitForUSBsetup();
 
     while (1)
     {  
