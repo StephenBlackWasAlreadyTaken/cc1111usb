@@ -67,27 +67,28 @@ extern xdata u32 clock;
  #include "immeio.h"
  //#include "pm.h"
 
-#elif defined DONSDONGLES
-    // CC1111 USB Dongle with breakout debugging pins (EMK?) - 24mhz
-    #define LED_RED   P1_1
-    #define LED_GREEN P1_1
+#else
     #define SLEEPTIMER  1200
-    #define CC1111EM_BUTTON P1_2
     #define PLATFORM_CLOCK_FREQ 24
+void usbIntHandler(void) interrupt P2INT_VECTOR;
+void p0IntHandler(void) interrupt P0INT_VECTOR;
 
-#elif defined CHRONOSDONGLE
-    // CC1111 USB Chronos watch dongle - 24mhz
-    #define LED_RED   P1_0
-    #define LED_GREEN P1_0
-    #define SLEEPTIMER  1200
-    #define PLATFORM_CLOCK_FREQ 24
+    #if defined DONSDONGLES
+        // CC1111 USB Dongle with breakout debugging pins (EMK?) - 24mhz
+        #define LED_RED   P1_1
+        #define LED_GREEN P1_1
+        #define CC1111EM_BUTTON P1_2
 
-#elif defined CC2531
-    // CC2531 USB 802.15.4 emk - 24mhz
-    #define LED_RED   P1_0      //??
-    #define LED_GREEN P1_0      //??
-    #define SLEEPTIMER  1200
-    #define PLATFORM_CLOCK_FREQ 24
+    #elif defined CHRONOSDONGLE
+        // CC1111 USB Chronos watch dongle - 24mhz
+        #define LED_RED   P1_0
+        #define LED_GREEN P1_0
+
+    #elif defined CC2531
+        // CC2531 USB 802.15.4 emk - 24mhz
+        #define LED_RED   P1_0      //??
+        #define LED_GREEN P1_0      //??
+    #endif
 #endif
 
 #define LED     LED_GREEN

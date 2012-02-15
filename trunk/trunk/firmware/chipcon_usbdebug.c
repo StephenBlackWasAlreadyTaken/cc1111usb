@@ -1,4 +1,4 @@
-#include "cc1111usb.h"
+#include "chipcon_usb.h"
 
 /*************************************************************************************************
  * debug stuff.  slows executions.                                                               *

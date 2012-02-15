@@ -12,15 +12,15 @@ apps1111d = cc1111rf.reld global.reld
 apps1111i = cc1111rf.reli global.reli
 appsid = cc1111rf.relid global.relid
 
-libsvcom = cc1111_vcom.rel cc1111_vcomdesc.rel cc1111usbdebug.rel #cc1111usb.rel
-libsvcomc = cc1111_vcom.relc cc1111_vcomdesc.relc cc1111usbdebug.relc #cc1111usb.rel
-libsvcomd = cc1111_vcom.reld cc1111_vcomdesc.reld cc1111usbdebug.reld #cc1111usb.rel
-libsvcomi = cc1111_vcom.reli cc1111_vcomdesc.reli cc1111usbdebug.reli #cc1111usb.rel
+libsvcom = cc1111_vcom.rel cc1111_vcomdesc.rel chipcon_usbdebug.rel #chipcon_usb.rel
+libsvcomc = cc1111_vcom.relc cc1111_vcomdesc.relc chipcon_usbdebug.relc #chipcon_usb.rel
+libsvcomd = cc1111_vcom.reld cc1111_vcomdesc.reld chipcon_usbdebug.reld #chipcon_usb.rel
+libsvcomi = cc1111_vcom.reli cc1111_vcomdesc.reli chipcon_usbdebug.reli #chipcon_usb.rel
 
-libsusb  = cc1111usb.rel cc1111usbdebug.rel
-libsusbc  = cc1111usb.rc cc1111usbdebug.relc
-libsusbd3 = cc1111usb.rd3 cc1111usbdebug.reld3
-libsusbd  = cc1111usb.rd cc1111usbdebug.reld
+libsusb  = chipcon_usb.rel chipcon_usbdebug.rel
+libsusbc  = chipcon_usb.rc chipcon_usbdebug.relc
+libsusbd3 = chipcon_usb.rd3 chipcon_usbdebug.reld3
+libsusbd  = chipcon_usb.rd chipcon_usbdebug.reld
 libsusbi  = immeusb.reli immeusbdebug.reli
 
 libsimme  = $(appsi) immeio.reli immekeys.reli immefont.reli   #  immedisplay.rel immeterm.rel
@@ -36,17 +36,17 @@ testrecv: testrecvapplication.hex
 testxmit: testxmitapplication.hex
 
 
-cc1111usb.rc : cc1111usb.c
+chipcon_usb.rc : chipcon_usb.c
 	./new_serial.py
-	$(CC) $(CFLAGS) -DCHRONOSDONGLE -DCC1111 -c cc1111usb.c
+	$(CC) $(CFLAGS) -DCHRONOSDONGLE -DCC1111 -c chipcon_usb.c
 
-cc1111usb.rd3 : cc1111usb.c
+chipcon_usb.rd3 : chipcon_usb.c
 	./new_serial.py
-	$(CC) $(CFLAGS) -DCC2531 -c cc1111usb.c
+	$(CC) $(CFLAGS) -DCC2531 -c chipcon_usb.c
 
-cc1111usb.rd : cc1111usb.c
+chipcon_usb.rd : chipcon_usb.c
 	./new_serial.py
-	$(CC) $(CFLAGS) -DDONSDONGLES -DCC1111 -c cc1111usb.c
+	$(CC) $(CFLAGS) -DDONSDONGLES -DCC1111 -c chipcon_usb.c
 
 %.relc : %.c
 	$(CC) $(CFLAGS) -DCHRONOSDONGLE -DCC1111 -c $<
@@ -75,12 +75,12 @@ donsapplication.hex: application.c $(libsusbd) $(apps1111d)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) $(apps1111) -DDONSDONGLES
 	packihx <application.ihx >bins/application.hex
 
-chronostestusbonly.hex: usbonly.c cc1111usb.rc global.relc
-	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DCHRONOSDONGLE
+chronostestusbonly.hex: usbonly.c chipcon_usb.rc global.relc
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c chipcon_usb.rel global.rel -DCHRONOSDONGLE
 	packihx <usbonly.ihx >bins/usbonly.hex
 
-donstestusbonly.hex: usbonly.c cc1111usb.rc global.reld
-	sdcc $(CFLAGS) $(LFLAGS) usbonly.c cc1111usb.rel global.rel -DDONSDONGLES
+donstestusbonly.hex: usbonly.c chipcon_usb.rc global.reld
+	sdcc $(CFLAGS) $(LFLAGS) usbonly.c chipcon_usb.rel global.rel -DDONSDONGLES
 	packihx <usbonly.ihx >bins/usbonly.hex
 
 #	may be helpful when we actually have one...
