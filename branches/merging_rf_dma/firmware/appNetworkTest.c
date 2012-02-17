@@ -77,7 +77,7 @@ void appMainLoop(void)
         testPacket[11] = 0x31;
         testPacket[12] = 0x31;
 
-        transmit(testPacket, 14, 1);
+        transmit(testPacket, 14);
         //blink(400,400);
         REALLYFASTBLINK();
 #ifndef VIRTUAL_COM

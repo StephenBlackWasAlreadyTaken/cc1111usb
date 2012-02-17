@@ -3,6 +3,8 @@
 
 #include <string.h>
 
+#define RFDMA
+
 /* Rx buffers */
 volatile __xdata u8 rfRxCurrentBuffer;
 volatile __xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
@@ -115,7 +117,7 @@ int waitRSSI()
 //***********************************************************************/
 
 /* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
-u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
+u8 transmit(__xdata u8* buf, u16 len)
 {
     u8 uiRSSITries = 5;
 
@@ -130,7 +132,11 @@ u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
 	}
 
     /* If DMA transfer, disable rxtx interrupt */
-	RFTXRXIE = !bDma; 
+#ifndef RFDMA
+	RFTXRXIE = 1;
+#else
+    RFTXRXIE = 0;
+#endif
 
     // Copy userdata to tx buffer //
     memcpy(rftxbuf, buf, len);
@@ -139,7 +145,7 @@ u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
 	rfTxCounter = 0;
 
     /* Configure DMA struct */
-    if(bDma)
+#ifdef RFDMA
     {
         rfDMA.srcAddrH = ((u16)buf)>>8;
         rfDMA.srcAddrL = ((u16)buf)&0xff;
@@ -160,23 +166,24 @@ u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
         DMA0CFGH = ((u16)(&rfDMA))>>8;
         DMA0CFGL = ((u16)(&rfDMA))&0xff;
     }
+#endif
 
     // FIXME: why are we using waitRSSI()? and why all the NOP();s?
     // FIXME: nops should be "while (!(DMAIRQ & DMAARM1));"
     // FIXME: waitRSSI()?  not sure about that one.
 	/* Strobe to rx */
 	RFST = RFST_SRX;
-	while(!(MARCSTATE & MARC_STATE_RX));
-	/* wait for good RSSI, TODO change while loop this could hang forever */
-	do
-    {
-        uiRSSITries--;
-	} while(!waitRSSI() && uiRSSITries);
+    //while(!(MARCSTATE & MARC_STATE_RX));
+    //* wait for good RSSI, TODO change while loop this could hang forever */
+    //do
+    //{
+    //    uiRSSITries--;
+    //} while(!waitRSSI() && uiRSSITries);
 
-    if(uiRSSITries)
-    {
+    //if(uiRSSITries)
+    //{
         /* Arm DMA channel */
-        if(bDma)
+#ifdef RFDMA
         {
             DMAIRQ &= ~DMAARM0;
             DMAARM |= (0x80 | DMAARM0);
@@ -190,7 +197,8 @@ u8 transmit(__xdata u8* buf, u16 len, u8 bDma)
     	RFST = RFST_STX;
     	while(!(MARCSTATE & MARC_STATE_TX));
         return 1;
-    }
+#endif
+    //}
     return 0;
 }
 

@@ -66,7 +66,7 @@ int waitRSSI(void);
 void RxMode(void);
 void IdleMode(void);
 
-u8 transmit(__xdata u8*, u16 len, u8 bDma);
+u8 transmit(__xdata u8*, u16 len);
 void appInitRf(void);   // in application.c
 void startRX(u8 bDma);
 void stopRX(void);
