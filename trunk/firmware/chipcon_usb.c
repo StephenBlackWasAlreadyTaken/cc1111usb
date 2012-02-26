@@ -162,7 +162,6 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         }
 
 
-        len -= loop;
 
         DMAARM |= 0x80 + DMAARM1;
         usbdma.srcAddrH = ((u16)dataptr)>>8;
@@ -181,6 +180,10 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         
         USBCSIL |= USBCSIL_INPKT_RDY;
         ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
+
+        len -= loop;
+        dataptr += loop;
+
     }
     //EA=1;
 }
@@ -1271,8 +1274,8 @@ __code u8 USBDESCBEGIN [] = {
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
               '0', 0,
-              '8', 0,
-              '5', 0,
+              '6', 0,
+              '6', 0,
                                 
 // END OF STRINGS (len 0, type ff)
                0, 0xff

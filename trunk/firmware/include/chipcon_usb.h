@@ -6,7 +6,7 @@
 
 #define     EP0_MAX_PACKET_SIZE     32
 #define     EP5OUT_MAX_PACKET_SIZE  256
-#define     EP5IN_MAX_PACKET_SIZE   256
+#define     EP5IN_MAX_PACKET_SIZE   64
 
 #define     EP_STATE_IDLE      0
 #define     EP_STATE_TX        1
