@@ -18,8 +18,8 @@
 #include "bits.h"
 
 // used for debugging and tracing execution.  see client's ".getDebugCodes()"
-extern xdata u8 lastCode[2];
-extern xdata u32 clock;
+extern __xdata u8 lastCode[2];
+extern __xdata u32 clock;
 
 //////////////  DEBUG   //////////////
 //#define VIRTUAL_COM
