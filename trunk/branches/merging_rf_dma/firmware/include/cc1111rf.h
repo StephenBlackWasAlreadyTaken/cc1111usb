@@ -68,8 +68,8 @@ void IdleMode(void);
 
 u8 transmit(__xdata u8*, u16 len);
 void appInitRf(void);   // in application.c
-void startRX(u8 bDma);
+void startRX(void);
 void stopRX(void);
-void init_RF();
+void init_RF(void);
 
 #endif
