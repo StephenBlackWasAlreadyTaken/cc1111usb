@@ -36,30 +36,60 @@
 
 xdata u32 loopCnt;
 xdata u8 xmitCnt;
-xdata u8 platform_clock_freq;
 
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
 {
-    //registerCb_ep0Vendor( appHandleEP0Vendor );
-    registerCb_ep5( appHandleEP5 );
-
     loopCnt = 0;
     xmitCnt = 1;
 
+#ifdef RECEIVE_TEST
     RxMode();
+    //startRX();
+#endif
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
  * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
-    //  this is part of the NIC code to handle received RF packets and may be replaced/modified //
     xdata u8 processbuffer;
+#ifdef TRANSMIT_TEST
+    xdata u8 testPacket[14];
+
+
+    if (loopCnt++ == 90000)
+    {
+        /* Send a packet */
+        testPacket[0] = 0x0D;
+        testPacket[1] = xmitCnt++;
+        testPacket[2] = 0x48;
+        testPacket[3] = 0x41;
+        testPacket[4] = 0x4C;
+        testPacket[5] = 0x4C;
+        testPacket[6] = 0x4F;
+        //testPacket[6] = 0x43;
+        //testPacket[7] = 0x43;
+        testPacket[7] = lastCode[0];
+        testPacket[8] = lastCode[1];
+        testPacket[9] = 0x31;
+        testPacket[10] = 0x31;
+        testPacket[11] = 0x31;
+        testPacket[12] = 0x31;
+
+        transmit(testPacket, 14);
+        //blink(400,400);
+        REALLYFASTBLINK();
+#ifndef VIRTUAL_COM
+        debug("sent packet...");
+#endif
+        loopCnt = 0;
+    }
+#endif
 
     if (rfif)
     {
-        lastCode[0] = LC_MAIN_RFIF;
+        lastCode[0] = 0xd;
         IEN2 &= ~IEN2_RFIE;
 
         if(rfif & RFIF_IRQ_DONE)
@@ -67,9 +97,12 @@ void appMainLoop(void)
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                if (PKTCTRL0&1)     // variable length packets have a leading "length" byte, let's skip it
+                    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer][1]);
+                else
+                    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
 
-                // Set receive buffer to processed so it can be used again //
+                /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
             }
         }
@@ -77,7 +110,6 @@ void appMainLoop(void)
         rfif = 0;
         IEN2 |= IEN2_RFIE;
     }
-    //////////////////////////////////////////////////////////////////////////////////////////////
 }
 
 /* appHandleEP5 gets called when a message is received on endpoint 5 from the host.  this is the 
@@ -109,24 +141,6 @@ int appHandleEP5()
     //   then process the data
     switch (cmd)
     {
-        /*
-        case CMD_RFMODE:
-            switch (*ptr++)
-            {
-                case RF_STATE_RX:
-
-                    RxMode();
-                    break;
-                case RF_STATE_IDLE:
-                    IdleMode();
-                    break;
-                case RF_STATE_TX:
-                    transmit(ptr, len);
-                    break;
-            }
-            txdata(app,cmd,len,ptr);
-            break;
-            */
         default:
             break;
     }
@@ -135,6 +149,7 @@ int appHandleEP5()
     return 0;
 }
 
+
 /*************************************************************************************************
  *  here begins the initialization stuff... this shouldn't change much between firmwares or      *
  *  devices.                                                                                     *
@@ -142,6 +157,10 @@ int appHandleEP5()
 
 static void appInitRf(void)
 {
+    // initial radio state.  this is easily changed from the client, but
+    // most cases it's far superior to have a sane initial rf config.
+    // customize as desired, keeping in mind the impact any changes may
+    // have on the function of the firmware (assumptions abound)
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
     IOCFG0      = 0x00;
@@ -177,8 +196,8 @@ static void appInitRf(void)
     FSCAL2      = 0x2a;
     FSCAL1      = 0x00;
     FSCAL0      = 0x1f;
-    TEST2       = 0x88; // low data rates, increased sensitivity - was 0x88
-    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates, increased sensitivity - was 0x31
+    TEST2       = 0x88; // low data rates, increased sensitivity provided by 0x81- was 0x88
+    TEST1       = 0x31; // always 0x31 in tx-mode, for low data rates 0x35 provides increased sensitivity - was 0x31
     TEST0       = 0x09;
     PA_TABLE0   = 0x50;
 
@@ -218,65 +237,11 @@ static void appInitRf(void)
 
 }
 
-/* initialize the IO subsystems for the appropriate dongles */
-static void io_init(void)
-{
-#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
-    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
-    // to it's own Cypress USB chip
-    P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
-    P0DIR |= BIT4 | BIT6;       // SSEL and LED as output
-    P0 &= ~(BIT4 | BIT2);       // Drive SSEL and MISO low
-
-    P1IF = 0;                   // clear P1 interrupt flag
-    IEN2 |= IEN2_P1IE;          // enable P1 interrupt
-    P1IEN |= BIT1;              // enable interrupt for P1.1
-
-    P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
-    P1 &= ~BIT0;                // not ready to receive
-    
-#else       // CC1111
-#ifdef DONSDONGLES
-    // CC1111 USB Dongle
-    // turn on LED and BUTTON
-    P1DIR |= 3;
-    // Activate BUTTON - Do we need this?
-    //CC1111EM_BUTTON = 1;
-
-#else
-    // CC1111 USB (ala Chronos watch dongle), we just need LED
-    P1DIR |= 3;
-
-#endif      // CC1111
-
-#endif      // conditional config
-
-
-#ifndef VIRTUAL_COM
-    // Turn off LED
-    LED = 0;
-#endif
-}
-
-
-void clock_init(void){
-    //  SET UP CPU SPEED!  USE 26MHz for CC1110 and 24MHz for CC1111
-    // Set the system clock source to HS XOSC and max CPU speed,
-    // ref. [clk]=>[clk_xosc.c]
-    SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_S) );
-    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
-    while (CLKCON & CLKCON_OSC);
-    SLEEP |= SLEEP_OSC_PD;
-    while (!IS_XOSC_STABLE());
-}
-
 /*************************************************************************************************
  * main startup code                                                                             *
  *************************************************************************************************/
 void initBoard(void)
 {
-    platform_clock_freq = PLATFORM_CLOCK_FREQ;
     clock_init();
     io_init();
 }
@@ -286,17 +251,15 @@ void main (void)
 {
     initBoard();
     initUSB();
+    blink(300,300);
+
     init_RF();
     appMainInit();
 
+    usb_up();
 
     /* Enable interrupts */
     EA = 1;
-    usb_up();
-
-
-    // wait until the host identifies the usb device (the host timeouts are awfully fast)
-    waitForUSBsetup();
 
     while (1)
     {  

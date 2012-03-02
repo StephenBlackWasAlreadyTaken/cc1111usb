@@ -203,6 +203,7 @@ int appHandleEP5();
 #define     EP0_CMD_PING0                   0x03
 #define     EP0_CMD_PING1                   0x04
 #define     EP0_CMD_RESET                   0xfe
+#define     EP0_CMD_GET_FREQ                0xff
 
 #define     DEBUG_CMD_STRING    0xf0
 #define     DEBUG_CMD_HEX       0xf1

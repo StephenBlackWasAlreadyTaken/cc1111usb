@@ -117,29 +117,13 @@ u8 transmit(xdata u8* buf, u16 len)
     if (len == 0)
         len = buf[0];
 
-    /* Copy userdata to tx buffer */
+    // Copy userdata to tx buffer //
     memcpy(rftxbuf, buf, len);
 
-    /* Reset byte pointer */
+    // Reset byte pointer //
     rfTxCounter = 0;
 
-    //pDMACfg = buf;                //wtf was i thinking here?!?
-
-    /* Strobe to rx */
-    //RFST = RFST_SRX;
-    //while(!(MARCSTATE & MARC_STATE_RX));
-    /* wait for good RSSI (clear channel) */   ///// unnecessary when radio is in RX mode by default.
-    //while(!(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS)));
-    //while(1)
-    //{
-    //    if(PKTSTATUS & (PKTSTATUS_CCA | PKTSTATUS_CS))
-    //    {
-    //        break;
-    //    }
-    //}
-
-
-    /* Put radio into tx state */
+    // Put radio into tx state //
     RFST = RFST_STX;
     while(!(MARCSTATE & MARC_STATE_TX));
 
@@ -282,14 +266,14 @@ void IdleMode(void)
 
 void rfTxRxIntHandler(void) interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
 {   // currently dormant, in favor of DMA transfers
-    lastCode[0] = 17;
+    lastCode[0] = LC_RFTXRX_VECTOR;
 
     if(MARCSTATE == MARC_STATE_RX)
     {   // Receive Byte
         rfrxbuf[rfRxCurrentBuffer][rfRxCounter[rfRxCurrentBuffer]++] = RFD;
         if(rfRxCounter[rfRxCurrentBuffer] >= BUFFER_SIZE)
         {
-            rfRxCounter[rfRxCurrentBuffer] = BUFFER_SIZE;
+            rfRxCounter[rfRxCurrentBuffer] = BUFFER_SIZE-1;
         }
     }
     else if(MARCSTATE == MARC_STATE_TX)
@@ -313,8 +297,9 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
 {
     // which events trigger this interrupt is determined by RFIM (set in init_RF())
     // note: S1CON should be cleared before handling the RFIF flags.
-    lastCode[0] = 16;
+    lastCode[0] = LC_RF_VECTOR;
     S1CON &= ~(S1CON_RFIF_0 | S1CON_RFIF_1);
+    rfif |= RFIF;
 
     if (RFIF & RFIF_IRQ_SFD)
     {
@@ -369,8 +354,7 @@ void rfIntHandler(void) interrupt RF_VECTOR  // interrupt handler should trigger
         }
         else
         {
-            // FIXME: is rfif the best way to communicate that we've received a packet to appMain??
-            rfif |= RFIF;
+
             // FIXME: rfRxCurrentBuffer is used for both recv and sending on.... this should be separate.
             if(rfRxProcessed[!rfRxCurrentBuffer] == RX_PROCESSED)
             {
