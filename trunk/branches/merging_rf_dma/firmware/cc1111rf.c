@@ -28,9 +28,6 @@ volatile __xdata u8 bRepeatMode = 0;
  ************************************************************************************************/
 void init_RF()
 {
-    /* Init DMA channel */
-    DMA0CFGH = ((u16)(&rfDMA))>>8;
-    DMA0CFGL = ((u16)(&rfDMA))&0xff;
     // MAC variables
     rf_tLastRecv = 0;
 
@@ -58,6 +55,9 @@ void init_RF()
     // RF state
     rf_status = RF_STATE_IDLE;
 
+    /* Init DMA channel */
+    DMA0CFGH = ((u16)(&rfDMA))>>8;
+    DMA0CFGL = ((u16)(&rfDMA))&0xff;
 
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
@@ -117,13 +117,11 @@ int waitRSSI()
 }
 //***********************************************************************/
 
-/* Functions contains attempt for DMA but not working yet, please leave bDma 0 */
 u8 transmit(__xdata u8* buf, u16 len)
 {
-    u8 uiRSSITries = 5;
-
-	/* Put radio into idle state */
-	setRFIdle();
+    //u8 uiRSSITries = 5;
+	// /* Put radio into idle state */
+	// setRFIdle();
 
 	/* If len is empty, assume first byte is the length */
 	if(len == 0)
@@ -142,8 +140,8 @@ u8 transmit(__xdata u8* buf, u16 len)
     // Copy userdata to tx buffer //
     memcpy(rftxbuf, buf, len);
 
-	/* Reset byte pointer */
-	rfTxCounter = 0;
+    // Reset byte pointer //
+    rfTxCounter = 0;
 
     /* Configure DMA struct */
 #ifdef RFDMA
@@ -172,8 +170,9 @@ u8 transmit(__xdata u8* buf, u16 len)
     // FIXME: why are we using waitRSSI()? and why all the NOP();s?
     // FIXME: nops should be "while (!(DMAIRQ & DMAARM1));"
     // FIXME: waitRSSI()?  not sure about that one.
+	// FIXME: doublecheck CCA enabled and that we're in RX mode
 	/* Strobe to rx */
-	RFST = RFST_SRX;
+	//RFST = RFST_SRX;
     //while(!(MARCSTATE & MARC_STATE_RX));
     //* wait for good RSSI, TODO change while loop this could hang forever */
     //do
@@ -182,10 +181,10 @@ u8 transmit(__xdata u8* buf, u16 len)
     //} while(!waitRSSI() && uiRSSITries);
 
     //if(uiRSSITries)
-    //{
-        /* Arm DMA channel */
+    {
 #ifdef RFDMA
         {
+	        /* Arm DMA channel */
             DMAIRQ &= ~DMAARM0;
             DMAARM |= (0x80 | DMAARM0);
             NOP(); NOP(); NOP(); NOP();
@@ -194,12 +193,12 @@ u8 transmit(__xdata u8* buf, u16 len)
             NOP(); NOP(); NOP(); NOP();
             NOP(); NOP(); NOP(); NOP();
         }
+#endif
 	    /* Put radio into tx state */
     	RFST = RFST_STX;
     	while(!(MARCSTATE & MARC_STATE_TX));
         return 1;
-#endif
-    //}
+    }
     return 0;
 }
 
@@ -266,6 +265,7 @@ void startRX(void)
 #endif
 
 	RFST = RFST_SRX;
+    while(!(MARCSTATE & MARC_STATE_RX));
 
 	RFIM |= RFIF_IRQ_DONE;
 }
@@ -323,7 +323,7 @@ void RepeaterStop()
 //void dmaIntHandler(void) __interrupt DMA_VECTOR // Interrupt handler for DMA */
 
 void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR  // interrupt handler should transmit or receive the next byte
-{
+{   // dormant, in favor of DMA transfers (ifdef RFDMA)
     lastCode[0] = LC_RFTXRX_VECTOR;
 
     if(MARCSTATE == MARC_STATE_RX)
@@ -343,7 +343,6 @@ void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR  // interrupt handler shou
     }
     RFTXRXIF = 0;
 }
-
 
 void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigger on rf events
 {
@@ -385,7 +384,7 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
                 /* Set both buffers to unprocessed */
                 rfRxProcessed[FIRST_BUFFER] = RX_UNPROCESSED;
                 rfRxProcessed[SECOND_BUFFER] = RX_UNPROCESSED;
-                if(bRxDMA)
+#ifdef RFDMA
                 {
                     /* Switch DMA buffer */
                     rfDMA.destAddrH = ((u16)&rfrxbuf[rfRxCurrentBuffer])>>8;
@@ -395,6 +394,7 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
                     NOP(); NOP(); NOP(); NOP();
                     NOP(); NOP(); NOP(); NOP();
                 }
+#endif
             }
             else
             {
@@ -409,7 +409,6 @@ void rfIntHandler(void) __interrupt RF_VECTOR  // interrupt handler should trigg
         }
         RFIF &= ~(RFIF_IRQ_DONE | RFIF_IRQ_TIMEOUT);        // OVF needs to be handled next...
     }
-
 
     // contingency - RX Overflow
     if(RFIF & RFIF_IRQ_RXOVF)

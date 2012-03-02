@@ -760,7 +760,6 @@ void handleCS0(void)
     }
     if (ep0iobuf.epstatus == EP_STATE_RX)
     {
-        //REALLYFASTBLINK();
         usb_recv_ep0OUT();
     }
     
@@ -1272,7 +1271,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '0', 0,
               '2', 0,
-              '0', 0,
+              '4', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
