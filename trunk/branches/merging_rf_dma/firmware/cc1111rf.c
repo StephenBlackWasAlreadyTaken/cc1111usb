@@ -10,7 +10,7 @@ volatile __xdata u8 rfRxCurrentBuffer;
 volatile __xdata u8 rfrxbuf[BUFFER_AMOUNT][BUFFER_SIZE];
 volatile __xdata u8 rfRxCounter[BUFFER_AMOUNT];
 volatile __xdata u8 rfRxProcessed[BUFFER_AMOUNT];
-volatile __xdata u8 bRxDMA;
+
 /* Tx buffers */
 volatile __xdata u8 rftxbuf[BUFFER_SIZE];
 volatile __xdata u8 rfTxCounter = 0;
@@ -207,10 +207,8 @@ void startRX(void)
     /* If DMA transfer, disable rxtx interrupt */
 #ifdef RFDMA
     RFTXRXIE = 0;
-    bRxDMA = 1;
 #else
     RFTXRXIE = 1;
-    bRxDMA = 0;
 #endif
 
     /* Clear rx buffer */
