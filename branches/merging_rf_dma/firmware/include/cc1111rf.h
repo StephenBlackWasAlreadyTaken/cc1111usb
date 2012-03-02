@@ -62,6 +62,8 @@ void rfTxRxIntHandler(void) __interrupt RFTXRX_VECTOR; // interrupt handler shou
 void rfIntHandler(void) __interrupt RF_VECTOR; // interrupt handler should trigger on rf events
 
 void setRFIdle(void);
+void setRFRx(void);
+void setRFTx(void);
 int waitRSSI(void);
 void RxMode(void);
 void IdleMode(void);
