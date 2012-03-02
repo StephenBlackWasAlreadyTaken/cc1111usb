@@ -123,12 +123,25 @@ u8 transmit(__xdata u8* buf, u16 len)
 	// /* Put radio into idle state */
 	// setRFIdle();
 
-	/* If len is empty, assume first byte is the length */
+	// If len is empty, assume first byte is the length
+    // if we're in FIXED mode, skip the first byte
+    // if we're in VARIABLE mode, make sure we copy the length byte + packet
 	if(len == 0)
 	{
 		len = buf[0];
-        len++;
-	}
+
+        switch (PKTCTRL0 & PKTCTRL0_LENGTH_CONFIG)
+        {
+            case PKTCTRL0_LENGTH_CONFIG_VAR:
+                len++;  // we need to send the length byte too...
+                break;
+            case PKTCTRL0_LENGTH_CONFIG_FIX:
+                buf++;  // skip sending the length byte
+                break;
+            default:
+                break;
+	    }
+    }
 
     /* If DMA transfer, disable rxtx interrupt */
 #ifndef RFDMA

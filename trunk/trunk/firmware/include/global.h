@@ -5,14 +5,11 @@
 
 #ifdef CC1111
   #include "cc1111.h"
-  #include "chipcon_usbdebug.h"
 #elif defined CC2531
   #include "cc2531.h"
-  #include "chipcon_usbdebug.h"
 #elif defined IMME
   #include <cc1110.h>
   #include "cc1110-ext.h"
-
 #endif
 
 #include "bits.h"
@@ -59,7 +56,7 @@ extern __xdata u32 clock;
     // CC1110 IMME pink dongle - 26mhz
     #define LED_RED   P2_3
     #define LED_GREEN P2_4
-    #define SLEEPTIMER  1100
+    #define SLEEPTIMER  1200
     #define PLATFORM_CLOCK_FREQ 26
     
  #include "immedisplay.h"
@@ -68,7 +65,7 @@ extern __xdata u32 clock;
  //#include "pm.h"
 
 #else
-    #define SLEEPTIMER  1200
+    #define SLEEPTIMER  1100
     #define PLATFORM_CLOCK_FREQ 24
 void usbIntHandler(void) interrupt P2INT_VECTOR;
 void p0IntHandler(void) interrupt P0INT_VECTOR;

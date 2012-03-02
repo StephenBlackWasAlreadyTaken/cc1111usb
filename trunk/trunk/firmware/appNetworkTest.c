@@ -1,5 +1,6 @@
 #include "cc1111rf.h"
 #include "global.h"
+#include "nic.h"
 
 #ifdef VIRTUAL_COM
     #include "cc1111.h"
@@ -97,7 +98,10 @@ void appMainLoop(void)
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                if (PKTCTRL0&1)     // variable length packets have a leading "length" byte, let's skip it
+                    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer][1]);
+                else
+                    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
 
                 /* Set receive buffer to processed so it can be used again */
                 rfRxProcessed[processbuffer] = RX_PROCESSED;

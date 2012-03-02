@@ -4,7 +4,6 @@
 #include "cc1110-ext.h"
 #include <cc1110.h>
 
-// uint8 addr;               // temporarily store the incoming address until *after* the STATUS stage of the transaction... then assign the address.
 
 
 
