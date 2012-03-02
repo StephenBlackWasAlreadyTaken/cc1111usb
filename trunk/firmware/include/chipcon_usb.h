@@ -154,6 +154,7 @@
 #define USB_DESC_STRING                 0x03
 #define USB_DESC_INTERFACE              0x04
 #define USB_DESC_ENDPOINT               0x05
+#define USB_DESC_DEVICE_QUALIFIER       0x06
 
 // usb_data bits
 #define USBD_CIF_SUSPEND        (u16)0x1

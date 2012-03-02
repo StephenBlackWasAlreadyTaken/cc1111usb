@@ -1,5 +1,6 @@
 #!/usr/bin/env ipython
-import sys, usb, threading, time, struct, select
+import sys, threading, time, struct, select
+import usb
 
 import bits
 from chipcondefs import *
@@ -66,6 +67,7 @@ DEBUG_CMD_HEX32                 = 0xf3
 DEBUG_CMD_INT                   = 0xf4
 
 EP5OUT_MAX_PACKET_SIZE          = 64
+EP5IN_MAX_PACKET_SIZE           = 64
 
 SYNCM_NONE                      = 0
 SYNCM_15_of_16                  = 1
@@ -228,13 +230,25 @@ class USBDongle:
 
         # claim that interface!
         do = dongles[self.idx][2]
+        
         try:
             do.claimInterface(0)
         except Exception,e:
             if console or self._debug: print >>sys.stderr,("Error claiming usb interface:" + repr(e))
 
 
+
         self.devnum, self._d, self._do = dongles[self.idx]
+        self._usbmaxi, self._usbmaxo = (EP5IN_MAX_PACKET_SIZE, EP5OUT_MAX_PACKET_SIZE)
+        self._usbcfg = self._d.configurations[0]
+        self._usbintf = self._usbcfg.interfaces[0][0]
+        self._usbeps = self._usbintf.endpoints
+        for ep in self._usbeps:
+            if ep.address & 0x80:
+                self._usbmaxi = ep.maxPacketSize
+            else:
+                self._usbmaxo = ep.maxPacketSize
+
         self._threadGo = True
 
     def resetup(self, console=True):
@@ -294,7 +308,7 @@ class USBDongle:
         if clear_recv_mbox:
             for key in self.recv_mbox.keys():
                 self.trash.extend(self.recvAll(key))
-        self.trash.append(self.recv_queue)
+        self.trash.append((time.time(),self.recv_queue))
         self.recv_queue = ''
         # self.xmit_queue = []          # do we want to keep this?
         self._threadGo = threadGo
@@ -396,6 +410,8 @@ class USBDongle:
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No error' in errstr):
                     pass
+                elif ('Operation timed out' in errstr):
+                    pass
                 else:
                     if ('could not release intf' in errstr):
                         pass
@@ -470,7 +486,7 @@ class USBDongle:
                                         #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],1
                                
                             else:            
-                                if self._debug:     sys.stderr.write('=')
+                                if self._debug>1:     sys.stderr.write('=')
 
                             msg = self.recv_queue
                             msglen = len(msg)
@@ -1685,7 +1701,7 @@ class USBDongle:
         if (level == 3):
             self.setMdmSyncMode(SYNCM_CARRIER_16_of_16)
         elif (level == 2):
-            self.setMdmSyncMode(SYNCM_16_of_16)
+            self.setMdmSyncMode(SYNCM_15_of_16)
         elif (level == 1):
             self.setMdmSyncMode(SYNCM_CARRIER)
         else:
@@ -1711,6 +1727,8 @@ class USBDongle:
             try:
                 y, t = self.RFrecv()
                 print "(%5.3f) Received:  %s" % (t, y.encode('hex'))
+                if lowball:
+                    y = '\xaa\xaa' + y
                 poss = bits.findDword(y)
                 if len(poss):
                     print "  possible Sync Dwords: %s" % repr([hex(x) for x in poss])

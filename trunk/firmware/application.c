@@ -1,8 +1,9 @@
 #include "cc1111rf.h"
 #include "global.h"
+#include "nic.h"
 
 #ifdef VIRTUAL_COM
-	#include "cc1111_vcom.h"
+    #include "cc1111_vcom.h"
 
     // FIXME: this belongs elsewhere...
     #define STATUS_TAG 0
@@ -27,7 +28,7 @@
     static __xdata uiDataPtr = 0;
     static __xdata u8 uiStatus = STATUS_TAG;
 #else
-    #include "cc1111usb.h"
+    #include "chipcon_usb.h"
 #endif
 
 /*************************************************************************************************
@@ -56,7 +57,6 @@
 
 __xdata u32 loopCnt;
 __xdata u8 xmitCnt;
-__xdata u8 uiRadioEu;
 
 int appHandleEP5(void);
 
@@ -89,7 +89,10 @@ void appMainLoop(void)
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                if (PKTCTRL0&1)     // variable length packets have a leading "length" byte, let's skip it
+                    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer][1]);
+                else
+                    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
 
                 // Set receive buffer to processed so it can be used again //
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
@@ -253,21 +256,15 @@ void initBoard(void)
 
 void main (void)
 {
-    uiRadioEu = 0;
-
     initBoard();
     initUSB();
-
-#ifdef RADIO_EU
-    uiRadioEu = 1;
-#endif
     init_RF();
+    appMainInit();
 
     /* Enable interrupts */
     EA = 1;
     usb_up();
 
-    appMainInit();
 
     // wait until the host identifies the usb device (the host timeouts are awfully fast)
     waitForUSBsetup();

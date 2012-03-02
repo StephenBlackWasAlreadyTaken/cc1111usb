@@ -1,6 +1,5 @@
 #include "global.h"
 #include "cc1111usb.h"
-// #include "cc1111rf.h"
 
 
 /*************************************************************************************************
@@ -62,64 +61,6 @@ int _usb_internal_handle_vendor(USB_Setup_Header* pReq);
 // * appstatus
 // * usb_data.usbstatus  - usb state overall...  (IDLE, SUSPEND, RESUME, RESET)
 // * ep#iobuf.ep_status  - endpoint status
-/*************************************************************************************************
- * experimental!  don't know the full ramifications of using this function yet.  it could cause  *
- * the universe to explode!                                                                      *
- ************************************************************************************************/
-void txdataold(u8 app, u8 cmd, u16 len, u8* dataptr)      // assumed EP5 for application use
-    // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
-    // wish me luck!  this could horribly crash and burn.
-{
-    u16 loop;
-    u8 firsttime=1;
-    USBINDEX=5;
-
-    while (len>0)
-     {
-        // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
-        // don't know why since this bit is cleared in the USB ISR.
-        loop = TXDATA_MAX_WAIT;
-        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                   // has last msg been recvd?
-        {
-            REALLYFASTBLINK();
-            lastCode[1] = LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN;
-            loop--;
-        }
-            
-        if (firsttime==1)
-        {                                             // first time through only please
-            firsttime=0;
-            USBF5 = 0x40;
-            USBF5 = app;
-            USBF5 = cmd;
-            USBF5 = len & 0xff;
-            USBF5 = len >> 8;
-            if (len>EP5IN_MAX_PACKET_SIZE-5)
-                loop=EP5IN_MAX_PACKET_SIZE-5;
-            else
-                loop=len;
-
-        } else 
-        {
-            if (len>EP5IN_MAX_PACKET_SIZE)
-                loop=EP5IN_MAX_PACKET_SIZE;
-            else
-                loop=len;
-        }
-
-
-        len -= loop;
-
-
-        for (;loop>0;loop--)
-        {
-            USBF5 = *dataptr++;
-        }
-        
-        USBCSIL |= USBCSIL_INPKT_RDY;
-        ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
-    }
-}
 
 void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for application use
     // gonna try this direct this time, and ignore all the "state tracking" for the endpoint.
@@ -134,7 +75,8 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         // if we do this in the loop, for some reason ep5iobuf.flags never clears between frames.  
         // don't know why since this bit is cleared in the USB ISR.
         loop = TXDATA_MAX_WAIT;
-        while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                 // has last msg been recvd?
+        //while (ep5iobuf.flags & EP_INBUF_WRITTEN && loop>0)                 // has last msg been recvd?
+        while (USBCSIL & USBCSIL_INPKT_RDY) // && loop>0)                 // has last msg been recvd?
         {
             REALLYFASTBLINK();
             lastCode[1] = LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN;
@@ -178,14 +120,14 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         while (!(DMAIRQ & DMAARM1));
         DMAIRQ &= ~DMAARM1;
         
+        USBINDEX=5;
         USBCSIL |= USBCSIL_INPKT_RDY;
-        ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
+        //ep5iobuf.flags |= EP_INBUF_WRITTEN;                         // set the 'written' flag
 
         len -= loop;
         dataptr += loop;
 
     }
-    //EA=1;
 }
 
 
@@ -349,20 +291,6 @@ int setup_sendx_ep0(xdata u8* payload, u16 length)
 
     return 0;
 }
-
-/*  unused????
-int setup_send_ep5(u8* payload, u16 length)
-{
-    if (ep5iobuf.epstatus != EP_STATE_IDLE)
-        return -1;
-
-    ep5iobuf.INbuf = payload;
-    ep5iobuf.INbytesleft = length;
-    ep5iobuf.epstatus = EP_STATE_TX;
-    
-    return 0;
-}
-*/
 
 void usb_arm_ep0IN(){
     /***********************
@@ -830,7 +758,7 @@ int _usb_internal_handle_vendor(USB_Setup_Header* pReq)
 }
 
 
-void handleOUTEP5(void)
+int handleOUTEP5(void)
 {
     // client is sending commands... or looking for information...  status... whatever...
     u16 len;
@@ -838,12 +766,12 @@ void handleOUTEP5(void)
     USBINDEX = 5;
     if (ep5iobuf.flags & EP_OUTBUF_WRITTEN)                     // have we processed the last OUTbuf?  don't want to clobber it.
     {
+        // // // // FIXME: forget the second memory buffering... rework this to use just the buffering in the usb controller // // // // 
         // FIXME: differentiate between SENT_STALL and SEND_STALL?   CLEAR THE STALLS!
-        ep5iobuf.epstatus = EP_STATE_STALL;
-        USBCSOL |= USBCSOL_SEND_STALL;
+        //USBCSOL |= USBCSOL_SEND_STALL;
         //blink(300,200);
         lastCode[1] = LCE_USB_EP5_OUT_WHILE_OUTBUF_WRITTEN;
-        return;
+        return -1;
     }
     ep5iobuf.flags |= EP_OUTBUF_WRITTEN;                        // track that we've read into the OUTbuf
 
@@ -851,6 +779,7 @@ void handleOUTEP5(void)
     ptr = &ep5iobuf.OUTbuf[0];
     while ((DMAIRQ & DMAARM1))
         blink(20,20);
+
     DMAARM |= 0x80 + DMAARM1;
     usbdma.srcAddrH = 0xde;     //USBF5 == 0xde2a
     usbdma.srcAddrL = 0x2a;
@@ -865,12 +794,11 @@ void handleOUTEP5(void)
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         lastCode[1] = LCE_USB_EP5_LEN_TOO_BIG;
-        ep5iobuf.epstatus = EP_STATE_STALL;
         USBCSOL |= USBCSOL_SEND_STALL;
         USBCSOL &= ~USBCSOL_OUTPKT_RDY;
         blink(300,200);
         blink(300,200);
-        return;
+        return -1;
     }
 
     //  DMA Trigger
@@ -878,6 +806,7 @@ void handleOUTEP5(void)
     DMAREQ |= DMAARM1;
 
     ep5iobuf.OUTlen = len;
+    return 0;
 }
 
 void processOUTEP5(void)
@@ -1025,6 +954,7 @@ void usbProcessEvents(void)
     if (USBCSIL & (USBCSIL_SENT_STALL))
     {
         USBCSIL &= ~(USBCSIL_SEND_STALL | USBCSIL_SENT_STALL);
+        lastCode[1] = LCE_USB_EP5_STALL;
         ep5iobuf.INbytesleft = 0;
         ep5iobuf.OUTlen = 0;
         ep5iobuf.epstatus = EP_STATE_IDLE;          // not sure about this.  perhaps check to see if state us RX or TX?
@@ -1032,6 +962,7 @@ void usbProcessEvents(void)
     if (USBCSOL & (USBCSOL_SENT_STALL))
     {
         USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
+        lastCode[1] = LCE_USB_EP5_STALL;
         ep5iobuf.INbytesleft = 0;
         ep5iobuf.OUTlen = 0;
         ep5iobuf.epstatus = EP_STATE_IDLE;          // not sure about this.  perhaps check to see if state us RX or TX?
@@ -1058,20 +989,11 @@ void usbProcessEvents(void)
     if (usb_data.event & (USBD_OIF_OUTEP5IF))
     {
         lastCode[0] = LC_USB_EP5OUT;
-        // FIXME: make this based on the USBCSIL.SENT_STALL and .SEND_STALL bits and clear both!
-        // FIXME: consider USBCSIL.FLUSH_PACKET effects as well, and consider flushing on SENT_STALL??.
-        if (ep5iobuf.epstatus == EP_STATE_STALL)                        // gotta clear this somewhere...
+        if (handleOUTEP5() != -1)                   // handles the immediate read into ep5iobuf
         {
-            //blink(200,200);
-            REALLYFASTBLINK();
-            lastCode[1] = LCE_USB_EP5_STALL;
-            ep5iobuf.epstatus = EP_STATE_IDLE;
-            USBINDEX=5;
-            USBCSOL &= 0x9f;                                            // clear both command (SEND_STALL) and status (SENT_STALL)
+            processOUTEP5();                            // process the data read into ep5iobuf
+            usb_data.event &= ~USBD_OIF_OUTEP5IF;
         }
-        handleOUTEP5();                             // handles the immediate read into ep5iobuf
-        processOUTEP5();                            // process the data read into ep5iobuf
-        usb_data.event &= ~USBD_OIF_OUTEP5IF;
         
     }
 
@@ -1104,7 +1026,6 @@ void usbIntHandler(void) __interrupt P2INT_VECTOR
 {
 
     while (!IS_XOSC_STABLE());
-    EA=0;
 
     // Set event flags for interpretation by main loop.  Since these registers are cleared upon read, we OR with the existing flags
     usb_data.event |= USBCIF;
@@ -1128,7 +1049,6 @@ void usbIntHandler(void) __interrupt P2INT_VECTOR
  
     // Clear the P2 interrupt flag
     USB_INT_CLEAR();                                // P2IFG= 0; P2IF= 0;
-    EA=1;
 
 }
 
@@ -1174,18 +1094,30 @@ __code u8 USBDESCBEGIN [] = {
 // Device descriptor
                18,                      // bLength 
                USB_DESC_DEVICE,         // bDescriptorType
-               0x00, 0x02,              // bcdUSB
-               0x02,                    // bDeviceClass i
+               LE_WORD(0x0200),              // bcdUSB
+               0x00,                    // bDeviceClass - defined at interface
                0x00,                    // bDeviceSubClass
                0x00,                    // bDeviceProtocol
                EP0_MAX_PACKET_SIZE,     //   EP0_PACKET_SIZE
-               0x51, 0x04,              // idVendor Texas Instruments
-               0x15, 0x47,              // idProduct CC1111
-               0x01, 0x00,              // bcdDevice             (change to hardware version)
+               LE_WORD(0x0451),         // idVendor Texas Instruments
+               LE_WORD(0x4715),         // idProduct CC1111
+               LE_WORD(0x0100),         // bcdDevice             (change to hardware version)
                0x01,                    // iManufacturer
                0x02,                    // iProduct
                0x03,                    // iSerialNumber
                0x01,                    // bNumConfigurations
+
+// Device Qualifier
+               10,                      // bLength 
+               USB_DESC_DEVICE_QUALIFIER,  // bDescriptorType
+               LE_WORD(0x0200),              // bcdUSB
+               0x00,                    // bDeviceClass - defined at interface
+               0x00,                    // bDeviceSubClass
+               0x00,                    // bDeviceProtocol
+               EP0_MAX_PACKET_SIZE,     //   EP0_PACKET_SIZE
+               0x01,                    // bNumConfigurations
+               0x00,                    // reserved
+
 // Configuration descriptor
                9,                       // bLength
                USB_DESC_CONFIG,         // bDescriptorType
@@ -1195,6 +1127,7 @@ __code u8 USBDESCBEGIN [] = {
                0x00,                    // iConfiguration
                0x80,                    // bmAttributes
                0xfa,                    // MaxPower
+
 // Interface descriptor
                9,                       // bLength
                USB_DESC_INTERFACE,      // bDescriptorType
@@ -1205,6 +1138,7 @@ __code u8 USBDESCBEGIN [] = {
                0xff,                    // bInterfaceSubClass
                0x01,                    // bInterfaceProcotol
                0x00,                    // iInterface
+
 // Endpoint descriptor (EP5 IN)
                7,                       // bLength
                USB_DESC_ENDPOINT,       // bDescriptorType
@@ -1270,8 +1204,8 @@ __code u8 USBDESCBEGIN [] = {
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
               '0', 0,
-              '6', 0,
               '9', 0,
+              '5', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
