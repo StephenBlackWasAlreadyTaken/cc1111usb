@@ -228,7 +228,7 @@ installtestxmitfw: testxmitapplication.hex
 	goodfet.cc info
 
 
-testall: chronosapplication.hex donsapplication.hex chronostestrecvusb.hex donstestrecvusb.hex chronostestxmitusb.hex donstestxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosSniff.hex donsSniff.hex immeSniff.hex
+testall: chronosapplication.hex donsapplication.hex chronostestrecvusb.hex donstestrecvusb.hex chronostestxmitusb.hex donstestxmitusb.hex testrecvapplication.hex testxmitapplication.hex chronosNIC.hex donsNIC.hex chronosFHSS.hex donsFHSS.hex chronosSniff.hex donsSniff.hex immeSniff.hex cc2531.hex
 ##immedongleapplication.hex 
 
 # testing should see that each enumerates correctly in linux

@@ -2,8 +2,30 @@
 #include "global.h"
 
 #ifdef VIRTUAL_COM
-    // #include "cc1111.h"
-    #include "cc1111_vcom.h"
+	#include "cc1111_vcom.h"
+
+    // FIXME: this belongs elsewhere...
+    #define STATUS_TAG 0
+    #define STATUS_LEN 1
+    #define STATUS_VAL 2
+    
+    #define TAG_MODE    0x01 /* Value is mode, IDLE,RX,TX */
+    #define TAG_SEND    0x02 /* Value is what to send */
+    #define TAG_STATUS  0x03 /* Value is the status value want to know, for example RSSI */
+    #define TAG_REG     0x04 /* Register values, value as register=value */
+
+    #define TLV_MAX_DATA 50    
+
+    typedef struct
+    {
+        u8 uiTag;
+        u8 uiLength;
+        u8 uiData[TLV_MAX_DATA];
+    } tlv_t;
+
+    static __xdata tlv_t tlv_recv,tlv_send;
+    static __xdata uiDataPtr = 0;
+    static __xdata u8 uiStatus = STATUS_TAG;
 #else
     #include "cc1111usb.h"
 #endif
@@ -32,8 +54,9 @@
  * Application Code - these first few functions are what should get overwritten for your app     *
  ************************************************************************************************/
 
-xdata u32 loopCnt;
-xdata u8 xmitCnt;
+__xdata u32 loopCnt;
+__xdata u8 xmitCnt;
+__xdata u8 uiRadioEu;
 
 int appHandleEP5(void);
 
@@ -54,7 +77,7 @@ void appMainInit(void)
 void appMainLoop(void)
 {
     //  this is part of the NIC code to handle received RF packets and may be replaced/modified //
-    xdata u8 processbuffer;
+    __xdata u8 processbuffer;
 
     if (rfif)
     {
@@ -95,7 +118,7 @@ int appHandleEP5()
 #ifndef VIRTUAL_COM
     u8 app, cmd;
     u16 len;
-    xdata u8 *buf;
+    __xdata u8 *buf;
 
     app = ep5iobuf.OUTbuf[4];
     cmd = ep5iobuf.OUTbuf[5];
@@ -217,8 +240,6 @@ static void appInitRf(void)
 
 }
 
-/* initialize the IO subsystems for the appropriate dongles */
-
 /*************************************************************************************************
  * main startup code                                                                             *
  *************************************************************************************************/
@@ -232,16 +253,21 @@ void initBoard(void)
 
 void main (void)
 {
+    uiRadioEu = 0;
+
     initBoard();
     initUSB();
-    init_RF();
-    appMainInit();
 
+#ifdef RADIO_EU
+    uiRadioEu = 1;
+#endif
+    init_RF();
 
     /* Enable interrupts */
     EA = 1;
     usb_up();
 
+    appMainInit();
 
     // wait until the host identifies the usb device (the host timeouts are awfully fast)
     waitForUSBsetup();
