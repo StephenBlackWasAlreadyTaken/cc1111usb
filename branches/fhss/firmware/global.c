@@ -21,7 +21,7 @@ void sleepMicros(int us)
 
 void blink_binary_baby_lsb(u16 num, char bits)
 {
-    EA=0;
+    //EA=0;
     LED = 1;
     sleepMillis(1000);
     LED = 0;
@@ -50,7 +50,7 @@ void blink_binary_baby_lsb(u16 num, char bits)
     }
     LED = 0;
     sleepMillis(1000);
-    EA=1;
+    //EA=1;
 }
 
 /*

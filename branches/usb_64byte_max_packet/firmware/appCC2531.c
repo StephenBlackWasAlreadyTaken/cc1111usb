@@ -1,12 +1,7 @@
-#include "cc1111rf.h"
 #include "global.h"
+#include "cc1111usb.h"
 
-#ifdef VIRTUAL_COM
-    #include "cc1111.h"
-    #include "cc1111_vcom.h"
-#else
-    #include "cc1111usb.h"
-#endif
+//SFR(WDCTL, 0xc9);
 
 /*************************************************************************************************
  * welcome to the cc1111usb application.
@@ -17,13 +12,11 @@
  * next, put code as follows:
  * * any initialization code that should happen at power up goes in appMainInit()
  * * the main application loop code should go in appMainLoop()
- * * usb interface code should go into appHandleEP5.  this includes a switch statement for any 
- *      verbs you want to create between the client on this firmware.
+ * * usb interface code: register a callback using register_Cb_ep5() as demonstrated in appMainInit()
  *
  * if you should need to change anything about the USB descriptors, do your homework!  particularly
  * keep in mind, if you change the IN or OUT max packetsize, you *must* change it in the 
- * EPx_MAX_PACKET_SIZE define, the desciptor definition (be sure to get the right one!) and should 
- * correspond to the setting of MAXI and MAXO.
+ * EPx_MAX_PACKET_SIZE define, and should correspond to the setting of MAXI and MAXO.
  * 
  * */
 
@@ -36,7 +29,8 @@
 
 xdata u32 loopCnt;
 xdata u8 xmitCnt;
-xdata u8 platform_clock_freq;
+
+int appHandleEP5(void);
 
 /* appMainInit() is called *before Interrupts are enabled* for various initialization things. */
 void appMainInit(void)
@@ -47,13 +41,14 @@ void appMainInit(void)
     loopCnt = 0;
     xmitCnt = 1;
 
-    RxMode();
+    //RxMode();
 }
 
 /* appMain is the application.  it is called every loop through main, as does the USB handler code.
  * do not block if you want USB to work.                                                           */
 void appMainLoop(void)
 {
+    /*
     //  this is part of the NIC code to handle received RF packets and may be replaced/modified //
     xdata u8 processbuffer;
 
@@ -67,7 +62,11 @@ void appMainLoop(void)
             processbuffer = !rfRxCurrentBuffer;
             if(rfRxProcessed[processbuffer] == RX_UNPROCESSED)
             {
-                txdata(0xfe, 0xf0, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer]);
+                // we've received a packet.  deliver it.
+                if (PKTCTRL0&1)     // variable length packets have a leading "length" byte, let's skip it
+                    txdata(APP_NIC, NIC_RECV, (u8)rfrxbuf[processbuffer][0], (u8*)&rfrxbuf[processbuffer][1]);
+                else
+                    txdata(APP_NIC, NIC_RECV, PKTLEN, (u8*)&rfrxbuf[processbuffer]);
 
                 // Set receive buffer to processed so it can be used again //
                 rfRxProcessed[processbuffer] = RX_PROCESSED;
@@ -76,7 +75,7 @@ void appMainLoop(void)
 
         rfif = 0;
         IEN2 |= IEN2_RFIE;
-    }
+    }*/
     //////////////////////////////////////////////////////////////////////////////////////////////
 }
 
@@ -142,6 +141,7 @@ int appHandleEP5()
 
 static void appInitRf(void)
 {
+#if 0
     IOCFG2      = 0x00;
     IOCFG1      = 0x00;
     IOCFG0      = 0x00;
@@ -215,68 +215,17 @@ static void appInitRf(void)
     //TEST0       = 0x09;
     //PA_TABLE0   = 0x83;
 #endif
-
-}
-
-/* initialize the IO subsystems for the appropriate dongles */
-static void io_init(void)
-{
-#ifdef IMMEDONGLE   // CC1110 on IMME pink dongle
-    // IM-ME Dongle.  It's a CC1110, so no USB stuffs.  Still, a bit of stuff to init for talking 
-    // to it's own Cypress USB chip
-    P0SEL |= (BIT5 | BIT3);     // Select SCK and MOSI as SPI
-    P0DIR |= BIT4 | BIT6;       // SSEL and LED as output
-    P0 &= ~(BIT4 | BIT2);       // Drive SSEL and MISO low
-
-    P1IF = 0;                   // clear P1 interrupt flag
-    IEN2 |= IEN2_P1IE;          // enable P1 interrupt
-    P1IEN |= BIT1;              // enable interrupt for P1.1
-
-    P1DIR |= BIT0;              // P1.0 as output, attention line to cypress
-    P1 &= ~BIT0;                // not ready to receive
-    
-#else       // CC1111
-#ifdef DONSDONGLES
-    // CC1111 USB Dongle
-    // turn on LED and BUTTON
-    P1DIR |= 3;
-    // Activate BUTTON - Do we need this?
-    //CC1111EM_BUTTON = 1;
-
-#else
-    // CC1111 USB (ala Chronos watch dongle), we just need LED
-    P1DIR |= 3;
-
-#endif      // CC1111
-
-#endif      // conditional config
-
-
-#ifndef VIRTUAL_COM
-    // Turn off LED
-    LED = 0;
 #endif
 }
 
-
-void clock_init(void){
-    //  SET UP CPU SPEED!  USE 26MHz for CC1110 and 24MHz for CC1111
-    // Set the system clock source to HS XOSC and max CPU speed,
-    // ref. [clk]=>[clk_xosc.c]
-    SLEEP &= ~SLEEP_OSC_PD;
-    while( !(SLEEP & SLEEP_XOSC_S) );
-    CLKCON = (CLKCON & ~(CLKCON_CLKSPD | CLKCON_OSC)) | CLKSPD_DIV_1;
-    while (CLKCON & CLKCON_OSC);
-    SLEEP |= SLEEP_OSC_PD;
-    while (!IS_XOSC_STABLE());
-}
+/* initialize the IO subsystems for the appropriate dongles */
 
 /*************************************************************************************************
  * main startup code                                                                             *
  *************************************************************************************************/
 void initBoard(void)
 {
-    platform_clock_freq = PLATFORM_CLOCK_FREQ;
+    // in global.c
     clock_init();
     io_init();
 }
@@ -286,7 +235,7 @@ void main (void)
 {
     initBoard();
     initUSB();
-    init_RF();
+    //init_RF();
     appMainInit();
 
 

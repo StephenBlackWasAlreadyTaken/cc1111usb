@@ -186,10 +186,10 @@ class USBDongle:
         self._debug = debug
         self._threadGo = False
         self.radiocfg = RadioConfig()
-        self.resetup()
-        self.recv_thread = threading.Thread(target=self.run)
+        self.recv_thread = threading.Thread(target=self.runEP5)
         self.recv_thread.setDaemon(True)
         self.recv_thread.start()
+        self.resetup()
 
     def cleanup(self):
         self._usberrorcnt = 0;
@@ -203,6 +203,7 @@ class USBDongle:
 
         idx = self.idx
         dongles = []
+        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
         for bus in usb.busses():
             for dev in bus.devices:
@@ -219,8 +220,6 @@ class USBDongle:
         self.rsema = threading.Lock()
         self.xsema = threading.Lock()
         self._do.claimInterface(0)
-        self._threadGo = True
-        self.ep5timeout = EP_TIMEOUT_ACTIVE
 
     def resetup(self, console=True):
         '''try:
@@ -229,6 +228,7 @@ class USBDongle:
             pass
         '''
         self._do=None
+        self._threadGo = True
         if console or self._debug: print >>sys.stderr,("waiting (resetup)")
         while (self._do==None):
             try:
@@ -239,6 +239,7 @@ class USBDongle:
                 if console: sys.stderr.write('.')
                 if console or self._debug: print >>sys.stderr,(repr(e))
                 time.sleep(1)
+        self._threadGo = True
 
 
 
@@ -289,12 +290,12 @@ class USBDongle:
 
 
     ######## TRANSMIT/RECEIVE THREADING ########
-    def run(self):
+    def runEP5(self):
         msg = ''
         self.threadcounter = 0
 
         while True:
-            if (not self._threadGo): 
+            if (self._do is None or not self._threadGo): 
                 time.sleep(.04)
                 continue
 
@@ -380,10 +381,6 @@ class USBDongle:
             except usb.USBError, e:
                 #sys.stderr.write(repr(self.recv_queue))
                 #sys.stderr.write(repr(e))
-                try:
-                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
-                except: 
-                    pass
 
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No such device' in repr(e)):
@@ -395,6 +392,7 @@ class USBDongle:
 
             #### parse, sort, and deliver the mail.
             try:
+                # FIXME: is this robust?  or just overcomplex?
                 if len(self.recv_queue):
                     idx = self.recv_queue.find('@')
                     if (idx==-1):
@@ -402,7 +400,7 @@ class USBDongle:
                             sys.stderr.write('@')
                     else:
                         if (idx>0):
-                            if self._debug: print >>sys.stderr,("run(): idx>0?")
+                            if self._debug: print >>sys.stderr,("runEP5(): idx>0?")
                             self.trash.append(self.recv_queue[:idx])
                             self.recv_queue = self.recv_queue[idx:]
                    
@@ -421,29 +419,38 @@ class USBDongle:
                                 self.recv_queue = self.recv_queue[length+5:]        # chop it out of the queue
 
                                 b = self.recv_mbox.get(app,None)
-                                self.rsema.acquire()                            # THREAD SAFETY DANCE
-                                if (b == None):
-                                    b = {}
-                                    self.recv_mbox[app] = b
-                                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                                if self.rsema.acquire():                            # THREAD SAFETY DANCE
+                                    #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],0
+                                    try:
+                                        if (b == None):
+                                            b = {}
+                                            self.recv_mbox[app] = b
+                                    except:
+                                        sys.excepthook(*sys.exc_info())
+                                    finally:
+                                        self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],0
                                
                                 q = b.get(cmd)
-                                self.rsema.acquire()                            # THREAD SAFETY DANCE
-                                if (q is None):
-                                    q = []
-                                    b[cmd] = q
+                                if self.rsema.acquire():                            # THREAD SAFETY DANCE
+                                    #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],1
+                                    try:
+                                        if (q is None):
+                                            q = []
+                                            b[cmd] = q
 
-                                q.append(msg)
-                                self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                                        q.append(msg)
+                                    except:
+                                        sys.excepthook(*sys.exc_info())
+                                    finally:
+                                        self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
+                                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],1
+                               
                             else:            
                                 if self._debug:     sys.stderr.write('=')
                         else:
                             if self._debug:     sys.stderr.write('.')
             except:
-                try:
-                    self.rsema.release()                            # THREAD SAFETY DANCE COMPLETE
-                except:
-                    pass
                 sys.excepthook(*sys.exc_info())
 
 
@@ -472,30 +479,24 @@ class USBDongle:
                 if b is not None:
                     q = b.get(cmd)
                     #print >>sys.stderr,"debug(recv) q='%s'"%repr(q)
-                    self.rsema.acquire(False)
-                    resp = q.pop(0)
-                    self.rsema.release()
-                    return resp
-            except IndexError:
-                #sys.excepthook(*sys.exc_info())
-                try:
-                    self.rsema.release()
-                except:
-                    pass
-                pass
-            except AttributeError:
-                #sys.excepthook(*sys.exc_info())
-                try:
-                    self.rsema.release()
-                except:
-                    pass
-                pass
+                    if q is not None and self.rsema.acquire(False):
+                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],2
+                        try:
+                            resp = q.pop(0)
+                            self.rsema.release()
+                            #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],2
+                            return resp[4:]
+                        except IndexError:
+                            pass
+                            #sys.excepthook(*sys.exc_info())
+                        except AttributeError:
+                            sys.excepthook(*sys.exc_info())
+                            pass
+                        self.rsema.release()
+                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],2
             except:
-                try:
-                    self.rsema.release()
-                except:
-                    pass
                 sys.excepthook(*sys.exc_info())
+
             time.sleep(.001)                                      # only hits here if we don't have something in queue
             
         raise(CC111xTimeoutException())
@@ -505,14 +506,24 @@ class USBDongle:
         if retval is not None:
             if cmd is not None:
                 b = retval
-                self.rsema.acquire()
-                retval = b.get(cmd)
-                b[cmd]=[]
-                self.rsema.release()
+                if self.rsema.acquire():
+                    #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],3
+                    try:
+                        retval = b.get(cmd)
+                        b[cmd]=[]
+                    except:
+                        sys.excepthook(*sys.exc_info())
+                    finally:
+                        self.rsema.release()
+                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],3
             else:
-                self.rsema.acquire()
-                self.recv_mbox[app]={}
-                self.rsema.release()
+                if self.rsema.acquire():
+                    #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],4
+                    try:
+                        self.recv_mbox[app]={}
+                    finally:
+                        self.rsema.release()
+                        #if self._debug: print ("rsema.UNlocked", "rsema.locked")[self.rsema.locked()],4
             return retval
 
     def send(self, app, cmd, buf, wait=10000):
@@ -587,6 +598,7 @@ class USBDongle:
             try:
                 r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
             except CC111xTimeoutException, e:
+                r = None
                 pass #print e
                 
             istop = time.time()
@@ -606,15 +618,15 @@ class USBDongle:
         
     def peek(self, addr, bytecount=1):
         r = self.send(APP_SYSTEM, SYS_CMD_PEEK, struct.pack("<HH", bytecount, addr))
-        return r[4:]
+        return r
 
     def poke(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE, struct.pack("<H", addr) + data)
-        return r[4:]
+        return r
     
     def pokeReg(self, addr, data):
         r = self.send(APP_SYSTEM, SYS_CMD_POKE_REG, struct.pack("<H", addr) + data)
-        return r[4:]
+        return r
             
     def getInterruptRegisters(self):
         regs = {}

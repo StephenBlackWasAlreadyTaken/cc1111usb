@@ -87,7 +87,7 @@ class FHSSNIC(USBDongle):
         r = self.send(APP_NIC, NIC_RFMODE, "%c"%rfmode + parms)
 
     def RFxmit(self, data):
-        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data)+1, data))
+        self.send(APP_NIC, NIC_XMIT, "%c%s" % (len(data), data))
 
     def RFrecv(self, timeout=100):
         return self.recv(APP_NIC, NIC_RECV, timeout)
@@ -177,15 +177,18 @@ u16 synched_chans           %x
         
     def getFHSSstate(self):
         state = self.send(APP_NIC, FHSS_GET_STATE, '')
-        print repr(state)
+        #print repr(state)
         state = ord(state[0])
         return FHSS_STATES[state], state
                                 
     def mac_SyncCell(self, CellID=0x0000):
         return self.send(APP_NIC, FHSS_START_SYNC, struct.pack("<H",CellID))
                 
-        
-        return 1
+    def setPktAddr(self, addr):
+        return self.poke(ADDR, chr(addr))
+
+    def getPktAddr(self):
+        return self.peek(ADDR)
 
 
 def unittest(dongle):

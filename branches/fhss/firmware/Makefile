@@ -42,10 +42,10 @@ cc1111usb.rd : cc1111usb.c
 	$(CC) $(CFLAGS) -DCHRONOSDONGLE -c $<
 
 %.reld : %.c
-	$(CC) $(CFLAGS) -DDONSDONGLES  -c $<
+	$(CC) $(CFLAGS) -DDONSDONGLES -c $<
 
 %.reli : %.c
-	$(CC) $(CFLAGS) -DIMMEDONGLE -DIMME  -c $<
+	$(CC) $(CFLAGS) -DIMMEDONGLE -DIMME -c $<
 
 chronosapplication.hex: application.c $(libsusbc)
 	sdcc $(CFLAGS) $(LFLAGS) application.c $(libsusb) -DCHRONOSDONGLE

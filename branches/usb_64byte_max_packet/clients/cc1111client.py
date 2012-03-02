@@ -1,5 +1,6 @@
 #!/usr/bin/env ipython
-import sys, usb, threading, time, struct, select
+import sys, threading, time, struct, select
+import usb
 
 import bits
 from chipcondefs import *
@@ -307,7 +308,7 @@ class USBDongle:
         if clear_recv_mbox:
             for key in self.recv_mbox.keys():
                 self.trash.extend(self.recvAll(key))
-        self.trash.append(self.recv_queue)
+        self.trash.append((time.time(),self.recv_queue))
         self.recv_queue = ''
         # self.xmit_queue = []          # do we want to keep this?
         self._threadGo = threadGo
@@ -408,6 +409,8 @@ class USBDongle:
                 errstr = repr(e)
                 if self._debug>4: print >>sys.stderr,repr(sys.exc_info())
                 if ('No error' in errstr):
+                    pass
+                elif ('Operation timed out' in errstr):
                     pass
                 else:
                     if ('could not release intf' in errstr):
@@ -1698,7 +1701,7 @@ class USBDongle:
         if (level == 3):
             self.setMdmSyncMode(SYNCM_CARRIER_16_of_16)
         elif (level == 2):
-            self.setMdmSyncMode(SYNCM_16_of_16)
+            self.setMdmSyncMode(SYNCM_15_of_16)
         elif (level == 1):
             self.setMdmSyncMode(SYNCM_CARRIER)
         else:
@@ -1724,6 +1727,8 @@ class USBDongle:
             try:
                 y, t = self.RFrecv()
                 print "(%5.3f) Received:  %s" % (t, y.encode('hex'))
+                if lowball:
+                    y = '\xaa\xaa' + y
                 poss = bits.findDword(y)
                 if len(poss):
                     print "  possible Sync Dwords: %s" % repr([hex(x) for x in poss])
