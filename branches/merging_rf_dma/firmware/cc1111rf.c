@@ -3,7 +3,7 @@
 
 #include <string.h>
 
-#define RFDMA
+// #define RFDMA
 
 /* Rx buffers */
 volatile __xdata u8 rfRxCurrentBuffer;
@@ -62,6 +62,7 @@ void init_RF()
     /* clear buffers */
     memset(rfrxbuf,0,(BUFFER_AMOUNT * BUFFER_SIZE));
 
+    appInitRf();
 
     /* Setup interrupts */
     RFTXRXIE = 1;                   // FIXME: should this be something that is enabled/disabled by usb?
@@ -79,14 +80,14 @@ void setRFRx(void)
 {
     RFST = RFST_SRX;
     while(!(MARCSTATE & MARC_STATE_RX));
-    rf_status = RF_STATE_IDLE;
+    rf_status = RF_STATE_RX;
 }
 
 void setRFTx(void)
 {
     RFST = RFST_STX;
     while(!(MARCSTATE & MARC_STATE_TX));
-    rf_status = RF_STATE_IDLE;
+    rf_status = RF_STATE_TX;
 }
 
 void setRFIdle(void)
@@ -202,11 +203,16 @@ u8 transmit(__xdata u8* buf, u16 len)
     return 0;
 }
 
-void startRX(u8 bDma)
+void startRX(void)
 {
     /* If DMA transfer, disable rxtx interrupt */
-    RFTXRXIE = !bDma;
-    bRxDMA = bDma;
+#ifdef RFDMA
+    RFTXRXIE = 0;
+    bRxDMA = 1;
+#else
+    RFTXRXIE = 1;
+    bRxDMA = 0;
+#endif
 
     /* Clear rx buffer */
     memset(rfrxbuf,0,BUFFER_SIZE);
@@ -228,7 +234,7 @@ void startRX(u8 bDma)
     S1CON &= ~(S1CON_RFIF_0|S1CON_RFIF_1);
     RFIF &= ~RFIF_IRQ_DONE;
 
-    if(bDma)
+#ifdef RFDMA
     {
         rfDMA.srcAddrH = ((u16)&X_RFD)>>8;
         rfDMA.srcAddrL = ((u16)&X_RFD)&0xff;
@@ -257,6 +263,7 @@ void startRX(u8 bDma)
         NOP(); NOP(); NOP(); NOP();
         NOP(); NOP(); NOP(); NOP();
     }
+#endif
 
 	RFST = RFST_SRX;
 
@@ -282,7 +289,7 @@ void RxMode(void)
     if (rf_status != RF_STATE_RX)
     {
         rf_status = RF_STATE_RX;
-        startRX(bRxDMA);
+        startRX();
     }
 }
 

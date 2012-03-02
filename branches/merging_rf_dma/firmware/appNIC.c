@@ -102,8 +102,9 @@ int appHandleEP5()
     cmd = ep5iobuf.OUTbuf[5];
     buf = &ep5iobuf.OUTbuf[6];
     //len = (u16)*buf;    - original firmware
-    len = (u8)*buf;         // FIXME: should we use this?  or the lower byte of OUTlen?
-    buf += 2;                                               // point at the address in memory
+    len = (u8)*buf++;         // FIXME: should we use this?  or the lower byte of OUTlen?
+    len += (u16)((*buf++) << 8);                                               // point at the address in memory
+
     // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
     //  then check the cmd

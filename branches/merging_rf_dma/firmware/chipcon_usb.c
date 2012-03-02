@@ -565,7 +565,6 @@ void handleCS0(void)
     u8  loop;
     u16 val;
     USBINDEX = 0;
-    //REALLYFASTBLINK();
 
     //** DEBUG: GETS HERE.... doesn't have to do anything in particular to show up in Linux logs...**/
     csReg = USBCS0;
@@ -606,7 +605,6 @@ void handleCS0(void)
                 *pReq = USBF0;
             }
 
-            //REALLYFASTBLINK();
             // handle by target and direction - skeleton shell... only interested in getting noticed and allowed to send shit down the usb interface!
             // Device Requests
             if (req.bmRequestType & USB_BM_REQTYPE_DIRMASK)                       // should be *sending* data, if any
@@ -762,7 +760,7 @@ void handleCS0(void)
     }
     if (ep0iobuf.epstatus == EP_STATE_RX)
     {
-        REALLYFASTBLINK();
+        //REALLYFASTBLINK();
         usb_recv_ep0OUT();
     }
     
@@ -914,7 +912,6 @@ void processOUTEP5(void)
                     loop += (u16)*ptr++ << 8;                               // hack, but it works
                     dptr = (xdata u8*) loop;
                     txdata(app, cmd, len, dptr);
-                    //REALLYFASTBLINK();
 
                     break;
                 case CMD_POKE:
@@ -1273,10 +1270,10 @@ __code u8 USBDESCBEGIN [] = {
                10,                      // bLength
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
-              '1', 0,
+              '0', 0,
               '2', 0,
-              '1', 0,
-                                
+              '0', 0,
+          
 // END OF STRINGS (len 0, type ff)
                0, 0xff
 };
