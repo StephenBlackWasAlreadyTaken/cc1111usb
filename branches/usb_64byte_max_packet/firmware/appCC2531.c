@@ -94,13 +94,13 @@ int appHandleEP5()
 #ifndef VIRTUAL_COM
     u8 app, cmd;
     u16 len;
-    xdata u8 *buf;
+    __xdata u8 *buf = &ep5.OUTbuf[0];
 
-    app = ep5.OUTbuf[4];
-    cmd = ep5.OUTbuf[5];
-    buf = &ep5.OUTbuf[6];
-    len = (u16)*buf;
-    buf += 2;                                               // point at the address in memory
+    app = *buf++;
+    cmd = *buf++;
+    len = (u8)*buf++;         // FIXME: should we use this?  or the lower byte of OUTlen?
+    len += (u16)((*buf++) << 8);                                               // point at the address in memory
+
     // ep5.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
     //  then check the cmd
