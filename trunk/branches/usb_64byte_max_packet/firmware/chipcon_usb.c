@@ -883,7 +883,8 @@ void processOUTEP5(void)
                         *ep5.dptr++ = *ptr++;
                     }
 
-                    txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
+                    if (ep5.OUTbytesleft == 0)
+                        txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
 
                     break;
                 case CMD_POKE_REG:
@@ -1258,7 +1259,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '1', 0,
               '0', 0,
-              '4', 0,
+              '5', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
