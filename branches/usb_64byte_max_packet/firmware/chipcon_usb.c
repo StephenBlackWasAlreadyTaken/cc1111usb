@@ -806,6 +806,8 @@ int handleOUTEP5(void)
         blink(300,200);
         blink(300,200);
         blink(300,200);
+        blink_binary_baby_lsb(len, 16);
+        USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
         return -1;
     }
 
@@ -1259,7 +1261,7 @@ __code u8 USBDESCBEGIN [] = {
               '0', 0,
               '1', 0,
               '0', 0,
-              '5', 0,
+              '8', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
