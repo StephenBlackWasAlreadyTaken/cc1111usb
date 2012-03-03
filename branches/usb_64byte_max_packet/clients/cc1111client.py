@@ -290,7 +290,8 @@ class USBDongle:
             else:
                 drain = buf[:]
             if self._debug: print >>sys.stderr,"XMIT:"+repr(drain)
-            self._do.bulkWrite(5, "\x00\x00\x00\x00" + drain, timeout)
+            #self._do.bulkWrite(5, "\x00\x00\x00\x00" + drain, timeout)
+            self._do.bulkWrite(5, drain, timeout)
 
     def _recvEP5(self, timeout=100):
         retary = ["%c"%x for x in self._do.bulkRead(0x85, 500, timeout)]
