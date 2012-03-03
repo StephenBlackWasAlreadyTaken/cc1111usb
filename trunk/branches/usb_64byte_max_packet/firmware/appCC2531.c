@@ -82,12 +82,12 @@ void appMainLoop(void)
  * main handler routine for the application as endpoint 0 is normally used for system stuff.
  *
  * important things to know:
- *  * your data is in ep5iobuf.OUTbuf, the length is ep5iobuf.OUTlen, and the first two bytes are
+ *  * your data is in ep5.OUTbuf, the length is ep5.OUTlen, and the first two bytes are
  *      going to be \x40\xe0.  just craft your application to ignore those bytes, as i have ni
  *      puta idea what they do.  
  *  * transmit data back to the client-side app through txdatai().  this function immediately 
  *      xmits as soon as any previously transmitted data is out of the buffer (ie. it blocks 
- *      while (ep5iobuf.flags & EP_INBUF_WRITTEN) and then transmits.  this flag is then set, and 
+ *      while (ep5.flags & EP_INBUF_WRITTEN) and then transmits.  this flag is then set, and 
  *      cleared by an interrupt when the data has been received on the host side.                */
 int appHandleEP5()
 {   // not used by VCOM
@@ -96,12 +96,12 @@ int appHandleEP5()
     u16 len;
     xdata u8 *buf;
 
-    app = ep5iobuf.OUTbuf[4];
-    cmd = ep5iobuf.OUTbuf[5];
-    buf = &ep5iobuf.OUTbuf[6];
+    app = ep5.OUTbuf[4];
+    cmd = ep5.OUTbuf[5];
+    buf = &ep5.OUTbuf[6];
     len = (u16)*buf;
     buf += 2;                                               // point at the address in memory
-    // ep5iobuf.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
+    // ep5.OUTbuf should have the following bytes to start:  <app> <cmd> <lenlow> <lenhigh>
     // check the application
     //  then check the cmd
     //   then process the data
@@ -128,7 +128,7 @@ int appHandleEP5()
         default:
             break;
     }
-    ep5iobuf.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
+    ep5.flags &= ~EP_OUTBUF_WRITTEN;                       // this allows the OUTbuf to be rewritten... it's saved until now.
 #endif
     return 0;
 }
