@@ -154,7 +154,7 @@ u8 transmit(__xdata u8* buf, u16 len)
     memcpy(rftxbuf, buf, len);
 
     // Reset byte pointer //
-	rfTxCounter = 0;
+    rfTxCounter = 0;
 
     /* Configure DMA struct */
 #ifdef RFDMA
@@ -174,7 +174,7 @@ u8 transmit(__xdata u8* buf, u16 len)
         rfDMA.irqMask = 0;
         rfDMA.srcInc = 1;
         rfDMA.destInc = 0;
-        
+
         DMA0CFGH = ((u16)(&rfDMA))>>8;
         DMA0CFGL = ((u16)(&rfDMA))&0xff;
     }
@@ -261,7 +261,7 @@ void startRX(void)
         rfDMA.irqMask = 0;
         rfDMA.srcInc = 0;
         rfDMA.destInc = 1;
-        
+
         DMA0CFGH = ((u16)(&rfDMA))>>8;
         DMA0CFGL = ((u16)(&rfDMA))&0xff;
         
@@ -275,10 +275,10 @@ void startRX(void)
     }
 #endif
 
-	RFST = RFST_SRX;
+    RFST = RFST_SRX;
     while(!(MARCSTATE & MARC_STATE_RX));
 
-	RFIM |= RFIF_IRQ_DONE;
+    RFIM |= RFIF_IRQ_DONE;
 }
 
 void stopRX(void)

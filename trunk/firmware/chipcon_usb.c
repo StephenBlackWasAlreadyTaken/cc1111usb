@@ -213,8 +213,8 @@ void usb_init(void)
     USBINDEX = 5;
     USBMAXI  = (EP5IN_MAX_PACKET_SIZE+7)>>3;    // these registers live in incrememnts of 8 bytes.  
     USBMAXO  = (EP5OUT_MAX_PACKET_SIZE+7)>>3;   // these registers live in incrememnts of 8 bytes.  
-    USBCSOH |= USBCSOH_AUTOCLEAR;               // when we drain the FIFO, automagically tell host
-    USBCSIH |= USBCSIH_AUTOSET;                 // when the buffer is full, automagically tell host
+    //USBCSOH |= USBCSOH_AUTOCLEAR;               // when we drain the FIFO, automagically tell host
+    //USBCSIH |= USBCSIH_AUTOSET;                 // when the buffer is full, automagically tell host
     ep5.epstatus   =  EP_STATE_IDLE;       // this tracks the status of our endpoint 5
     ep5.flags      =  0;
     ep5.INbytesleft=  0;
@@ -797,17 +797,17 @@ int handleOUTEP5(void)
     if (len > EP5OUT_MAX_PACKET_SIZE)                           // FIXME: if they wanna send too much data, do we accept what we can?  or bomb?
     {                                                           //  currently choosing to bomb.
         lastCode[1] = LCE_USB_EP5_LEN_TOO_BIG;
-        USBCSOL |= USBCSOL_SEND_STALL;
+        //USBCSOL |= USBCSOL_SEND_STALL;
         USBCSOL &= ~USBCSOL_OUTPKT_RDY;
-        blink(300,200);
-        blink(300,200);
-        blink(300,200);
-        blink(300,200);
-        blink(300,200);
-        blink(300,200);
-        blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
+        //blink(300,200);
         blink_binary_baby_lsb(len, 16);
-        USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
+        //USBCSOL &= ~(USBCSOL_SEND_STALL | USBCSOL_SENT_STALL);
         return -1;
     }
 
@@ -829,19 +829,27 @@ void processOUTEP5(void)
     u16 loop;
     xdata u8* ptr; 
 
-    if (ep5.OUTlen >= 4)           // OUTlen is per packet, OUTbytesleft is per transaction
-    {
+    //if (ep5.OUTlen >= 4)           // OUTlen is per packet, OUTbytesleft is per transaction
+    //{
         ptr = &ep5.OUTbuf[0];
-        if (ep5.OUTbytesleft == 0)
+        if (ep5.OUTbytesleft == 0 && ep5.OUTlen >=4)
         {
             ep5.OUTapp = *ptr++;
             ep5.OUTcmd = *ptr++;
-            ep5.OUTbytesleft =  (u16)*ptr++;
-            ep5.OUTbytesleft += (u16)*ptr++ << 8;
+            ep5.OUTbytesleft =  *ptr++;
+            ep5.OUTbytesleft += *ptr++ << 8;
+            debug("New...");
+            //debughex16(loop);
+            //debughex16(ep5.OUTlen);
+            //debughex16(ep5.OUTbytesleft);
 
             ep5.flags &= ~EP_OUTBUF_CONTINUED;
+
         } else
         {
+            debug("Continued...");
+            //debughex16(ep5.OUTbytesleft);
+            //debughex16((u16)ep5.dptr);
             ep5.flags |= EP_OUTBUF_CONTINUED;
         }
         
@@ -863,30 +871,42 @@ void processOUTEP5(void)
 
                     break;
                 case CMD_POKE:
-                    if (!(ep5.flags & EP_OUTBUF_CONTINUED))
+                    if (ep5.flags & EP_OUTBUF_CONTINUED)
                     {
+                        //debug("Poke Continued...");
+                        //debughex(ep5.flags);
+                        loop = ep5.OUTlen;
+                        if (loop > ep5.OUTbytesleft)
+                            loop = ep5.OUTbytesleft;
+                    } else {
+                        //debug("Poke New...");
                         loop =  *ptr++;
                         loop += *ptr++ << 8;
                         ep5.dptr = (xdata u8*) loop;                                // hack, but it works
+                        ep5.OUTbytesleft -= 2;                                      // skip the target address bytes
+
+                        loop = ep5.OUTlen - 6;
+                        if (loop > ep5.OUTbytesleft)
+                            loop = ep5.OUTbytesleft;
                     }
                     // FIXME: do we want to DMA here?
-                    
-                    loop = ep5.OUTbytesleft;
-                    if (loop > EP5OUT_MAX_PACKET_SIZE)
-                    {
-                        loop = EP5OUT_MAX_PACKET_SIZE;
-                    }
+                    //debughex16((u16)ep5.dptr);
+
 
                     ep5.OUTbytesleft -= loop;
-                    debughex16(loop);
+                    //debughex16(loop);
+                    //debughex16(ep5.OUTlen);
+                    //debughex16(ep5.OUTbytesleft);
 
                     for (;loop>0;loop--)
                     {
                         *ep5.dptr++ = *ptr++;
                     }
 
-                    if (ep5.OUTbytesleft == 0)
-                        txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
+                    //debugging!
+                    //ep5.OUTbytesleft = 0;
+                    //if (ep5.OUTbytesleft == 0)
+                    txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
 
                     break;
                 case CMD_POKE_REG:
@@ -905,7 +925,7 @@ void processOUTEP5(void)
                     }
 
                     ep5.OUTbytesleft -= loop;
-                    debughex16(loop);
+                    //debughex16(loop);
 
                     for (;loop>0;loop--)
                     {
@@ -959,9 +979,9 @@ void processOUTEP5(void)
                 cb_ep5();
             }
         }
-    } else {
-        lastCode[1] = LCE_USB_EP5_GOT_CRAP;                                            // got crap...
-    }
+    //} else {
+    //    lastCode[1] = LCE_USB_EP5_GOT_CRAP;                                            // got crap...
+    //}
     USBINDEX = 5;
     USBCSOL &= ~USBCSOL_OUTPKT_RDY;
 }
