@@ -214,7 +214,7 @@ void usb_init(void)
     USBMAXI  = (EP5IN_MAX_PACKET_SIZE+7)>>3;    // these registers live in incrememnts of 8 bytes.  
     USBMAXO  = (EP5OUT_MAX_PACKET_SIZE+7)>>3;   // these registers live in incrememnts of 8 bytes.  
     //USBCSOH |= USBCSOH_AUTOCLEAR;               // when we drain the FIFO, automagically tell host
-    //USBCSIH |= USBCSIH_AUTOSET;                 // when the buffer is full, automagically tell host
+    USBCSIH |= USBCSIH_AUTOSET;                 // when the buffer is full, automagically tell host
     ep5.epstatus   =  EP_STATE_IDLE;       // this tracks the status of our endpoint 5
     ep5.flags      =  0;
     ep5.INbytesleft=  0;
@@ -838,7 +838,7 @@ void processOUTEP5(void)
             ep5.OUTcmd = *ptr++;
             ep5.OUTbytesleft =  *ptr++;
             ep5.OUTbytesleft += *ptr++ << 8;
-            debug("New...");
+            //debug("New...");
             //debughex16(loop);
             //debughex16(ep5.OUTlen);
             //debughex16(ep5.OUTbytesleft);
@@ -847,7 +847,7 @@ void processOUTEP5(void)
 
         } else
         {
-            debug("Continued...");
+            //debug("Continued...");
             //debughex16(ep5.OUTbytesleft);
             //debughex16((u16)ep5.dptr);
             ep5.flags |= EP_OUTBUF_CONTINUED;
@@ -905,8 +905,8 @@ void processOUTEP5(void)
 
                     //debugging!
                     //ep5.OUTbytesleft = 0;
-                    //if (ep5.OUTbytesleft == 0)
-                    txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
+                    if (ep5.OUTbytesleft == 0)
+                        txdata(ep5.OUTapp, ep5.OUTcmd, 2, ep5.OUTbytesleft);
 
                     break;
                 case CMD_POKE_REG:
@@ -1279,9 +1279,9 @@ __code u8 USBDESCBEGIN [] = {
                10,                      // bLength
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
+              '1', 0,
+              '3', 0,
               '0', 0,
-              '9', 0,
-              '6', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
