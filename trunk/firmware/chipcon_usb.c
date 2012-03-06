@@ -78,7 +78,7 @@ void txdata(u8 app, u8 cmd, u16 len, xdata u8* dataptr)      // assumed EP5 for 
         //while (ep5.flags & EP_INBUF_WRITTEN && loop>0)                 // has last msg been recvd?
         while (USBCSIL & USBCSIL_INPKT_RDY) // && loop>0)                 // has last msg been recvd?
         {
-            REALLYFASTBLINK();
+            //REALLYFASTBLINK();
             lastCode[1] = LCE_USB_EP5_TX_WHILE_INBUF_WRITTEN;
             loop--;
         }
@@ -829,6 +829,8 @@ void processOUTEP5(void)
     u16 loop;
     xdata u8* ptr; 
 
+    // FIXME: buffer this receipt up to MAX_PACKET_SIZE (say, probably 256 bytes)... and do it so that all apps can benefit.
+
     //if (ep5.OUTlen >= 4)           // OUTlen is per packet, OUTbytesleft is per transaction
     //{
         ptr = &ep5.OUTbuf[0];
@@ -1280,8 +1282,8 @@ __code u8 USBDESCBEGIN [] = {
                USB_DESC_STRING,         // bDescriptorType
               '0', 0,
               '1', 0,
-              '3', 0,
-              '0', 0,
+              '4', 0,
+              '2', 0,
           
 // END OF STRINGS (len 0, type ff)
                0, 0xff
