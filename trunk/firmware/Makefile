@@ -112,8 +112,8 @@ donsSniff.hex: appSniff.c $(libsusbd) $(apps1111d)
 	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsusb) $(apps1111) -DCHRONOSDONGLE
 	packihx <appSniff.ihx >bins/donsSniff.hex
 
-immeSniff.hex: appSniff.c $(libsimme) $(appsid)
-	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsi) $(apps1111) -DIMME
+immeSniff.hex: appSniff.c $(libsimme) $(appsi)
+	sdcc $(CFLAGS) $(LFLAGS) appSniff.c $(libsi) $(apps1111i) -DIMME
 	packihx <appSniff.ihx >bins/immeSniff.hex
 
 chronostestxmitusb.hex: appNetworkTest.c $(libsusbc) $(apps1111c)
