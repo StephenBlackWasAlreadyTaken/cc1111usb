@@ -138,3 +138,199 @@ def findDwordDoubled(byts):
 
 #def test():
 
+def visBits(data):
+    pass
+
+
+
+def getBit(data, bit):
+    idx = bit / 8
+    bidx = bit % 8
+    char = data[idx]
+    return (ord(char)>>(7-bidx)) & 1
+
+
+
+def detectRepeatPatterns(data, size=64, minEntropy=.07):
+    c1 = 0
+    c2 = 0
+    d1 = 0
+    p1 = 0
+    mask = (1<<size) - 1
+    bitlen = 8*len(data)
+
+    while p1 < (bitlen-size-8):
+        d1 <<= 1
+        d1 |= getBit(data, p1)
+        d1 &= mask
+        #print bin(d1)
+
+        if c1 < (size):
+            p1 += 1
+            c1 += 1
+            continue
+
+        d2 = 0
+        p2 = p1+size
+        while p2 < (bitlen):
+            d2 <<= 1
+            d2 |= getBit(data, p2)
+            d2 &= mask
+            #print bin(d2)
+
+            if c2 < (size):
+                p2 += 1
+                c2 += 1
+                continue
+
+            if d1 == d2 and d1 > 0:
+                s1 = p1 - size
+                s2 = p2 - size
+                print "s1: %d\t  p1: %d\t  " % (s1, p1)
+                print "s2: %d\t  p2: %d\t  " % (s2, p2)
+                # complete the pattern until the numbers differ or meet
+                while True:
+                    p1 += 1
+                    p2 += 1
+                    #print "s1: %d\t  p1: %d\t  " % (s1, p1)
+                    #print "s2: %d\t  p2: %d\t  " % (s2, p2)
+                    if p2 >= bitlen:
+                        break
+
+                    b1 = getBit(data,p1)
+                    b2 = getBit(data,p2)
+
+                    if p1 == s2 or b1 != b2:
+                        break
+
+                length = p1 - s1
+                c2 = 0
+                p2 -= size
+
+                bitSection, ent = bitSectString(data, s1, s1+length)
+                if ent > minEntropy:
+                    print "success:"
+                    print "  * bit idx1: %4d (%4d bits) - '%s' %s" % (s1, length, bin(d1), bitSection.encode("hex"))
+                    print "  * bit idx2: %4d (%4d bits) - '%s'" % (s2, length, bin(d2))
+            #else:
+            #    print "  * idx1: %d - '%s'  * idx2: %d - '%s'" % (p1, d1, p2, d2)
+            p2 += 1
+        p1 += 1
+
+
+def bitSectString(string, startbit, endbit):
+    '''
+    bitsects a string... ie. chops out the bits from the middle of the string
+    returns the new string and the entropy (ratio of 0:1)
+    '''
+    ones = 0
+    zeros = 0
+    entropy = [zeros, ones]
+
+    s = ''
+    bit = startbit
+
+    Bidx = bit / 8
+    bidx = (bit % 8)
+
+    while bit < endbit:
+
+        byte1 = ord( string[Bidx] )
+        try:
+            byte2 = ord( string[Bidx+1] )
+        except IndexError:
+            byte2 = 0
+
+        byte = (byte1 << bidx) & 0xff
+        byte |= (byte2 >> (8-bidx))
+        #calculate entropy over the byte
+        for bi in range(8):
+            b = (byte>>bi) & 1
+            entropy[b] += 1
+
+        bit += 8
+        Bidx += 1
+
+        if bit > endbit:
+            diff = bit-endbit
+            mask = ~ ( (1<<diff) - 1 )
+            byte &= mask
+
+        s += chr(byte)
+    
+    ent = (min(entropy)+1.0) / (max(entropy)+1)
+    #print "entropy: %f" % ent
+    return (s, ent)
+
+
+        
+def genBitArray(string, startbit, endbit):
+    '''
+    bitsects a string... ie. chops out the bits from the middle of the string
+    returns the new string and the entropy (ratio of 0:1)
+    '''
+    binStr, ent = bitSectString(string, startbit, endbit)
+
+    s = []
+    for byte in binStr:
+        for bitx in range(7, -1, -1):
+            bit = (byte>>bitx) & 1
+            s.append(chr(0x30|bit))
+
+    return (s, ent)
+
+
+chars_top = [
+        " ", #000
+        " ", #001
+        "^", #010
+        "/", #011
+        " ", #100
+        " ", #101
+        "\\",#110
+        "-", #111
+        ]
+
+chars_mid = [
+        " ", #000
+        "|", #001
+        "#", #010
+        " ", #011
+        "|", #100
+        "#", #101
+        " ", #110
+        " ", #110
+        ]
+
+chars_bot = [
+        "-", #000
+        "/", #001
+        " ", #010
+        " ", #011
+        "\\",#100
+        "V", #101
+        " ", #110
+        " ", #110
+        ]
+
+
+def reprBitArray(bitAry, width=194):
+    top = []
+    mid = []
+    bot = []
+
+    # top line
+    for bindex in xrange(width):
+        aryidx = int((1.0 * bindex / width) * len(bitAry))
+        bits = 0
+        for bitx in range(3):
+            bits += bitAry[aryidix + bitx]
+            top.append( chars_top[ bits ] )
+            mid.append( chars_mid[ bits ] )
+            bot.append( chars_bot[ bits ] )
+
+    tops = "".join(top)
+    mids = "".join(mid)
+    bots = "".join(bot)
+    return "\n".join([tops, mids, bots])
+

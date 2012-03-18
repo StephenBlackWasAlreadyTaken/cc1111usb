@@ -178,7 +178,11 @@ for lcl in lcls.keys():
         LCS[lcl] = lcls[lcl]
         LCS[lcls[lcl]] = lcl
 
-class CC111xTimeoutException(Exception):
+def keystop():
+    return len(select.select([sys.stdin],[],[],0)[0])
+
+
+class ChipconUsbTimeoutException(Exception):
     def __str__(self):
         return "Timeout waiting for USB response."
 
@@ -217,7 +221,7 @@ class USBDongle:
         for bus in usb.busses():
             for dev in bus.devices:
                 if dev.idProduct == 0x4715:
-                    if console: print >>sys.stderr,(dev)
+                    if self._debug: print >>sys.stderr,(dev)
                     do = dev.open()
                     iSN = do.getDescriptor(1,0,50)[16]
                     devnum = dev.devnum
@@ -256,7 +260,7 @@ class USBDongle:
     def resetup(self, console=True):
         self._do=None
         #self._threadGo = True
-        if console or self._debug: print >>sys.stderr,("waiting (resetup) %x" % self.idx)
+        if self._debug: print >>sys.stderr,("waiting (resetup) %x" % self.idx)
         while (self._do==None):
             try:
                 self.setup(console)
@@ -602,9 +606,9 @@ class USBDongle:
             except:
                 sys.excepthook(*sys.exc_info())
 
-            time.sleep(.001)                                      # only hits here if we don't have something in queue
+            time.sleep(.0001)                                      # only hits here if we don't have something in queue
             
-        raise(CC111xTimeoutException())
+        raise(ChipconUsbTimeoutException())
 
     def recvAll(self, app, cmd=None):
         retval = self.recv_mbox.get(app,None)
@@ -705,7 +709,7 @@ class USBDongle:
             
             try:
                 r = self.send(APP_SYSTEM, SYS_CMD_PING, buf, wait)
-            except CC111xTimeoutException, e:
+            except ChipconUsbTimeoutException, e:
                 r = None
                 pass #print e
             r,rt = r
@@ -721,7 +725,7 @@ class USBDongle:
     def RESET(self):
         try:
             r = self.send(APP_SYSTEM, SYS_CMD_RESET, "RESET_NOW\x00")
-        except CC111xTimeoutException:
+        except ChipconUsbTimeoutException:
             pass
         
     def peek(self, addr, bytecount=1):
@@ -1214,7 +1218,7 @@ class USBDongle:
             raise(Exception("DRate does not translate into acceptable parameters.  Should you be changing this?"))
 
         drate = 1000000.0 * mhz * (256+drate_m) * pow(2,drate_e) / pow(2,28)
-        print "drate_e: %x   drate_m: %x   drate: %f Hz" % (drate_e, drate_m, drate)
+        if self._debug: print "drate_e: %x   drate_m: %x   drate: %f Hz" % (drate_e, drate_m, drate)
         
         radiocfg.mdmcfg3 = drate_m
         radiocfg.mdmcfg4 &= 0xf0
@@ -1743,7 +1747,7 @@ class USBDongle:
             self.RFxmit(data)
         sys.stdin.read(1)
 
-    def lowball(self, level=1, sync=0xaaaa):
+    def lowball(self, level=1, sync=0xaaaa, length=250, pqt=0, crc=False, fec=False, datawhite=False):
         '''
         this configures the radio to the lowest possible level of filtering, potentially allowing complete radio noise to come through as data.  very useful in some circumstances.
         level == 0 changes the Sync Mode to SYNCM_NONE (wayyy more garbage)
@@ -1752,15 +1756,16 @@ class USBDongle:
         level == 3 sets the Sync Mode to SYNCM_CARRIER_16_of_16 (requires a valid carrier detection and 16 of 16 bits of SYNC WORD match for the data to be considered a packet)
         '''
         if hasattr(self, '_last_radiocfg') and len(self._last_radiocfg):
-            raise(Exception('i simply will not allow you to run lowball() twice in a row!  lowballRestore() to restore the radio config from before last time you ran lowball'))
-        self._last_radiocfg = self.getRadioConfig()
+            print('not saving radio state.  already have one saved.  use lowballRestore() to restore the saved config and the next time you run lowball() the radio config will be saved.')
+        else:
+            self._last_radiocfg = self.getRadioConfig()
 
-        self.makePktFLEN(250)
-        self.setEnablePktCRC(False)
-        self.setEnableMdmFEC(False)
-        self.setEnablePktDataWhitening(False)
+        self.makePktFLEN(length)
+        self.setEnablePktCRC(crc)
+        self.setEnableMdmFEC(fec)
+        self.setEnablePktDataWhitening(datawhite)
         self.setMdmSyncWord(sync)
-        self.setPktPQT(0)
+        self.setPktPQT(pqt)
         
         if (level == 3):
             self.setMdmSyncMode(SYNCM_CARRIER_16_of_16)
@@ -1779,37 +1784,6 @@ class USBDongle:
         self._last_radiocfg = ''
 
    
-    def discover(self, debug=None, lowball=1, SyncWordMatchList=None):
-        oldebug = self._debug
-        print "Entering Lowball mode and searching for possible SyncWords"
-        self.lowball()
-        self.makePktFLEN(30)
-        if debug is not None:
-            self._debug = debug
-        while not len(select.select([sys.stdin],[],[],0)[0]):
-
-            try:
-                y, t = self.RFrecv()
-                print "(%5.3f) Received:  %s" % (t, y.encode('hex'))
-                if lowball:
-                    y = '\xaa\xaa' + y
-                poss = bits.findDword(y)
-                if len(poss):
-                    print "  possible Sync Dwords: %s" % repr([hex(x) for x in poss])
-
-                if SyncWordMatchList is not None:
-                    for x in poss:
-                        if x in SyncWordMatchList:
-                            print "MATCH WITH KNOWN SYNC WORD:" + hex(x)
-            except CC111xTimeoutException:
-                pass
-
-        sys.stdin.read(1)
-        self._debug = oldebug
-        self.lowballRestore()
-        print "Exiting..."
-
-
     def checkRepr(self, matchstr, checkval, maxdiff=0):
         starry = self.reprRadioConfig().split('\n')
         line,val = getValueFromReprString(starry, matchstr)
