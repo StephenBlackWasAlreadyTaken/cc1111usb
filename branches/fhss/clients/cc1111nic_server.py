@@ -73,7 +73,7 @@ class CC1111NIC_Server(cmd.Cmd):
 
     def startConfigThread(self):
         self._cfgthread = threading.Thread(target=self._cfgRun)
-        self._cfgthread.setDaemon(True)
+        self._cfgthread.daemon = True
         self._cfgthread.start()
 
     def _cfgRun(self):
