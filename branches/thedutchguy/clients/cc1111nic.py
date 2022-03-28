@@ -144,7 +144,7 @@ class USBDongle:
         self.radiocfg = RadioConfig()
         self.resetup()
         self.recv_thread = threading.Thread(target=self.run)
-        self.recv_thread.setDaemon(True)
+        self.recv_thread.daemon = True
         self.recv_thread.start()
 
     def cleanup(self):

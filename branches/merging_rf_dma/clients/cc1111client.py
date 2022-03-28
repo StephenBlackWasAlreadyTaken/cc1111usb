@@ -194,7 +194,7 @@ class USBDongle:
         self._recv_time = 0
         self.radiocfg = RadioConfig()
         self.recv_thread = threading.Thread(target=self.runEP5)
-        self.recv_thread.setDaemon(True)
+        self.recv_thread.daemon = True
         self.recv_thread.start()
         self.resetup()
 
